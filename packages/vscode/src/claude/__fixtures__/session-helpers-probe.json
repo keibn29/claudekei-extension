@@ -1,0 +1,1086 @@
+{
+  "listSessions": {
+    "countDefault": 89,
+    "countIncludeProgrammaticFalse": 0,
+    "limitOffset": [
+      "adbf0598-bb85-4ba6-9482-d805953920ea",
+      "366118f4-e56d-42a3-a255-078cc6882a83"
+    ],
+    "sampleEntry": {
+      "sessionId": "86ec896b-bbf6-4722-8c99-468b4ff272d7",
+      "summary": "Notes.md alpha capitalization",
+      "lastModified": 1791552349165,
+      "fileSize": 123095,
+      "customTitle": "Notes.md alpha capitalization",
+      "firstPrompt": "In notes.md use the Edit tool to change '- alpha' to '- ALPHA'. Reply 'done' only.",
+      "gitBranch": "HEAD",
+      "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox",
+      "createdAt": 1791552342921
+    },
+    "sortedByLastModifiedDesc": true,
+    "entries": [
+      {
+        "sessionId": "86ec896b-bbf6-4722-8c99-468b4ff272d7",
+        "summary": "Notes.md alpha capitalization",
+        "firstPrompt": "In notes.md use the Edit tool to change '- alpha' to '- ALPHA'. Reply 'done' only.",
+        "customTitle": "Notes.md alpha capitalization",
+        "createdAt": 1791552342921,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "adbf0598-bb85-4ba6-9482-d805953920ea",
+        "summary": "History of the bicycle",
+        "firstPrompt": "Write a detailed 600-word essay about the history of the bicycle. No preamble.",
+        "customTitle": "History of the bicycle",
+        "createdAt": 1791552330071,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "366118f4-e56d-42a3-a255-078cc6882a83",
+        "summary": "Ping localhost test",
+        "firstPrompt": "Use the Bash tool to run exactly: ping -c 40 127.0.0.1. Then reply 'finished'.",
+        "customTitle": "Ping localhost test",
+        "createdAt": 1791552321060,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "63c3f8b2-3295-4bc1-99aa-13028d3a17aa",
+        "summary": "Appending done to notes.md",
+        "firstPrompt": "Plan how to append the line 'done' to notes.md. When your plan is ready, call ExitPlanMode with it. Keep the plan to 2 bullets.",
+        "customTitle": "Appending done to notes.md",
+        "createdAt": 1791552308426,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "8de7c35d-382b-4e90-b360-d05f7a09dd93",
+        "summary": "Appending done to notes.md",
+        "firstPrompt": "Plan how to append the line 'done' to notes.md. When your plan is ready, call ExitPlanMode with it. Keep the plan to 2 bullets.",
+        "customTitle": "Appending done to notes.md",
+        "createdAt": 1791552294350,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "3d19bde4-4ec4-411a-a2bd-b4601e4fa791",
+        "summary": "AskUserQuestion color preference poll",
+        "firstPrompt": "Use the AskUserQuestion tool to ask me which colors I like. Make it a multiSelect question with options red, green, blue. Then tell me what I picked in one sentence.",
+        "customTitle": "AskUserQuestion color preference poll",
+        "createdAt": 1791552288120,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "8f9f5176-d15d-40bd-9c2c-086c36060093",
+        "summary": "Notes.md beta casing edit",
+        "firstPrompt": "In notes.md use the Edit tool to change '- beta' to '- BETA'. If denied, just say 'denied'.",
+        "customTitle": "Notes.md beta casing edit",
+        "createdAt": 1791552281197,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "fd0397c1-e54e-4cf2-a499-ce7d57223197",
+        "summary": "Notes.md list casing edits",
+        "firstPrompt": "In notes.md use the Edit tool to change '- alpha' to '- ALPHA', then in a separate Edit call change '- beta' to '- BETA'. Reply 'done' only.",
+        "customTitle": "Notes.md list casing edits",
+        "createdAt": 1791552272817,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "64eb68e2-3a6d-47a4-a588-0c943251f5b2",
+        "summary": "Notes.md alpha capitalization",
+        "firstPrompt": "In notes.md use the Edit tool to change '- alpha' to '- ALPHA'. Reply 'done' only.",
+        "customTitle": "Notes.md alpha capitalization",
+        "createdAt": 1791552265642,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "edc5ac95-a875-4059-96df-d4a3c68d0220",
+        "summary": "Read hello.txt first line",
+        "firstPrompt": "Use the Task tool with subagent_type general-purpose to read hello.txt and report its first line. Then reply with that line only.",
+        "customTitle": "Read hello.txt first line",
+        "createdAt": 1791552256903,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "b969ff11-33c3-44ae-a81e-de6acbb8c081",
+        "summary": "Read hello.txt first line",
+        "firstPrompt": "Use the Task tool with subagent_type general-purpose to read hello.txt and report its first line. Then reply with that line only.",
+        "customTitle": "Read hello.txt first line",
+        "createdAt": 1791552248728,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "21f58e7f-13cf-4eb8-aa4b-c39eb74e5e7b",
+        "summary": "Task tool reads hello.txt",
+        "firstPrompt": "Use the Task tool with subagent_type general-purpose to read hello.txt and report its first line. Then reply with that line only.",
+        "customTitle": "Task tool reads hello.txt",
+        "createdAt": 1791552240332,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "28ee118f-c58f-4953-b823-61ddd3579164",
+        "summary": "TodoWrite tool test",
+        "firstPrompt": "Use the TodoWrite tool to create a todo list with 3 items (a, b, c), then mark the first completed using TodoWrite again. Reply 'done' only.",
+        "customTitle": "TodoWrite tool test",
+        "createdAt": 1791552228044,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "18d63e0a-5f20-4583-b300-3bb313b9857b",
+        "summary": "TodoWrite tool test",
+        "firstPrompt": "Use the TodoWrite tool to create a todo list with 3 items (a, b, c), then mark the first completed using TodoWrite again. Reply 'done' only.",
+        "customTitle": "TodoWrite tool test",
+        "createdAt": 1791552216545,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "417f4d27-52c2-401c-a358-caa517c697b2",
+        "summary": "Bash mkdir and echo test",
+        "firstPrompt": "Use the Bash tool to run exactly: mkdir -p out && echo hi > out/a.txt && cat out/a.txt. Then reply 'done' only.",
+        "customTitle": "Bash mkdir and echo test",
+        "createdAt": 1791552210311,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "bd26a1d8-2fb0-4138-a779-f10dfa8dd806",
+        "summary": "Bash echo and ls",
+        "firstPrompt": "Use the Bash tool to run: echo hi && ls. Then reply 'done' only.",
+        "customTitle": "Bash echo and ls",
+        "createdAt": 1791552203303,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "b120b9e8-c724-493c-afe1-704cbb72dc87",
+        "summary": "Grep greet and Glob TS files",
+        "firstPrompt": "Use the Grep tool to search for 'greet' in the current directory, then use the Glob tool to list *.ts files. Reply 'done' only.",
+        "customTitle": "Grep greet and Glob TS files",
+        "createdAt": 1791552197325,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "3f097a04-ca17-4a57-9ace-f3e2e521804c",
+        "summary": "Write docs/out.txt fixture",
+        "firstPrompt": "Use the Write tool to create docs/out.txt with the content 'written by fixture'. Reply 'done' only.",
+        "customTitle": "Write docs/out.txt fixture",
+        "createdAt": 1791552193049,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "e5c00291-1059-4a6e-8853-595c130023a1",
+        "summary": "src/util.ts edits",
+        "firstPrompt": "In src/util.ts, make two separate Edit tool calls in the same response: change 'a + b' to 'b + a' and change '// TODO: add subtract' to '// TODO: add multiply'. Reply 'done' only.",
+        "customTitle": "src/util.ts edits",
+        "createdAt": 1791552187195,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "1e7991f1-4d5f-4aee-ad1f-0baf62d795fe",
+        "summary": "Greeting text in src/app.ts",
+        "firstPrompt": "In src/app.ts use the Edit tool to change 'Hello, ' to 'Hi, '. Reply 'done' only.",
+        "customTitle": "Greeting text in src/app.ts",
+        "createdAt": 1791552181338,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "78c7f21c-34dc-4ffa-abdf-04479825bb91",
+        "summary": "Reading hello.txt second line",
+        "firstPrompt": "Read hello.txt with the Read tool and tell me the second line, nothing else.",
+        "customTitle": "Reading hello.txt second line",
+        "createdAt": 1791552175489,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "28fae733-d638-4b1c-9f0c-04ff166d0dab",
+        "summary": "hello",
+        "firstPrompt": "hello",
+        "createdAt": 1791552172778,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "ea64eef7-c67f-42d5-99e9-26b18072d44e",
+        "summary": "Exact reply request",
+        "firstPrompt": "Reply with exactly: ok",
+        "customTitle": "Exact reply request",
+        "createdAt": 1791552165245,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "7e98ea3e-9c14-43f6-8dd6-e6e8dd7b3e7a",
+        "summary": "One",
+        "firstPrompt": "Reply with exactly: one",
+        "customTitle": "One",
+        "createdAt": 1791552151902,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "ce8f58d1-5807-4d45-8999-1361256b0c8a",
+        "summary": "One",
+        "firstPrompt": "Reply with exactly: one",
+        "customTitle": "One",
+        "createdAt": 1791552151872,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "60ffc0ea-221a-47e8-8f38-781c9277e669",
+        "summary": "Hello greeting reply",
+        "firstPrompt": "Reply with exactly: hello",
+        "customTitle": "Hello greeting reply",
+        "createdAt": 1791552148931,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "061c02c9-a8b3-4bdd-8a51-d7e03b8f1042",
+        "summary": "Bat and ball price puzzle",
+        "firstPrompt": "A bat and a ball cost 1.10 total; the bat costs 1.00 more than the ball. Think carefully, then give the ball price in one sentence.",
+        "customTitle": "Bat and ball price puzzle",
+        "createdAt": 1791552145334,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "5b2c799d-2375-437f-8353-34019ee88998",
+        "summary": "Bat and ball puzzle",
+        "firstPrompt": "A bat and a ball cost 1.10 total; the bat costs 1.00 more than the ball. Think carefully, then give the ball price in one sentence.",
+        "customTitle": "Bat and ball puzzle",
+        "createdAt": 1791552141112,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "bd2b552d-3a81-45c6-b924-ca9c31e2e4ee",
+        "summary": "Hello greeting reply",
+        "firstPrompt": "Reply with exactly: hello",
+        "customTitle": "Hello greeting reply",
+        "createdAt": 1791552137055,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "2da5176a-d241-453e-8109-920967a5eb99",
+        "summary": "Renamed by W0 probe",
+        "firstPrompt": "Reply with exactly: hello",
+        "customTitle": "Renamed by W0 probe",
+        "createdAt": 1791551820000,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "5a37cc98-6cee-4211-bd47-e747917ccef0",
+        "summary": "History of the bicycle",
+        "firstPrompt": "Write a detailed 600-word essay about the history of the bicycle. No preamble.",
+        "customTitle": "History of the bicycle",
+        "createdAt": 1791552022916,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "6a43bf8e-f092-4f7b-b86b-34efab306d2e",
+        "summary": "Ping localhost test",
+        "firstPrompt": "Use the Bash tool to run exactly: ping -c 40 127.0.0.1. Then reply 'finished'.",
+        "customTitle": "Ping localhost test",
+        "createdAt": 1791552013838,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "75c2d31b-e7a1-45b2-a4a3-21e421d1c3fa",
+        "summary": "Appending done to notes.md",
+        "firstPrompt": "Plan how to append the line 'done' to notes.md. When your plan is ready, call ExitPlanMode with it. Keep the plan to 2 bullets.",
+        "customTitle": "Appending done to notes.md",
+        "createdAt": 1791552000962,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "6e4466ab-6932-4e2e-8ab8-822c9bee49d6",
+        "summary": "Appending done to notes.md",
+        "firstPrompt": "Plan how to append the line 'done' to notes.md. When your plan is ready, call ExitPlanMode with it. Keep the plan to 2 bullets.",
+        "customTitle": "Appending done to notes.md",
+        "createdAt": 1791551984486,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "ea35dcd7-e51c-487d-ab8a-a2f6b2c3d79f",
+        "summary": "AskUserQuestion color preference poll",
+        "firstPrompt": "Use the AskUserQuestion tool to ask me which colors I like. Make it a multiSelect question with options red, green, blue. Then tell me what I picked in one sentence.",
+        "customTitle": "AskUserQuestion color preference poll",
+        "createdAt": 1791551979061,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "78e952c3-fc6c-486d-9d46-a977f48d3b65",
+        "summary": "notes.md beta casing edit",
+        "firstPrompt": "In notes.md use the Edit tool to change '- beta' to '- BETA'. If denied, just say 'denied'.",
+        "customTitle": "notes.md beta casing edit",
+        "createdAt": 1791551971877,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "d2de3ebe-c2a2-41a1-aebf-a7d7782dfaa5",
+        "summary": "Notes.md list case edits",
+        "firstPrompt": "In notes.md use the Edit tool to change '- alpha' to '- ALPHA', then in a separate Edit call change '- beta' to '- BETA'. Reply 'done' only.",
+        "customTitle": "Notes.md list case edits",
+        "createdAt": 1791551963398,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "37497696-30b0-4153-a58e-bdfaf0c7d374",
+        "summary": "Notes.md alpha capitalization edit",
+        "firstPrompt": "In notes.md use the Edit tool to change '- alpha' to '- ALPHA'. Reply 'done' only.",
+        "customTitle": "Notes.md alpha capitalization edit",
+        "createdAt": 1791551955802,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "9165d3d4-4c22-4f4a-8209-b9d7b5181e81",
+        "summary": "Reading hello.txt first line",
+        "firstPrompt": "Use the Task tool with subagent_type general-purpose to read hello.txt and report its first line. Then reply with that line only.",
+        "customTitle": "Reading hello.txt first line",
+        "createdAt": 1791551945780,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "5eee2f28-89eb-4ccb-b1ac-5298abd35971",
+        "summary": "Read hello.txt first line via Task",
+        "firstPrompt": "Use the Task tool with subagent_type general-purpose to read hello.txt and report its first line. Then reply with that line only.",
+        "customTitle": "Read hello.txt first line via Task",
+        "createdAt": 1791551937161,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "791bb5b6-3287-4819-9813-3d962abc15fb",
+        "summary": "Read hello.txt first line",
+        "firstPrompt": "Use the Task tool with subagent_type general-purpose to read hello.txt and report its first line. Then reply with that line only.",
+        "customTitle": "Read hello.txt first line",
+        "createdAt": 1791551928574,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "fe951f6e-22ad-410a-9b25-a924013ed835",
+        "summary": "TodoWrite tool test",
+        "firstPrompt": "Use the TodoWrite tool to create a todo list with 3 items (a, b, c), then mark the first completed using TodoWrite again. Reply 'done' only.",
+        "customTitle": "TodoWrite tool test",
+        "createdAt": 1791551921031,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "a5c062bb-a69d-49cd-b226-63267a0fb929",
+        "summary": "TodoWrite tool test",
+        "firstPrompt": "Use the TodoWrite tool to create a todo list with 3 items (a, b, c), then mark the first completed using TodoWrite again. Reply 'done' only.",
+        "customTitle": "TodoWrite tool test",
+        "createdAt": 1791551907293,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "94ef768e-7051-4f43-a457-735f7fe1417d",
+        "summary": "Bash mkdir and cat test",
+        "firstPrompt": "Use the Bash tool to run exactly: mkdir -p out && echo hi > out/a.txt && cat out/a.txt. Then reply 'done' only.",
+        "customTitle": "Bash mkdir and cat test",
+        "createdAt": 1791551901990,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "775ffa5a-a7e4-498d-bfdd-1bf513fd34a1",
+        "summary": "Bash echo and ls",
+        "firstPrompt": "Use the Bash tool to run: echo hi && ls. Then reply 'done' only.",
+        "customTitle": "Bash echo and ls",
+        "createdAt": 1791551896777,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "995eec25-e3fc-4641-910a-2ec5da5c4a4c",
+        "summary": "Grep greet and Glob TS files",
+        "firstPrompt": "Use the Grep tool to search for 'greet' in the current directory, then use the Glob tool to list *.ts files. Reply 'done' only.",
+        "customTitle": "Grep greet and Glob TS files",
+        "createdAt": 1791551889959,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "26669c1a-7fb9-4785-a935-7535c65e5060",
+        "summary": "Write docs/out.txt fixture",
+        "firstPrompt": "Use the Write tool to create docs/out.txt with the content 'written by fixture'. Reply 'done' only.",
+        "customTitle": "Write docs/out.txt fixture",
+        "createdAt": 1791551883760,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "6d13c714-91f9-49a2-9211-7cb4379c8fea",
+        "summary": "Util.ts add and TODO edits",
+        "firstPrompt": "In src/util.ts, make two separate Edit tool calls in the same response: change 'a + b' to 'b + a' and change '// TODO: add subtract' to '// TODO: add multiply'. Reply 'done' only.",
+        "customTitle": "Util.ts add and TODO edits",
+        "createdAt": 1791551876919,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "62574511-1c26-4917-87e1-50db4a3a2b3f",
+        "summary": "src/app.ts greeting text change",
+        "firstPrompt": "In src/app.ts use the Edit tool to change 'Hello, ' to 'Hi, '. Reply 'done' only.",
+        "customTitle": "src/app.ts greeting text change",
+        "createdAt": 1791551870760,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "0f6b44fb-759d-4b3c-b853-c7f06d571b26",
+        "summary": "Reading hello.txt second line",
+        "firstPrompt": "Read hello.txt with the Read tool and tell me the second line, nothing else.",
+        "customTitle": "Reading hello.txt second line",
+        "createdAt": 1791551865083,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "00e4ed21-fb85-4d6c-b758-19f7b364bd7c",
+        "summary": "hello",
+        "firstPrompt": "hello",
+        "createdAt": 1791551861946,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "6743b38c-7968-4c03-b74c-cb8dd219c49c",
+        "summary": "Reply with exact ok",
+        "firstPrompt": "Reply with exactly: ok",
+        "customTitle": "Reply with exact ok",
+        "createdAt": 1791551853672,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "7e90ffa5-625e-41e2-9d5e-b8290bb1f863",
+        "summary": "One",
+        "firstPrompt": "Reply with exactly: one",
+        "customTitle": "One",
+        "createdAt": 1791551840671,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "3e764f82-f182-411e-ab1a-1f1b06214fbe",
+        "summary": "One",
+        "firstPrompt": "Reply with exactly: one",
+        "customTitle": "One",
+        "createdAt": 1791551840640,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "25f0f5c8-1390-497b-b35d-5ebe08708087",
+        "summary": "Hello greeting reply",
+        "firstPrompt": "Reply with exactly: hello",
+        "customTitle": "Hello greeting reply",
+        "createdAt": 1791551833069,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "b3406f2f-2c9e-43ca-8977-34c1e57655a8",
+        "summary": "Bat and ball price puzzle",
+        "firstPrompt": "A bat and a ball cost 1.10 total; the bat costs 1.00 more than the ball. Think carefully, then give the ball price in one sentence.",
+        "customTitle": "Bat and ball price puzzle",
+        "createdAt": 1791551829539,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "cba6d0c6-301f-47f5-8c3f-0769ae15a287",
+        "summary": "Bat and ball price puzzle",
+        "firstPrompt": "A bat and a ball cost 1.10 total; the bat costs 1.00 more than the ball. Think carefully, then give the ball price in one sentence.",
+        "customTitle": "Bat and ball price puzzle",
+        "createdAt": 1791551825560,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "e248a5a1-75e0-4fa3-bd76-083215447664",
+        "summary": "Hello greeting reply",
+        "firstPrompt": "Reply with exactly: hello",
+        "customTitle": "Hello greeting reply",
+        "createdAt": 1791551758093,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "e56c867c-0aae-4b85-b8e5-e679f22a9503",
+        "summary": "One",
+        "firstPrompt": "Reply with exactly: one",
+        "customTitle": "One",
+        "createdAt": 1791551646045,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "b6956bdd-4446-4973-9886-3f0948ec24e5",
+        "summary": "One",
+        "firstPrompt": "Reply with exactly: one",
+        "customTitle": "One",
+        "createdAt": 1791551646001,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "47743940-149c-4617-98d7-bdf3f54310ff",
+        "summary": "Appending 'done' to notes.md",
+        "firstPrompt": "Plan how to append the line 'done' to notes.md. When your plan is ready, call ExitPlanMode with it. Keep the plan to 2 bullets.",
+        "customTitle": "Appending 'done' to notes.md",
+        "createdAt": 1791551736439,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "bcf539b1-cf12-4fec-a87a-99e912282aab",
+        "summary": "Notes.md list casing edits",
+        "firstPrompt": "In notes.md use the Edit tool to change '- alpha' to '- ALPHA', then in a separate Edit call change '- beta' to '- BETA'. Reply 'done' only.",
+        "customTitle": "Notes.md list casing edits",
+        "createdAt": 1791551730999,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "d4eb083c-0c3f-4da0-bd7c-22c0b5b6ec33",
+        "summary": "History of the bicycle",
+        "firstPrompt": "Write a detailed 600-word essay about the history of the bicycle. No preamble.",
+        "customTitle": "History of the bicycle",
+        "createdAt": 1791551714613,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "5ecc5aed-496e-45ca-941b-661a5720eb38",
+        "summary": "History of the bicycle",
+        "firstPrompt": "Write a detailed 600-word essay about the history of the bicycle.",
+        "customTitle": "History of the bicycle",
+        "createdAt": 1791551705671,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "a9e36486-2019-42cc-92dc-0a2117e9643b",
+        "summary": "Bicycle history essay",
+        "firstPrompt": "Write a detailed 600-word essay about the history of the bicycle.",
+        "customTitle": "Bicycle history essay",
+        "createdAt": 1791551689332,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "0280dfd4-b0c4-488c-9bda-4be1c2f0a1a6",
+        "summary": "Ping localhost test",
+        "firstPrompt": "Use the Bash tool to run exactly: ping -c 40 127.0.0.1. Then reply 'finished'.",
+        "customTitle": "Ping localhost test",
+        "createdAt": 1791551680478,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "2a1c8083-baef-4348-b19b-29adcc1ad381",
+        "summary": "Simple acknowledgment reply",
+        "firstPrompt": "Reply with exactly: ok",
+        "customTitle": "Simple acknowledgment reply",
+        "createdAt": 1791551638107,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "fa2c16a6-5eff-4e4e-b0d3-76369f187c75",
+        "summary": "hello",
+        "firstPrompt": "hello",
+        "createdAt": 1791551635209,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "bb993f24-0b1c-46b1-b316-25c5b0122f92",
+        "summary": "Sleep 40 second delay",
+        "firstPrompt": "Use the Bash tool to run: sleep 40. Then reply 'finished'.",
+        "customTitle": "Sleep 40 second delay",
+        "createdAt": 1791551587649,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "a7669c15-e529-4756-9a0d-3f3bb2631a36",
+        "summary": "Appending done to notes.md",
+        "firstPrompt": "Plan how to append the line 'done' to notes.md. When your plan is ready, call ExitPlanMode with it. Keep the plan to 2 bullets.",
+        "customTitle": "Appending done to notes.md",
+        "createdAt": 1791551574183,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "bf4f6865-f709-41a4-baa0-dbfdfc5b5e82",
+        "summary": "AskUserQuestion color preference poll",
+        "firstPrompt": "Use the AskUserQuestion tool to ask me which colors I like. Make it a multiSelect question with options red, green, blue. Then tell me what I picked in one sentence.",
+        "customTitle": "AskUserQuestion color preference poll",
+        "createdAt": 1791551569588,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "9901582f-23eb-4ced-9f9e-194a9cfb80af",
+        "summary": "Read hello.txt first line",
+        "firstPrompt": "Use the Task tool with subagent_type general-purpose to read hello.txt and report its first line. Then reply with that line only.",
+        "customTitle": "Read hello.txt first line",
+        "createdAt": 1791551556139,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "d01a1c13-62f1-4f73-981d-bc380829c0d7",
+        "summary": "Read hello.txt first line via Task",
+        "firstPrompt": "Use the Task tool with subagent_type general-purpose to read hello.txt and report its first line. Then reply with that line only.",
+        "customTitle": "Read hello.txt first line via Task",
+        "createdAt": 1791551533861,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "ba66409b-f0e7-4d64-b7a8-abee86382c8b",
+        "summary": "Read hello.txt first line",
+        "firstPrompt": "Use the Task tool with subagent_type general-purpose to read hello.txt and report its first line. Then reply with that line only.",
+        "customTitle": "Read hello.txt first line",
+        "createdAt": 1791551526624,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "07087435-0ae1-4f0c-ab84-be32846bdd1e",
+        "summary": "TodoWrite tool test",
+        "firstPrompt": "Use the TodoWrite tool to create a todo list with 3 items (a, b, c), then mark the first completed using TodoWrite again. Reply 'done' only.",
+        "customTitle": "TodoWrite tool test",
+        "createdAt": 1791551513402,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "0434517e-d368-4243-b0b3-ccd5ad4ae99c",
+        "summary": "TodoWrite tool test",
+        "firstPrompt": "Use the TodoWrite tool to create a todo list with 3 items (a, b, c), then mark the first completed using TodoWrite again. Reply 'done' only.",
+        "customTitle": "TodoWrite tool test",
+        "createdAt": 1791551488454,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "c2b90c3e-399c-4873-b460-d62817944f1e",
+        "summary": "TodoWrite tool test",
+        "firstPrompt": "Use the TodoWrite tool to create a todo list with 3 items (a, b, c), then mark the first completed using TodoWrite again. Reply 'done' only.",
+        "customTitle": "TodoWrite tool test",
+        "createdAt": 1791551474319,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "e1bf7ad3-eeb6-431d-b59b-129cc4849825",
+        "summary": "Grep greet and Glob TS files",
+        "firstPrompt": "Use the Grep tool to search for 'greet' in the current directory, then use the Glob tool to list *.ts files. Reply 'done' only.",
+        "customTitle": "Grep greet and Glob TS files",
+        "createdAt": 1791551469362,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "749ba99f-10d4-41e0-8cf4-c8a1fba33a60",
+        "summary": "Bash file write test",
+        "firstPrompt": "Use the Bash tool to run exactly: mkdir -p out && echo hi > out/a.txt && cat out/a.txt. Then reply 'done' only.",
+        "customTitle": "Bash file write test",
+        "createdAt": 1791551464099,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "26abdb62-8ecc-45f3-9c51-ad49a5370f11",
+        "summary": "Notes.md beta casing edit",
+        "firstPrompt": "In notes.md use the Edit tool to change '- beta' to '- BETA'. If denied, just say 'denied'.",
+        "customTitle": "Notes.md beta casing edit",
+        "createdAt": 1791551444501,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "49b41388-03fb-4fb7-8956-723aa7f97b6b",
+        "summary": "src/util.ts edits",
+        "firstPrompt": "In src/util.ts, make two separate Edit tool calls in the same response: change 'a + b' to 'b + a' and change '// TODO: add subtract' to '// TODO: add multiply'. Reply 'done' only.",
+        "customTitle": "src/util.ts edits",
+        "createdAt": 1791551439018,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "8676c139-319c-4618-99cf-db89a378a8f5",
+        "summary": "In notes.md use the Edit tool to change '- alpha' to '- ALPHA'. Reply 'done' only.",
+        "firstPrompt": "In notes.md use the Edit tool to change '- alpha' to '- ALPHA'. Reply 'done' only.",
+        "createdAt": 1791551434490,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "117d2a2f-95b0-47c6-b098-6ae5394d0b41",
+        "summary": "Bash echo and ls test",
+        "firstPrompt": "Use the Bash tool to run: echo hi && ls. Then reply 'done' only.",
+        "customTitle": "Bash echo and ls test",
+        "createdAt": 1791551429553,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "dcdab1f8-9803-4a62-b41d-3152c1e42544",
+        "summary": "Reading hello.txt second line",
+        "firstPrompt": "Read hello.txt with the Read tool and tell me the second line, nothing else.",
+        "customTitle": "Reading hello.txt second line",
+        "createdAt": 1791551424638,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "84235b34-ac40-4644-a46a-6d76a0c35c68",
+        "summary": "Docs/out.txt file write",
+        "firstPrompt": "Use the Write tool to create docs/out.txt with the content 'written by fixture'. Reply 'done' only.",
+        "customTitle": "Docs/out.txt file write",
+        "createdAt": 1791551419849,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "f626e5e1-d7fc-4940-a89b-41759b226cc4",
+        "summary": "src/app.ts greeting text change",
+        "firstPrompt": "In src/app.ts use the Edit tool to change 'Hello, ' to 'Hi, '. Reply 'done' only.",
+        "customTitle": "src/app.ts greeting text change",
+        "createdAt": 1791551407052,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "0d86fb93-272e-4c7d-b69d-7ae36977065d",
+        "summary": "Bat and ball price puzzle",
+        "firstPrompt": "A bat and a ball cost 1.10 total; the bat costs 1.00 more than the ball. Think carefully, then give the ball price in one sentence.",
+        "customTitle": "Bat and ball price puzzle",
+        "createdAt": 1791551398687,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "b3a22c0b-155b-40b2-8170-005b8e17b4e0",
+        "summary": "Multiplying 17 by 23",
+        "firstPrompt": "What is 17*23? Think it through, then answer in one short sentence.",
+        "customTitle": "Multiplying 17 by 23",
+        "createdAt": 1791551363182,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      },
+      {
+        "sessionId": "92474cfd-13d1-4584-a861-68bbaee08f19",
+        "summary": "Hello greeting reply",
+        "firstPrompt": "Reply with exactly: hello",
+        "customTitle": "Hello greeting reply",
+        "createdAt": 1791551327452,
+        "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+      }
+    ]
+  },
+  "getSessionInfo": {
+    "existing": {
+      "sessionId": "ce8f58d1-5807-4d45-8999-1361256b0c8a",
+      "summary": "One",
+      "lastModified": 1791552160329,
+      "fileSize": 124436,
+      "customTitle": "One",
+      "firstPrompt": "Reply with exactly: one",
+      "gitBranch": "HEAD",
+      "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox",
+      "createdAt": 1791552151872
+    },
+    "existingNoDir": true,
+    "missing": null
+  },
+  "getSessionMessages": {
+    "compact": {
+      "plainTypes": [
+        "user",
+        "user",
+        "user"
+      ],
+      "withSystemTypes": [
+        "system",
+        "user",
+        "user",
+        "user"
+      ],
+      "systemMessages": [
+        {
+          "type": "system",
+          "uuid": "6c958a15-85d9-4578-ada6-0cb64f2ec7e2",
+          "session_id": "ea64eef7-c67f-42d5-99e9-26b18072d44e",
+          "parent_tool_use_id": null,
+          "parent_agent_id": null,
+          "timestamp": "2026-10-09T13:22:51.517Z"
+        }
+      ]
+    },
+    "paging": [
+      {
+        "type": "assistant",
+        "uuid": "1d222ba5-fc1c-496a-9013-42a9f7879147"
+      },
+      {
+        "type": "user",
+        "uuid": "8689a562-539b-448c-9ec9-8a1e4d376860"
+      }
+    ],
+    "missingSession": [],
+    "messageKeys": [
+      "type",
+      "uuid",
+      "session_id",
+      "message",
+      "parent_tool_use_id",
+      "parent_agent_id",
+      "isCompactSummary",
+      "is_meta",
+      "timestamp"
+    ]
+  },
+  "renameSession": {
+    "info": {
+      "sessionId": "bd2b552d-3a81-45c6-b924-ca9c31e2e4ee",
+      "summary": "Renamed by W0 probe",
+      "lastModified": 1791552350285,
+      "fileSize": 100909,
+      "customTitle": "Renamed by W0 probe",
+      "firstPrompt": "Reply with exactly: hello",
+      "gitBranch": "HEAD",
+      "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox",
+      "createdAt": 1791552137055
+    },
+    "inList": {
+      "sessionId": "bd2b552d-3a81-45c6-b924-ca9c31e2e4ee",
+      "summary": "Renamed by W0 probe",
+      "lastModified": 1791552350285,
+      "fileSize": 100909,
+      "customTitle": "Renamed by W0 probe",
+      "firstPrompt": "Reply with exactly: hello",
+      "gitBranch": "HEAD",
+      "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox",
+      "createdAt": 1791552137055
+    }
+  },
+  "forkSession": {
+    "upToMessageId": "1d222ba5-fc1c-496a-9013-42a9f7879147",
+    "result": {
+      "sessionId": "df59e840-10ba-458d-a82a-8eb5c3e046ab"
+    },
+    "sourceMessageCount": 7,
+    "forkMessageCount": 2,
+    "forkMessageTypes": [
+      "user",
+      "assistant"
+    ],
+    "forkUuidsRemapped": true,
+    "forkInfo": {
+      "sessionId": "df59e840-10ba-458d-a82a-8eb5c3e046ab",
+      "summary": "W0 probe fork",
+      "lastModified": 1791552350334,
+      "fileSize": 40609,
+      "customTitle": "W0 probe fork",
+      "firstPrompt": "Reply with exactly: one",
+      "gitBranch": "HEAD",
+      "cwd": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox",
+      "createdAt": 1791552151897
+    }
+  },
+  "deleteSession": {
+    "jsonlExistedBefore": true,
+    "jsonlExistsAfter": false,
+    "infoAfter": null,
+    "deleteMissing": {
+      "error": "Session 00000000-0000-4000-8000-000000000000 not found in project directory for /private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+    }
+  },
+  "subagents": {
+    "taskSync": {
+      "ids": [
+        "a30911323c6257daf"
+      ],
+      "messages": [
+        {
+          "type": "user",
+          "uuid": "9eae1ea3-23f4-4a64-b538-91701a047849",
+          "session_id": "edc5ac95-a875-4059-96df-d4a3c68d0220",
+          "message": {
+            "role": "user",
+            "content": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox) and report its first line. Reply with only that first line, nothing else."
+          },
+          "parent_tool_use_id": "toolu_01AmQvCxbh9wpueEkoJJ7uo6",
+          "parent_agent_id": null,
+          "timestamp": "2026-10-09T13:24:19.089Z"
+        },
+        {
+          "type": "assistant",
+          "uuid": "e3c45394-f7a6-4d9e-b938-4c2d9cb6a3e8",
+          "session_id": "edc5ac95-a875-4059-96df-d4a3c68d0220",
+          "message": {
+            "model": "claude-haiku-5-5",
+            "id": "msg_011CfrjgroCGsq8hBswv2yCn",
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "toolu_01MZGRob2Zx4JceGFHRU2jZV",
+                "name": "Read",
+                "input": {
+                  "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt"
+                },
+                "caller": {
+                  "type": "direct"
+                }
+              }
+            ],
+            "container": null,
+            "stop_reason": "tool_use",
+            "stop_sequence": null,
+            "stop_details": null,
+            "usage": {
+              "input_tokens": 2,
+              "cache_creation_input_tokens": 4304,
+              "cache_read_input_tokens": 7181,
+              "output_tokens": 127,
+              "output_tokens_details": {
+                "thinking_tokens": 0
+              },
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 4304
+              },
+              "inference_geo": "not_available",
+              "iterations": [
+                {
+                  "input_tokens": 2,
+                  "output_tokens": 127,
+                  "cache_read_input_tokens": 7181,
+                  "cache_creation_input_tokens": 4304,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 4304,
+                    "ephemeral_1h_input_tokens": 0
+                  },
+                  "type": "message"
+                }
+              ],
+              "speed": "standard",
+              "fallback_credit": null
+            },
+            "input_transformations": [],
+            "diagnostics": null,
+            "context_management": null
+          },
+          "parent_tool_use_id": "toolu_01AmQvCxbh9wpueEkoJJ7uo6",
+          "parent_agent_id": null,
+          "timestamp": "2026-10-09T13:24:20.372Z"
+        },
+        {
+          "type": "user",
+          "uuid": "8dc183af-3559-4b99-8878-5c977e421810",
+          "session_id": "edc5ac95-a875-4059-96df-d4a3c68d0220",
+          "message": {
+            "role": "user",
+            "content": [
+              {
+                "tool_use_id": "toolu_01MZGRob2Zx4JceGFHRU2jZV",
+                "type": "tool_result",
+                "content": "1\thello from the sandbox\n2\tsecond line\n3\tthird line\n4\t"
+              }
+            ]
+          },
+          "parent_tool_use_id": "toolu_01AmQvCxbh9wpueEkoJJ7uo6",
+          "parent_agent_id": null,
+          "timestamp": "2026-10-09T13:24:20.393Z"
+        },
+        {
+          "type": "assistant",
+          "uuid": "255eb96d-fc5b-46e2-8f17-b716daad559c",
+          "session_id": "edc5ac95-a875-4059-96df-d4a3c68d0220",
+          "message": {
+            "model": "claude-haiku-5-5",
+            "id": "msg_011CfrjgxCeWX1cmwCJQH3Cw",
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "The user just wants the first line, so I'll reply with exactly \"hello from the sandbox\" and skip the auth notice entirely.\n\n",
+                "signature": "CAQSxgUKEAgSGAI4AUIIdGhpbmtpbmcSDP+Iyz6agRXe2GTpmhoM+NHIelSDBWgym6ffIjBcCioEwiTeuSzgYGcCwVv532cSBP9IZU/MzHesLyVGRgyqVfWzfYSd2moaK+R9dngq4wQ4hBVGPgqMqD2/mkPywQ6dcPWstSTBNxsPzsbaT49OmbeBZ92JoDxc6OFp4SlzoJKs3bRF4MDduokoOHioFbvxVArDMh/6DeO8DC7Qk1KHzcViPB7/1kR6rbWyXiXPXxj0NpTYqjZFYrR4MnUKZrG492POiVWLqZaWFN6XD5S6yIMuU7UukvlqZ+HHUy1sccLPR8Dwwi0q/ZYiMvt6uFHyy01WN8EzZEVv+bECH0+Yw2AoAyNuIwf5sqmaZsdIE6pXNGk4+UQpZhGHTPDwYuxQbz9lSHwGeOkbALXLzVJVsSiLTzoHQUuGYD/qZzCGGmtDl6z8KhRIok6hPX12UmEcLiX1ZZyRDD/ImmacQ0k5bqAu/uHlz/TYbi3BUOX5jdzF0aGc+4Y+qmSVLEThXP5pd9Z2moWIkmHQ3Kos4l1IBt64IRwWOtmoKEtZHR6Ry0lmddwxcZvBARCNuLyM5seLv5pyV6jpXR+4bSObrt/CMjZNP/ulcEXTD+Ig5vSNa+GvGzGh+j3i4R/PA6cI6OJsaMBrp8nbMfGUig1HaLYmAUAiUTuof6p+ojxOdxHngIMmPZ1mGDVQXQ5vHZlPEG9gbKWFhwvRiltNJ/5CzVCtn/upaTAD95CAq9sQF9lPaVy5BvcHZVE+onIJrEK+1tHQYQ+c10dwpW6RdLfh2MF2rYSstjsQ9BMJgJEJ9ni5DMgWdpm7zspEH1kapozoYMAuCbOSsvC5Oj8knepW0TrNc6mSlPJgLIRsxPdhojaZIIU4mUNPm91+hxt3Gi/tdh+fKUKpAKld35/hTh6WBsFANe0uJhgB"
+              }
+            ],
+            "container": null,
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "stop_details": null,
+            "usage": {
+              "input_tokens": 2,
+              "cache_creation_input_tokens": 1859,
+              "cache_read_input_tokens": 11485,
+              "output_tokens": 66,
+              "output_tokens_details": {
+                "thinking_tokens": 56
+              },
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 1859
+              },
+              "inference_geo": "not_available",
+              "iterations": [
+                {
+                  "input_tokens": 2,
+                  "output_tokens": 66,
+                  "cache_read_input_tokens": 11485,
+                  "cache_creation_input_tokens": 1859,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 1859,
+                    "ephemeral_1h_input_tokens": 0
+                  },
+                  "type": "message"
+                }
+              ],
+              "speed": "standard",
+              "fallback_credit": null
+            },
+            "input_transformations": [],
+            "diagnostics": null,
+            "context_management": null
+          },
+          "parent_tool_use_id": "toolu_01AmQvCxbh9wpueEkoJJ7uo6",
+          "parent_agent_id": null,
+          "timestamp": "2026-10-09T13:24:22.462Z"
+        },
+        {
+          "type": "assistant",
+          "uuid": "90b97c6a-aa84-4aa8-930a-533804a69a41",
+          "session_id": "edc5ac95-a875-4059-96df-d4a3c68d0220",
+          "message": {
+            "model": "claude-haiku-5-5",
+            "id": "msg_011CfrjgxCeWX1cmwCJQH3Cw",
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "hello from the sandbox"
+              }
+            ],
+            "container": null,
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "stop_details": null,
+            "usage": {
+              "input_tokens": 2,
+              "cache_creation_input_tokens": 1859,
+              "cache_read_input_tokens": 11485,
+              "output_tokens": 66,
+              "output_tokens_details": {
+                "thinking_tokens": 56
+              },
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 1859
+              },
+              "inference_geo": "not_available",
+              "iterations": [
+                {
+                  "input_tokens": 2,
+                  "output_tokens": 66,
+                  "cache_read_input_tokens": 11485,
+                  "cache_creation_input_tokens": 1859,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 1859,
+                    "ephemeral_1h_input_tokens": 0
+                  },
+                  "type": "message"
+                }
+              ],
+              "speed": "standard",
+              "fallback_credit": null
+            },
+            "input_transformations": [],
+            "diagnostics": null,
+            "context_management": null
+          },
+          "parent_tool_use_id": "toolu_01AmQvCxbh9wpueEkoJJ7uo6",
+          "parent_agent_id": null,
+          "timestamp": "2026-10-09T13:24:22.463Z"
+        }
+      ]
+    },
+    "taskBackground": {
+      "ids": [
+        "ad078cfd9c8f72062"
+      ],
+      "messageCount": 5
+    }
+  }
+}

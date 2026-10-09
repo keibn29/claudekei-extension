@@ -1,0 +1,342 @@
+{
+  "name": "claudekei",
+  "displayName": "ClaudeKei",
+  "description": "ClaudeKei VS Code extension for Claude (Claude Agent SDK)",
+  "version": "0.1.0",
+  "publisher": "kei29",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/keibn29/openkei.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "claude",
+    "agent",
+    "coding",
+    "assistant",
+    "claudekei"
+  ],
+  "icon": "assets/app-icon.png",
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onCommand:claudekei.openSidebar",
+    "onCommand:claudekei.cyclePrimaryAgent",
+    "onCommand:claudekei.attachExplorerToChat",
+    "onView:claudekei.chatView"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claudekei",
+          "title": "ClaudeKei",
+          "icon": "assets/app-icon.png"
+        }
+      ]
+    },
+    "views": {
+      "claudekei": [
+        {
+          "type": "webview",
+          "id": "claudekei.chatView",
+          "name": "Chat"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "claudekei.openSidebar",
+        "category": "ClaudeKei",
+        "title": "Open Sidebar",
+        "icon": {
+          "light": "assets/app-icon.png",
+          "dark": "assets/app-icon.png"
+        }
+      },
+      {
+        "command": "claudekei.focusChat",
+        "category": "ClaudeKei",
+        "title": "Focus Chat"
+      },
+      {
+        "command": "claudekei.openAgentManager",
+        "category": "ClaudeKei",
+        "title": "Open Agent Manager",
+        "icon": "$(circuit-board)"
+      },
+      {
+        "command": "claudekei.openActiveSessionInEditor",
+        "category": "ClaudeKei",
+        "title": "Open Active Session in Editor",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "claudekei.openNewSessionInEditor",
+        "category": "ClaudeKei",
+        "title": "Open New Session in Editor",
+        "icon": {
+          "light": "assets/app-icon.png",
+          "dark": "assets/app-icon.png"
+        }
+      },
+      {
+        "command": "claudekei.openCurrentOrNewSessionInEditor",
+        "category": "ClaudeKei",
+        "title": "Open Session in Editor",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "claudekei.addToContext",
+        "category": "ClaudeKei",
+        "title": "Add to Context"
+      },
+      {
+        "command": "claudekei.explain",
+        "category": "ClaudeKei",
+        "title": "Explain"
+      },
+      {
+        "command": "claudekei.improveCode",
+        "category": "ClaudeKei",
+        "title": "Improve Code"
+      },
+      {
+        "command": "claudekei.newSession",
+        "category": "ClaudeKei",
+        "title": "New Session",
+        "icon": "$(add)"
+      },
+      {
+        "command": "claudekei.showSettings",
+        "category": "ClaudeKei",
+        "title": "Settings",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "claudekei.attachExplorerToChat",
+        "category": "ClaudeKei",
+        "title": "Attach to ClaudeKei Chat"
+      },
+      {
+        "command": "claudekei.cyclePrimaryAgent",
+        "category": "ClaudeKei",
+        "title": "Cycle Primary Agent"
+      },
+      {
+        "command": "claudekei.restartSessions",
+        "category": "ClaudeKei",
+        "title": "Restart Claude Sessions"
+      },
+      {
+        "command": "claudekei.showClaudeStatus",
+        "category": "ClaudeKei",
+        "title": "Show Claude Status"
+      },
+      {
+        "command": "claudekei.cyclePermissionMode",
+        "category": "ClaudeKei",
+        "title": "Cycle Permission Mode"
+      },
+      {
+        "command": "claudekei.claudeLogin",
+        "category": "ClaudeKei",
+        "title": "Claude Login"
+      },
+      {
+        "command": "claudekei.dev.replayFixture",
+        "category": "ClaudeKei",
+        "title": "Dev: Replay Recorded Session Fixture"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "claudekei.submenu",
+        "label": "ClaudeKei"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "submenu": "claudekei.submenu",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "claudekei.attachExplorerToChat",
+          "when": "resourceScheme == file && explorerResourceIsFolder == false",
+          "group": "navigation@50"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "claudekei.openNewSessionInEditor",
+          "group": "navigation@1"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "claudekei.newSession",
+          "when": "view == claudekei.chatView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "claudekei.openCurrentOrNewSessionInEditor",
+          "when": "view == claudekei.chatView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "claudekei.openAgentManager",
+          "when": "view == claudekei.chatView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "claudekei.showSettings",
+          "when": "view == claudekei.chatView",
+          "group": "navigation@4"
+        }
+      ],
+      "claudekei.submenu": [
+        {
+          "command": "claudekei.explain"
+        },
+        {
+          "command": "claudekei.improveCode"
+        },
+        {
+          "command": "claudekei.addToContext"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "claudekei.dev.replayFixture",
+          "when": "claudekei.devMode"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "claudekei.addToContext",
+        "key": "ctrl+l",
+        "mac": "cmd+l",
+        "when": "editorTextFocus && editorHasSelection"
+      },
+      {
+        "command": "claudekei.cyclePrimaryAgent",
+        "key": "shift+tab",
+        "when": "view.claudekei.chatView.visible"
+      }
+    ],
+    "configuration": {
+      "title": "ClaudeKei",
+      "properties": {
+        "claudekei.useApiKey": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN from the environment instead of the subscription login (`claude login`). Off by default so stray API keys do not override your subscription."
+        },
+        "claudekei.claudeExecutablePath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional absolute path to a `claude` executable. Leave empty to use the binary bundled with the extension."
+        },
+        "claudekei.maxLiveSessions": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "description": "Maximum number of Claude processes kept alive at once. The least recently used idle session is closed first; busy sessions are never closed."
+        },
+        "claudekei.idleTimeoutMinutes": {
+          "type": "number",
+          "default": 10,
+          "minimum": 0,
+          "description": "Close a session's Claude process after this many idle minutes (0 disables). The session resumes transparently on the next message."
+        },
+        "claudekei.primaryAgents": {
+          "type": "array",
+          "default": [],
+          "description": "Order and look of the primary agents cycled with Shift+Tab. Empty = detect claudekei plugin agents automatically.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Agent type, e.g. claudekei:orchestrator"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "color": {
+                "type": "string",
+                "description": "Theme color name (purple, blue, green, orange, ...) or CSS color"
+              }
+            }
+          }
+        },
+        "claudekei.allowBypassPermissions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow the bypassPermissions mode (runs every tool without asking). When turned off, the extension refuses that mode and new sessions fall back to the default mode."
+        },
+        "claudekei.defaultPermissionMode": {
+          "type": "string",
+          "enum": [
+            "default",
+            "acceptEdits",
+            "plan",
+            "bypassPermissions"
+          ],
+          "default": "bypassPermissions",
+          "description": "Permission mode of new sessions. bypassPermissions needs claudekei.allowBypassPermissions (otherwise the default mode is used). Plan mode and questions from the agent still ask you."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "bun run build",
+    "build": "bun run build:extension && bun run build:webview",
+    "build:extension": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --external:@anthropic-ai/claude-agent-sdk --format=cjs --platform=node --minify --main-fields=module,main && node scripts/copy-sdk.mjs",
+    "build:webview": "vite build",
+    "dev": "concurrently -n \"ext,web\" -c \"cyan,magenta\" \"bun run watch:extension\" \"bun run dev:webview\"",
+    "dev:webview": "vite --host localhost --port 2912 --strictPort",
+    "watch:extension": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --external:@anthropic-ai/claude-agent-sdk --format=cjs --platform=node --watch --sourcemap --main-fields=module,main",
+    "watch:webview": "vite build --watch",
+    "type-check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.webview.json",
+    "test": "bun test src",
+    "lint": "bunx eslint --ext .ts,.tsx src webview",
+    "package": "node scripts/package-vsix.mjs"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/bun": "1.4.2",
+    "@types/vscode": "^1.85.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "@vscode/vsce": "^3.2.1",
+    "concurrently": "^9.2.1",
+    "esbuild": "^0.24.2",
+    "typescript": "~5.8.3",
+    "vite": "^7.1.2"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.295",
+    "@openchamber/ui": "workspace:*",
+    "adm-zip": "^0.5.16",
+    "diff": "8.0.3",
+    "jsonc-parser": "^3.3.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "yaml": "^2.8.1"
+  }
+}

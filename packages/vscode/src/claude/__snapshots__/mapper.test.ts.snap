@@ -1,0 +1,5758 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`golden: every fixture maps cleanly askuserquestion 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 10,
+    "message.part.updated": 8,
+    "message.updated": 6,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "eb9c4f8a-a215-4bea-9320-4d62cd14346c",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Use the AskUserQuestion tool to ask me which colors I like. Make it a multiSelect question with options red, green, blue. Then tell me what I picked in one sentence.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011Cfrjj2uDuRxJ7xMRENv4K",
+        "claudeUuid": "9a7e47ff-8688-402f-8c83-1e733552d9a7",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_0184BarnTs1MPnWExhMKgarT",
+            "claude": {
+              "input": {
+                "questions": [
+                  {
+                    "header": "Colors",
+                    "multiSelect": true,
+                    "options": [
+                      {
+                        "description": "Red",
+                        "label": "Red",
+                      },
+                      {
+                        "description": "Green",
+                        "label": "Green",
+                      },
+                      {
+                        "description": "Blue",
+                        "label": "Blue",
+                      },
+                    ],
+                    "question": "Which colors do you like?",
+                  },
+                ],
+              },
+              "name": "AskUserQuestion",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "291717fe-f445-4420-b855-f6c2e3c56fcb",
+            },
+            "state": {
+              "input": {
+                "questions": [
+                  {
+                    "header": "Colors",
+                    "multiple": true,
+                    "options": [
+                      {
+                        "description": "Red",
+                        "label": "Red",
+                      },
+                      {
+                        "description": "Green",
+                        "label": "Green",
+                      },
+                      {
+                        "description": "Blue",
+                        "label": "Blue",
+                      },
+                    ],
+                    "question": "Which colors do you like?",
+                  },
+                ],
+              },
+              "metadata": {
+                "answers": {
+                  "Which colors do you like?": "Red, Green",
+                },
+              },
+              "output": "Your questions have been answered: "Which colors do you like?"="Red, Green". You can now continue with these answers in mind.",
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "question",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18775,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 143,
+          "reasoning": 0,
+          "total": 18920,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjjBSS7P8n37x9Pk5CU",
+        "claudeUuid": "40b97e22-4814-471b-9540-cb56a0588f60",
+        "cost": 0.00064309,
+        "finish": "end_turn",
+        "id": "m5",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p6",
+            "messageID": "m5",
+            "text": 
+"The user asked which colors I picked, and the answer was Red and Green, so I just need to state that back to them simply.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p7",
+            "messageID": "m5",
+            "text": "You picked red and green.",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21134,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 78,
+          "reasoning": 69,
+          "total": 21214,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly bash 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 10,
+    "message.part.updated": 8,
+    "message.updated": 6,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "a5ef33d1-1457-4362-abfe-d5b3f7240914",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Use the Bash tool to run exactly: mkdir -p out && echo hi > out/a.txt && cat out/a.txt. Then reply 'done' only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjdJ2dm4LoKZhCST7Yi",
+        "claudeUuid": "7cd82897-1a02-4fc0-b101-e6b71a128bf3",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01VRrg55iPuAYzbhqzEMi3M1",
+            "claude": {
+              "input": {
+                "command": "mkdir -p out && echo hi > out/a.txt && cat out/a.txt",
+                "description": "Create out dir, write hi to a.txt, and print it",
+              },
+              "name": "Bash",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "3857b857-63ed-41b3-a609-3b0f5effc52c",
+            },
+            "state": {
+              "input": {
+                "command": "mkdir -p out && echo hi > out/a.txt && cat out/a.txt",
+                "description": "Create out dir, write hi to a.txt, and print it",
+              },
+              "metadata": {
+                "command": "mkdir -p out && echo hi > out/a.txt && cat out/a.txt",
+                "description": "Create out dir, write hi to a.txt, and print it",
+              },
+              "output": "hi",
+              "status": "completed",
+              "title": "Create out dir, write hi to a.txt, and print it",
+            },
+            "tool": "bash",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18771,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 112,
+          "reasoning": 0,
+          "total": 18885,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjdSrxDjyCBTZNYmQSq",
+        "claudeUuid": "bd9bcd3c-b21b-4efc-8316-e1966e46e265",
+        "cost": 0.00062693,
+        "finish": "end_turn",
+        "id": "m5",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p6",
+            "messageID": "m5",
+            "text": 
+"The task was just to run the command and reply "done" — the tool result and subsequent system notices don't change that instruction, so I'll just reply "done".
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p7",
+            "messageID": "m5",
+            "text": "done",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21062,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 81,
+          "reasoning": 78,
+          "total": 21145,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly bash-readonly 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 12,
+    "message.part.updated": 8,
+    "message.updated": 6,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "6b40f67c-774e-4dd4-a880-b0cdda62be87",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Use the Bash tool to run: echo hi && ls. Then reply 'done' only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjcrefR5gF1jPbX5wYD",
+        "claudeUuid": "10823e00-7c16-48e0-903e-f7308e3ecb5b",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_017SSMbhMf6o6aQSTC2GnpYN",
+            "claude": {
+              "input": {
+                "command": "echo hi && ls",
+                "description": "Print hi and list directory contents",
+              },
+              "name": "Bash",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "03be1ab5-b7e9-4a2e-bdc9-b4a8b36fc56c",
+            },
+            "state": {
+              "input": {
+                "command": "echo hi && ls",
+                "description": "Print hi and list directory contents",
+              },
+              "metadata": {
+                "command": "echo hi && ls",
+                "description": "Print hi and list directory contents",
+              },
+              "output": 
+"hi
+hello.txt
+notes.md
+src"
+,
+              "status": "completed",
+              "title": "Print hi and list directory contents",
+            },
+            "tool": "bash",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18747,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 83,
+          "reasoning": 0,
+          "total": 18832,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjczbdwPUa4tDk3DS7S",
+        "claudeUuid": "db578be1-ee02-49b5-97b2-389fc8ed0893",
+        "cost": 0.00060539,
+        "finish": "end_turn",
+        "id": "m5",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p6",
+            "messageID": "m5",
+            "text": 
+"The directory listing just shows some files, nothing that changes the request—I'll simply reply 'done' as asked.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p7",
+            "messageID": "m5",
+            "text": "done",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21022,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 76,
+          "reasoning": 73,
+          "total": 21100,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly compact 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 1,
+    "message.part.updated": 6,
+    "message.updated": 8,
+    "session.status": 4,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "b0f0d7a4-00d6-4273-bd63-cdea2de54f7e",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Reply with exactly: ok",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjZyv8gn2RpisCUt4Zk",
+        "claudeUuid": "0b93367f-c8b5-43e2-a4b4-06bf628380ae",
+        "cost": 0.00031438,
+        "finish": "end_turn",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": "ok",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18728,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 4,
+          "reasoning": 0,
+          "total": 18734,
+        },
+      },
+      {
+        "agent": "default",
+        "claudeUuid": "982dcf94-f0ac-40dd-bad3-625632393faa",
+        "id": "m5",
+        "model": {
+          "modelID": "claude-haiku-5-5",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p6",
+            "messageID": "m5",
+            "text": "/compact",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "notice:17000000000160000",
+        "cost": 0.00116449,
+        "id": "m7",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m5",
+        "parts": [
+          {
+            "id": "p8",
+            "messageID": "m7",
+            "synthetic": true,
+            "text": "Context compacted",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0,
+          },
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly edit 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 14,
+    "message.part.updated": 8,
+    "message.updated": 6,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "acceptEdits",
+        "claudeUuid": "d46a85d6-8806-4177-945c-32e3ea4f452c",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "In src/app.ts use the Edit tool to change 'Hello, ' to 'Hi, '. Reply 'done' only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjbA7LGCzEkKiiDCnhz",
+        "claudeUuid": "92599606-45b3-43f4-8ec2-9fa6098286c3",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01XrLifDKbPeW4nX3t2saiZR",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/app.ts",
+                "new_string": "'Hi, '",
+                "old_string": "'Hello, '",
+                "replace_all": false,
+              },
+              "name": "Edit",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "71128eb8-7f77-4149-b4fa-ea4794da4d0c",
+            },
+            "state": {
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/app.ts",
+                "newString": "'Hi, '",
+                "oldString": "'Hello, '",
+                "replaceAll": false,
+              },
+              "metadata": {
+                "diff": 
+"--- a/src/app.ts
++++ b/src/app.ts
+@@ -1,5 +1,5 @@
+ export function greet(name: string): string {
+-  return 'Hello, ' + name;
++  return 'Hi, ' + name;
+ }
+ 
+ export const VERSION = '1.0.0';
+"
+,
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/app.ts",
+                "filediff": {
+                  "additions": 1,
+                  "deletions": 1,
+                  "file": "src/app.ts",
+                  "patch": 
+"--- a/src/app.ts
++++ b/src/app.ts
+@@ -1,5 +1,5 @@
+ export function greet(name: string): string {
+-  return 'Hello, ' + name;
++  return 'Hi, ' + name;
+ }
+ 
+ export const VERSION = '1.0.0';
+"
+,
+                },
+                "files": [
+                  {
+                    "additions": 1,
+                    "deletions": 1,
+                    "filePath": "src/app.ts",
+                    "patch": 
+"--- a/src/app.ts
++++ b/src/app.ts
+@@ -1,5 +1,5 @@
+ export function greet(name: string): string {
+-  return 'Hello, ' + name;
++  return 'Hi, ' + name;
+ }
+ 
+ export const VERSION = '1.0.0';
+"
+,
+                    "relativePath": "src/app.ts",
+                  },
+                ],
+              },
+              "output": "The file /private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/app.ts has been updated successfully.",
+              "status": "completed",
+              "title": "src/app.ts",
+            },
+            "tool": "edit",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18760,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 185,
+          "reasoning": 0,
+          "total": 18947,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjbFivGT956pr4xxkEd",
+        "claudeUuid": "f19328cc-871b-440b-a92e-cb41770ab506",
+        "cost": 0.00065773,
+        "finish": "end_turn",
+        "id": "m5",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p6",
+            "messageID": "m5",
+            "text": 
+"The edit succeeded and the tool results are just routine system doc-loading with no actionable instruction, so I'll just reply "done" as requested.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p7",
+            "messageID": "m5",
+            "text": "done",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21213,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 68,
+          "reasoning": 65,
+          "total": 21283,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly edit-parallel 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 9,
+    "message.part.updated": 11,
+    "message.updated": 6,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "acceptEdits",
+        "claudeUuid": "f243847e-4c42-472e-a1bc-d90bf6abb260",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "In src/util.ts, make two separate Edit tool calls in the same response: change 'a + b' to 'b + a' and change '// TODO: add subtract' to '// TODO: add multiply'. Reply 'done' only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011Cfrjbb3XNPuBNmQiNn7jr",
+        "claudeUuid": "29a1d846-32e8-44c4-bdd8-dc670704cf6d",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01Kza6KRCm2bY8vEvY4F2WCH",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/util.ts",
+                "new_string": "b + a",
+                "old_string": "a + b",
+                "replace_all": false,
+              },
+              "name": "Edit",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "c1b995a3-c744-4ff2-aaa1-ba7e609ba988",
+            },
+            "state": {
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/util.ts",
+                "newString": "b + a",
+                "oldString": "a + b",
+                "replaceAll": false,
+              },
+              "metadata": {
+                "diff": 
+"--- a/src/util.ts
++++ b/src/util.ts
+@@ -1,5 +1,5 @@
+ export function add(a: number, b: number): number {
+-  return a + b;
++  return b + a;
+ }
+ 
+ // TODO: add subtract
+"
+,
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/util.ts",
+                "filediff": {
+                  "additions": 1,
+                  "deletions": 1,
+                  "file": "src/util.ts",
+                  "patch": 
+"--- a/src/util.ts
++++ b/src/util.ts
+@@ -1,5 +1,5 @@
+ export function add(a: number, b: number): number {
+-  return a + b;
++  return b + a;
+ }
+ 
+ // TODO: add subtract
+"
+,
+                },
+                "files": [
+                  {
+                    "additions": 1,
+                    "deletions": 1,
+                    "filePath": "src/util.ts",
+                    "patch": 
+"--- a/src/util.ts
++++ b/src/util.ts
+@@ -1,5 +1,5 @@
+ export function add(a: number, b: number): number {
+-  return a + b;
++  return b + a;
+ }
+ 
+ // TODO: add subtract
+"
+,
+                    "relativePath": "src/util.ts",
+                  },
+                ],
+              },
+              "output": "The file /private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/util.ts has been updated successfully.",
+              "status": "completed",
+              "title": "src/util.ts",
+            },
+            "tool": "edit",
+            "type": "tool",
+          },
+          {
+            "callID": "toolu_012dmyaniRBCqhrnVn5bwvVc",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/util.ts",
+                "new_string": "// TODO: add multiply",
+                "old_string": "// TODO: add subtract",
+                "replace_all": false,
+              },
+              "name": "Edit",
+            },
+            "id": "p5",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "4bbb503d-e5ef-45c0-8b71-a01d580f5401",
+            },
+            "state": {
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/util.ts",
+                "newString": "// TODO: add multiply",
+                "oldString": "// TODO: add subtract",
+                "replaceAll": false,
+              },
+              "metadata": {
+                "diff": 
+"--- a/src/util.ts
++++ b/src/util.ts
+@@ -2,4 +2,4 @@
+   return b + a;
+ }
+ 
+-// TODO: add subtract
++// TODO: add multiply
+"
+,
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/util.ts",
+                "filediff": {
+                  "additions": 1,
+                  "deletions": 1,
+                  "file": "src/util.ts",
+                  "patch": 
+"--- a/src/util.ts
++++ b/src/util.ts
+@@ -2,4 +2,4 @@
+   return b + a;
+ }
+ 
+-// TODO: add subtract
++// TODO: add multiply
+"
+,
+                },
+                "files": [
+                  {
+                    "additions": 1,
+                    "deletions": 1,
+                    "filePath": "src/util.ts",
+                    "patch": 
+"--- a/src/util.ts
++++ b/src/util.ts
+@@ -2,4 +2,4 @@
+   return b + a;
+ }
+ 
+-// TODO: add subtract
++// TODO: add multiply
+"
+,
+                    "relativePath": "src/util.ts",
+                  },
+                ],
+              },
+              "output": "The file /private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/util.ts has been updated successfully.",
+              "status": "completed",
+              "title": "src/util.ts",
+            },
+            "tool": "edit",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18791,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 367,
+          "reasoning": 0,
+          "total": 19160,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjbjPKygM3QAMnTb1Ya",
+        "claudeUuid": "3d3290d1-0b76-4324-83ec-51456b8ca36e",
+        "cost": 0.0007351899999999999,
+        "finish": "end_turn",
+        "id": "m6",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p7",
+            "messageID": "m6",
+            "text": 
+"The edits succeeded, and since the user asked for just a simple reply, I'll output "done".
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p8",
+            "messageID": "m6",
+            "text": "done",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21568,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 31,
+          "reasoning": 28,
+          "total": 21601,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly error 1`] = `
+{
+  "children": [],
+  "errors": [
+    {
+      "kind": "api",
+      "message": "There's an issue with the selected model (not-a-real-model-xyz). It may not exist or you may not have access to it.",
+      "name": "model_not_found",
+      "sessionID": "28fae733-d638-4b1c-9f0c-04ff166d0dab",
+    },
+  ],
+  "histogram": {
+    "message.part.updated": 3,
+    "message.updated": 5,
+    "session.error": 1,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "946d3376-a831-44b9-b87f-a5917bacd69b",
+        "id": "m1",
+        "model": {
+          "modelID": "not-a-real-model-xyz",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "hello",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "d14db0b8-fb6f-4f14-bd8c-7c4e98f8cf68",
+        "claudeUuid": "663ac675-4fec-4caa-8d24-d6b4e92768c0",
+        "cost": 0,
+        "error": {
+          "data": {
+            "message": "There's an issue with the selected model (not-a-real-model-xyz). It may not exist or you may not have access to it.",
+          },
+          "message": "There's an issue with the selected model (not-a-real-model-xyz). It may not exist or you may not have access to it.",
+          "name": "model_not_found",
+        },
+        "finish": "stop_sequence",
+        "id": "m3",
+        "modelID": "<synthetic>",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": "There's an issue with the selected model (not-a-real-model-xyz). It may not exist or you may not have access to it.",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0,
+          },
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "total": 0,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly fork 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 1,
+    "message.part.updated": 3,
+    "message.updated": 4,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "a91b75e8-42fb-488e-b28b-b5c68c032b3c",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "What did you reply with earlier? One line.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjZkCPNt1aVsdJYcSgY",
+        "claudeUuid": "bd265f47-895b-46cb-8bd1-3018c0e22536",
+        "cost": 0.00223258,
+        "finish": "end_turn",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": "I replied with "one".",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18769,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 9,
+          "reasoning": 0,
+          "total": 18780,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly grep 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 9,
+    "message.part.updated": 11,
+    "message.updated": 6,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "7648197c-265b-414c-9cf3-7badc5012482",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Use the Grep tool to search for 'greet' in the current directory, then use the Glob tool to list *.ts files. Reply 'done' only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjcMpZQAN4MChx48i4x",
+        "claudeUuid": "94907777-a928-4939-a06b-4bfd7f2d6e21",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01XiTttH5wCej89kCjZ8gNSA",
+            "claude": {
+              "input": {
+                "path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox",
+                "pattern": "greet",
+              },
+              "name": "Grep",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "ed2cf1d7-103c-4603-b039-dbb7589855d8",
+            },
+            "state": {
+              "input": {
+                "path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox",
+                "pattern": "greet",
+              },
+              "metadata": {
+                "count": 1,
+                "mode": "files_with_matches",
+              },
+              "output": 
+"Found 1 file
+src/app.ts"
+,
+              "status": "completed",
+              "title": "greet",
+            },
+            "tool": "grep",
+            "type": "tool",
+          },
+          {
+            "callID": "toolu_01ACDLqz6C1KhJCqj7UsA1bg",
+            "claude": {
+              "input": {
+                "path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox",
+                "pattern": "*.ts",
+              },
+              "name": "Glob",
+            },
+            "id": "p5",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "81b76a20-5724-4a30-bc84-1db028a32644",
+            },
+            "state": {
+              "input": {
+                "path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox",
+                "pattern": "*.ts",
+              },
+              "metadata": {
+                "count": 2,
+              },
+              "output": 
+"src/app.ts
+src/util.ts"
+,
+              "status": "completed",
+              "title": "*.ts",
+            },
+            "tool": "glob",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 20327,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 287,
+          "reasoning": 0,
+          "total": 20616,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjcUYPB6s3pRXtw7Hpr",
+        "claudeUuid": "6b8c964d-f1ac-490e-9e5e-b7962da188dd",
+        "cost": 0.0007374500000000001,
+        "finish": "end_turn",
+        "id": "m6",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p7",
+            "messageID": "m6",
+            "text": 
+"The system messages about Docs tools aren't relevant here, so I'll just reply "done" as requested.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p8",
+            "messageID": "m6",
+            "text": "done",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 22868,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 60,
+          "reasoning": 57,
+          "total": 22930,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly hook-block 1`] = `
+{
+  "children": [],
+  "errors": [
+    {
+      "kind": "hook",
+      "message": "Blocked by test hook: switched agent",
+      "name": "HookBlocked",
+      "sessionID": "227329dc-5ea5-4fd3-9628-7b991405c1ec",
+    },
+  ],
+  "histogram": {
+    "message.part.updated": 1,
+    "message.updated": 1,
+    "session.error": 1,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "dd724cea-19d5-4f61-aca0-a9ad6db49b4b",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "/claudekei:agent planner",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly hook-block-events 1`] = `
+{
+  "children": [],
+  "errors": [
+    {
+      "kind": "hook",
+      "message": "Blocked by test hook: switched agent",
+      "name": "HookBlocked",
+      "sessionID": "7bf659a5-05e9-4dc8-9e7b-8ada5bbf266b",
+    },
+  ],
+  "histogram": {
+    "message.part.updated": 1,
+    "message.updated": 1,
+    "session.error": 1,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "7c55bbdd-f702-4b99-9957-6b9a3171a318",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "/claudekei:agent planner",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly interrupt 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.updated": 4,
+    "message.updated": 4,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "988a0e94-1f1b-4504-8502-864b1b25a40f",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Use the Bash tool to run exactly: ping -c 40 127.0.0.1. Then reply 'finished'.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjmTSuCmhWaF17GaKsb",
+        "claudeUuid": "073b5bc6-7953-46d6-a9f5-b065fb4e52a3",
+        "cost": 0.00035694000000000004,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01J7KbAy9gTR38fMsbqDvqM3",
+            "claude": {
+              "input": {
+                "command": "ping -c 40 127.0.0.1",
+                "description": "Ping localhost 40 times",
+              },
+              "name": "Bash",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "a4e01e0c-32ec-4dc9-a845-367430d8296b",
+            },
+            "state": {
+              "error": "Interrupted by user",
+              "input": {
+                "command": "ping -c 40 127.0.0.1",
+                "description": "Ping localhost 40 times",
+              },
+              "status": "error",
+            },
+            "tool": "bash",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18344,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 90,
+          "reasoning": 0,
+          "total": 18436,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly interrupt-text 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 178,
+    "message.part.updated": 3,
+    "message.updated": 4,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "99d9ffd6-f459-45a6-b222-29ac772f2d13",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Write a detailed 600-word essay about the history of the bicycle. No preamble.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011Cfrjn8JFjq2bnNddEgq3D",
+        "claudeUuid": "89599802-3b7a-4353-bd4d-47ded51a48cd",
+        "cost": 0.0001271,
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": 
+"# A Brief History of the Bicycle
+
+The bicycle grew out of a long human quest for faster, more efficient personal transport, and its story is one of gradual refinement rather than a single invention. Its earliest ancestor appeared in 1817, when Karl Drais, a German baron and civil servant, built a two-wheeled, steerable machine that riders propelled by pushing their feet against the ground. Known as the *Laufmaschine*, or "running machine," it lacked pedals and drive mechanisms, but it proved that a person could balance and steer a two-wheeled vehicle at a speed faster than walking. Drais's design spread quickly across Europe and America, where it was dubbed the "hobby horse" or "dandy horse," and it became a fashionable novelty among the wealthy.
+
+The next major step came in the 1860s, when French inventors, most notably Pierre Michaux and his associates, attached pedals directly to the front wheel's axle. This created the "velocipede," which the public soon called the "boneshaker" because its iron-banded wooden wheels and rigid frame transmitted every bump to the rider. Though uncomfortable, the velocipede established the principle of human-powered rotary motion that defines the modern bicycle. Its great limitation was the front wheel: the larger it grew, the faster the machine could travel, yet the rider sat dangerously high above the ground.
+
+This tension produced the "penny-farthing," or high-wheeler, of the 1870s and 1880s. Its enormous front wheel, sometimes more than five feet in diameter, allowed a single pedal revolution to cover great distance, but a sudden stop could send the rider headlong over the handlebars. Despite this hazard, the penny-farthing became a symbol of Victorian sporting daring, and clubs formed in Britain and the United States to race and tour on them.
+
+The decisive breakthrough arrived in 1885 with John Kemp Starley's "Rover," often regarded as the first modern safety bicycle. It feat"
+,
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18745,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 1,
+          "reasoning": 0,
+          "total": 18748,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly multi-turn 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 14,
+    "message.part.updated": 8,
+    "message.updated": 8,
+    "session.status": 4,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "4dd68680-0cf6-44ce-991f-bba9e9605762",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Reply with exactly: one",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjZ3NiRp6DFib3AN2fL",
+        "claudeUuid": "1d222ba5-fc1c-496a-9013-42a9f7879147",
+        "cost": 0.00031127,
+        "finish": "end_turn",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": "one",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18727,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 3,
+          "reasoning": 0,
+          "total": 18732,
+        },
+      },
+      {
+        "agent": "default",
+        "claudeUuid": "8689a562-539b-448c-9ec9-8a1e4d376860",
+        "id": "m5",
+        "model": {
+          "modelID": "claude-haiku-5-5",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p6",
+            "messageID": "m5",
+            "text": "Reply with exactly: two",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjZ8AhewyxvNiijbeL2",
+        "claudeUuid": "7b54a1e5-3474-49fc-baea-07dde913fbea",
+        "cost": 0.00055711,
+        "finish": "end_turn",
+        "id": "m7",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m5",
+        "parts": [
+          {
+            "id": "p8",
+            "messageID": "m7",
+            "text": 
+"The user just wants me to reply with exactly "two" - that system reminder about tools is just informational, no action needed. I'll simply respond "two".
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p9",
+            "messageID": "m7",
+            "text": "two",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 20914,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 73,
+          "reasoning": 70,
+          "total": 20989,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly permission-always 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 21,
+    "message.part.updated": 16,
+    "message.updated": 8,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "d36974b2-4603-4d28-9772-0c901469169d",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "In notes.md use the Edit tool to change '- alpha' to '- ALPHA', then in a separate Edit call change '- beta' to '- BETA'. Reply 'done' only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjhuJJMWVE1ENrFBcYb",
+        "claudeUuid": "fb2ba2cc-db6c-41f8-8613-47cb7c10a4a6",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": 
+"I need to read notes.md before editing it, so I'll start with the Read, then make the edit, and reply with just "done" afterward.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "callID": "toolu_01B3UqEtDqhDoENKbpiUxYPM",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+              },
+              "name": "Read",
+            },
+            "id": "p5",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "59cf19d4-3947-4002-a1c0-1ed22f6ee04b",
+            },
+            "state": {
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+              },
+              "metadata": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "numLines": 6,
+                "startLine": 1,
+                "totalLines": 6,
+              },
+              "output": 
+"1	# Notes
+2	
+3	- alpha
+4	- beta
+5	- gamma
+6	"
+,
+              "status": "completed",
+              "title": "notes.md",
+            },
+            "tool": "read",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18779,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 170,
+          "reasoning": 43,
+          "total": 18951,
+        },
+      },
+      {
+        "apiMessageId": "msg_011Cfrji4VwLbkbQbKX7MPey",
+        "claudeUuid": "90c1aa11-9177-4746-bf72-a507e1e2391a",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m6",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01KorwyQmC86yzZC38eB4yWY",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "new_string": "- ALPHA",
+                "old_string": "- alpha",
+                "replace_all": false,
+              },
+              "name": "Edit",
+            },
+            "id": "p7",
+            "messageID": "m6",
+            "metadata": {
+              "resultUuid": "6951c3e0-002b-46dd-8aa7-5b6a45193ed5",
+            },
+            "state": {
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "newString": "- ALPHA",
+                "oldString": "- alpha",
+                "replaceAll": false,
+              },
+              "metadata": {
+                "diff": 
+"--- a/notes.md
++++ b/notes.md
+@@ -1,5 +1,5 @@
+ # Notes
+ 
+-- alpha
++- ALPHA
+ - beta
+ - gamma
+"
+,
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "filediff": {
+                  "additions": 1,
+                  "deletions": 1,
+                  "file": "notes.md",
+                  "patch": 
+"--- a/notes.md
++++ b/notes.md
+@@ -1,5 +1,5 @@
+ # Notes
+ 
+-- alpha
++- ALPHA
+ - beta
+ - gamma
+"
+,
+                },
+                "files": [
+                  {
+                    "additions": 1,
+                    "deletions": 1,
+                    "filePath": "notes.md",
+                    "patch": 
+"--- a/notes.md
++++ b/notes.md
+@@ -1,5 +1,5 @@
+ # Notes
+ 
+-- alpha
++- ALPHA
+ - beta
+ - gamma
+"
+,
+                    "relativePath": "notes.md",
+                  },
+                ],
+              },
+              "output": "The file /private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md has been updated successfully. (file state is current in your context — no need to Read it back)",
+              "status": "completed",
+              "title": "notes.md",
+            },
+            "tool": "edit",
+            "type": "tool",
+          },
+          {
+            "callID": "toolu_01AyMcpwK29BBFFXx7qXPEuv",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "new_string": "- BETA",
+                "old_string": "- beta",
+                "replace_all": false,
+              },
+              "name": "Edit",
+            },
+            "id": "p8",
+            "messageID": "m6",
+            "metadata": {
+              "resultUuid": "03ad66cf-84ee-452e-9380-ce34831025ff",
+            },
+            "state": {
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "newString": "- BETA",
+                "oldString": "- beta",
+                "replaceAll": false,
+              },
+              "metadata": {
+                "diff": 
+"--- a/notes.md
++++ b/notes.md
+@@ -1,5 +1,5 @@
+ # Notes
+ 
+ - ALPHA
+-- beta
++- BETA
+ - gamma
+"
+,
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "filediff": {
+                  "additions": 1,
+                  "deletions": 1,
+                  "file": "notes.md",
+                  "patch": 
+"--- a/notes.md
++++ b/notes.md
+@@ -1,5 +1,5 @@
+ # Notes
+ 
+ - ALPHA
+-- beta
++- BETA
+ - gamma
+"
+,
+                },
+                "files": [
+                  {
+                    "additions": 1,
+                    "deletions": 1,
+                    "filePath": "notes.md",
+                    "patch": 
+"--- a/notes.md
++++ b/notes.md
+@@ -1,5 +1,5 @@
+ # Notes
+ 
+ - ALPHA
+-- beta
++- BETA
+ - gamma
+"
+,
+                    "relativePath": "notes.md",
+                  },
+                ],
+              },
+              "output": "The file /private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md has been updated successfully. (file state is current in your context — no need to Read it back)",
+              "status": "completed",
+              "title": "notes.md",
+            },
+            "tool": "edit",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18779,
+            "write": 2379,
+          },
+          "input": 2,
+          "output": 356,
+          "reasoning": 0,
+          "total": 21516,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjiCbbi8UHTKGPdgVNW",
+        "claudeUuid": "9eb28271-cccc-498f-949a-b2da6db0acdc",
+        "cost": 0.0016456600000000002,
+        "finish": "end_turn",
+        "id": "m9",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p10",
+            "messageID": "m9",
+            "text": 
+"I made both edits as parallel calls rather than strictly sequential ones, but since they target different strings with no conflict, this should be fine. I'll just reply "done" as instructed.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p11",
+            "messageID": "m9",
+            "text": "done",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21158,
+            "write": 648,
+          },
+          "input": 2,
+          "output": 115,
+          "reasoning": 112,
+          "total": 21923,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly permission-denied 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 15,
+    "message.part.updated": 8,
+    "message.updated": 6,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "b74f6820-bbbd-4ae1-ac6e-80601215d5c5",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "In notes.md use the Edit tool to change '- beta' to '- BETA'. If denied, just say 'denied'.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011Cfrjid1nArZVCo4YWfMf2",
+        "claudeUuid": "762e4dba-4a04-47b5-bc0f-5466110cd93f",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_013sXTimhzHT7DKeTQAyFLRf",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "new_string": "- BETA",
+                "old_string": "- beta",
+                "replace_all": false,
+              },
+              "name": "Edit",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "5c982282-144d-4b3c-8702-f02417d6cdcb",
+            },
+            "state": {
+              "error": "User rejected (fixture recorder)",
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "newString": "- BETA",
+                "oldString": "- beta",
+                "replaceAll": false,
+              },
+              "status": "error",
+            },
+            "tool": "edit",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18757,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 178,
+          "reasoning": 0,
+          "total": 18937,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjiitVuxqgUDs3V8mpa",
+        "claudeUuid": "123126b3-9153-401c-9583-0aec9ebb9ac4",
+        "cost": 0.00065857,
+        "finish": "end_turn",
+        "id": "m5",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p6",
+            "messageID": "m5",
+            "text": 
+"The user rejected the edit, and my instructions say to simply respond with "denied" in that case rather than retrying. The new system messages about MCP docs don't seem relevant here, so I'll just go with "denied."
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p7",
+            "messageID": "m5",
+            "text": "denied",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21130,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 80,
+          "reasoning": 76,
+          "total": 21212,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly permission-edit 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 11,
+    "message.part.updated": 11,
+    "message.updated": 8,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "9341955d-6850-43ec-8a78-0d133ca199db",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "In notes.md use the Edit tool to change '- alpha' to '- ALPHA'. Reply 'done' only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjhRwkaPudJir8GatZv",
+        "claudeUuid": "82cb06f0-449b-4c1d-ad43-c9c6d2fe354d",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": 
+"I need to edit notes.md, but since I haven't read it yet, I should read the file first before making the edit.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "callID": "toolu_01Sh2PrF8vZoSgrQYCXTwKbh",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+              },
+              "name": "Read",
+            },
+            "id": "p5",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "96abe771-8de8-457f-a316-102a1b760631",
+            },
+            "state": {
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+              },
+              "metadata": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "numLines": 6,
+                "startLine": 1,
+                "totalLines": 6,
+              },
+              "output": 
+"1	# Notes
+2	
+3	- alpha
+4	- beta
+5	- gamma
+6	"
+,
+              "status": "completed",
+              "title": "notes.md",
+            },
+            "tool": "read",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18757,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 189,
+          "reasoning": 62,
+          "total": 18948,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjhbcvRVSAGAHWN5FCE",
+        "claudeUuid": "044cb297-b327-4001-b66e-d353e3a34731",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m6",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_015iCMJtoR5B6QMkEme7WaTc",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "new_string": "- ALPHA",
+                "old_string": "- alpha",
+                "replace_all": false,
+              },
+              "name": "Edit",
+            },
+            "id": "p7",
+            "messageID": "m6",
+            "metadata": {
+              "resultUuid": "214f1544-d87d-45b7-b3db-23a6ba5fad26",
+            },
+            "state": {
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "newString": "- ALPHA",
+                "oldString": "- alpha",
+                "replaceAll": false,
+              },
+              "metadata": {
+                "diff": 
+"--- a/notes.md
++++ b/notes.md
+@@ -1,5 +1,5 @@
+ # Notes
+ 
+-- alpha
++- ALPHA
+ - beta
+ - gamma
+"
+,
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "filediff": {
+                  "additions": 1,
+                  "deletions": 1,
+                  "file": "notes.md",
+                  "patch": 
+"--- a/notes.md
++++ b/notes.md
+@@ -1,5 +1,5 @@
+ # Notes
+ 
+-- alpha
++- ALPHA
+ - beta
+ - gamma
+"
+,
+                },
+                "files": [
+                  {
+                    "additions": 1,
+                    "deletions": 1,
+                    "filePath": "notes.md",
+                    "patch": 
+"--- a/notes.md
++++ b/notes.md
+@@ -1,5 +1,5 @@
+ # Notes
+ 
+-- alpha
++- ALPHA
+ - beta
+ - gamma
+"
+,
+                    "relativePath": "notes.md",
+                  },
+                ],
+              },
+              "output": "The file /private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md has been updated successfully. (file state is current in your context — no need to Read it back)",
+              "status": "completed",
+              "title": "notes.md",
+            },
+            "tool": "edit",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18757,
+            "write": 2398,
+          },
+          "input": 2,
+          "output": 181,
+          "reasoning": 0,
+          "total": 21338,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjhhaLyULd7s6D22Hoo",
+        "claudeUuid": "4760cd81-8f01-416c-9fdc-941477790182",
+        "cost": 0.0014473900000000002,
+        "finish": "end_turn",
+        "id": "m8",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p9",
+            "messageID": "m8",
+            "text": "done",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21155,
+            "write": 316,
+          },
+          "input": 2,
+          "output": 3,
+          "reasoning": 0,
+          "total": 21476,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly permission-edit-noinput 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 7,
+    "message.part.updated": 11,
+    "message.updated": 8,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "f8bdf802-550f-490a-a733-376e5d4a9202",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "In notes.md use the Edit tool to change '- alpha' to '- ALPHA'. Reply 'done' only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjoC2khB5JoFm59w4GF",
+        "claudeUuid": "f528b4c4-45c8-4887-a785-1e66c691be3e",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": 
+"I need to edit notes.md, so I should read the file first before making any changes to it.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "callID": "toolu_01DL5hvX9G6isWa5iE1aNJ3X",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+              },
+              "name": "Read",
+            },
+            "id": "p5",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "249517e6-7455-4f64-b7fc-6ac6bc58591f",
+            },
+            "state": {
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+              },
+              "metadata": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "numLines": 6,
+                "startLine": 1,
+                "totalLines": 6,
+              },
+              "output": 
+"1	# Notes
+2	
+3	- alpha
+4	- beta
+5	- gamma
+6	"
+,
+              "status": "completed",
+              "title": "notes.md",
+            },
+            "tool": "read",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18757,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 170,
+          "reasoning": 43,
+          "total": 18929,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjoLeg7PAkarr2my5yu",
+        "claudeUuid": "8117c0dc-777d-4c60-afa3-476708283404",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m6",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01Y6swZzXZprViqvTRtomNHT",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "new_string": "- ALPHA",
+                "old_string": "- alpha",
+                "replace_all": false,
+              },
+              "name": "Edit",
+            },
+            "id": "p7",
+            "messageID": "m6",
+            "metadata": {
+              "resultUuid": "de80ba50-6093-43b5-aaf0-01e99567c59e",
+            },
+            "state": {
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "newString": "- ALPHA",
+                "oldString": "- alpha",
+                "replaceAll": false,
+              },
+              "metadata": {
+                "diff": 
+"--- a/notes.md
++++ b/notes.md
+@@ -1,5 +1,5 @@
+ # Notes
+ 
+-- alpha
++- ALPHA
+ - beta
+ - gamma
+"
+,
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "filediff": {
+                  "additions": 1,
+                  "deletions": 1,
+                  "file": "notes.md",
+                  "patch": 
+"--- a/notes.md
++++ b/notes.md
+@@ -1,5 +1,5 @@
+ # Notes
+ 
+-- alpha
++- ALPHA
+ - beta
+ - gamma
+"
+,
+                },
+                "files": [
+                  {
+                    "additions": 1,
+                    "deletions": 1,
+                    "filePath": "notes.md",
+                    "patch": 
+"--- a/notes.md
++++ b/notes.md
+@@ -1,5 +1,5 @@
+ # Notes
+ 
+-- alpha
++- ALPHA
+ - beta
+ - gamma
+"
+,
+                    "relativePath": "notes.md",
+                  },
+                ],
+              },
+              "output": "The file /private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md has been updated successfully. (file state is current in your context — no need to Read it back)",
+              "status": "completed",
+              "title": "notes.md",
+            },
+            "tool": "edit",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18757,
+            "write": 2379,
+          },
+          "input": 2,
+          "output": 181,
+          "reasoning": 0,
+          "total": 21319,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjoSJVxm9fBv3As1BG5",
+        "claudeUuid": "0e21e708-c43b-4796-8c3d-1f2e0de06dfe",
+        "cost": 0.0014339,
+        "finish": "end_turn",
+        "id": "m8",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p9",
+            "messageID": "m8",
+            "text": "done",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21136,
+            "write": 316,
+          },
+          "input": 2,
+          "output": 3,
+          "reasoning": 0,
+          "total": 21457,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly plan-exit 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 45,
+    "message.part.updated": 24,
+    "message.updated": 12,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "plan",
+        "claudeUuid": "f47fe7f0-814c-4f24-9406-d9d91b757318",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Plan how to append the line 'done' to notes.md. When your plan is ready, call ExitPlanMode with it. Keep the plan to 2 bullets.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjjbP6MJNNho2YeLRNR",
+        "claudeUuid": "e622c94d-19c3-42d5-b381-acf408a59fad",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-sonnet-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_0119p3eXby722HwG33ji4JbN",
+            "claude": {
+              "input": {
+                "max_results": 1,
+                "query": "select:ExitPlanMode",
+              },
+              "name": "ToolSearch",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "88ec3fda-934a-445c-b747-acb5f1a1b2ce",
+            },
+            "state": {
+              "input": {
+                "max_results": 1,
+                "query": "select:ExitPlanMode",
+              },
+              "metadata": {},
+              "output": "",
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "ToolSearch",
+            "type": "tool",
+          },
+          {
+            "callID": "toolu_01JXM11WSEwJh4GcMsFP8opg",
+            "claude": {
+              "input": {
+                "content": 
+"# Plan: append "done" to notes.md
+
+- Check whether \`notes.md\` exists in the working directory and whether it ends with a newline, so the new line doesn't merge with the last one.
+- Append \`done\` on its own line (e.g. \`printf 'done\\n' >> notes.md\`), then read the file back to confirm.
+"
+,
+                "file_path": "/Users/kei/.claude/plans/plan-how-to-append-generic-dream.md",
+              },
+              "name": "Write",
+            },
+            "id": "p5",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "0e39be8e-4fcc-4d37-a834-881e654a6104",
+            },
+            "state": {
+              "input": {
+                "content": 
+"# Plan: append "done" to notes.md
+
+- Check whether \`notes.md\` exists in the working directory and whether it ends with a newline, so the new line doesn't merge with the last one.
+- Append \`done\` on its own line (e.g. \`printf 'done\\n' >> notes.md\`), then read the file back to confirm.
+"
+,
+                "filePath": "/Users/kei/.claude/plans/plan-how-to-append-generic-dream.md",
+              },
+              "metadata": {
+                "diff": 
+"--- /dev/null
++++ b//Users/kei/.claude/plans/plan-how-to-append-generic-dream.md
+@@ -0,0 +1,4 @@
++# Plan: append "done" to notes.md
++
++- Check whether \`notes.md\` exists in the working directory and whether it ends with a newline, so the new line doesn't merge with the last one.
++- Append \`done\` on its own line (e.g. \`printf 'done\\n' >> notes.md\`), then read the file back to confirm.
+"
+,
+                "filePath": "/Users/kei/.claude/plans/plan-how-to-append-generic-dream.md",
+                "filediff": {
+                  "additions": 4,
+                  "deletions": 0,
+                  "file": "/Users/kei/.claude/plans/plan-how-to-append-generic-dream.md",
+                  "patch": 
+"--- /dev/null
++++ b//Users/kei/.claude/plans/plan-how-to-append-generic-dream.md
+@@ -0,0 +1,4 @@
++# Plan: append "done" to notes.md
++
++- Check whether \`notes.md\` exists in the working directory and whether it ends with a newline, so the new line doesn't merge with the last one.
++- Append \`done\` on its own line (e.g. \`printf 'done\\n' >> notes.md\`), then read the file back to confirm.
+"
+,
+                },
+                "files": [
+                  {
+                    "additions": 4,
+                    "deletions": 0,
+                    "filePath": "/Users/kei/.claude/plans/plan-how-to-append-generic-dream.md",
+                    "patch": 
+"--- /dev/null
++++ b//Users/kei/.claude/plans/plan-how-to-append-generic-dream.md
+@@ -0,0 +1,4 @@
++# Plan: append "done" to notes.md
++
++- Check whether \`notes.md\` exists in the working directory and whether it ends with a newline, so the new line doesn't merge with the last one.
++- Append \`done\` on its own line (e.g. \`printf 'done\\n' >> notes.md\`), then read the file back to confirm.
+"
+,
+                    "relativePath": "/Users/kei/.claude/plans/plan-how-to-append-generic-dream.md",
+                  },
+                ],
+              },
+              "output": "File created successfully at: /Users/kei/.claude/plans/plan-how-to-append-generic-dream.md (file state is current in your context — no need to Read it back)",
+              "status": "completed",
+              "title": "/Users/kei/.claude/plans/plan-how-to-append-generic-dream.md",
+            },
+            "tool": "write",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 14868,
+            "write": 5669,
+          },
+          "input": 2,
+          "output": 279,
+          "reasoning": 0,
+          "total": 20818,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjjpLhNTfbo1i2gVzg9",
+        "claudeUuid": "f395af3d-e74e-4657-8bf3-575de4cf13fb",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m6",
+        "modelID": "claude-sonnet-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01JZmmwEdSCoN8CAhAdheoXU",
+            "claude": {
+              "input": {
+                "plan": 
+"# Plan: append "done" to notes.md
+
+- Check whether \`notes.md\` exists in the working directory and whether it ends with a newline, so the new line doesn't merge with the last one.
+- Append \`done\` on its own line (e.g. \`printf 'done\\n' >> notes.md\`), then read the file back to confirm.
+"
+,
+                "planFilePath": "/Users/kei/.claude/plans/plan-how-to-append-generic-dream.md",
+              },
+              "name": "ExitPlanMode",
+            },
+            "id": "p7",
+            "messageID": "m6",
+            "metadata": {
+              "resultUuid": "e8fdda67-d297-46ae-934d-67a25988a95d",
+            },
+            "state": {
+              "input": {
+                "plan": 
+"# Plan: append "done" to notes.md
+
+- Check whether \`notes.md\` exists in the working directory and whether it ends with a newline, so the new line doesn't merge with the last one.
+- Append \`done\` on its own line (e.g. \`printf 'done\\n' >> notes.md\`), then read the file back to confirm.
+"
+,
+                "planFilePath": "/Users/kei/.claude/plans/plan-how-to-append-generic-dream.md",
+              },
+              "metadata": {
+                "plan": 
+"# Plan: append "done" to notes.md
+
+- Check whether \`notes.md\` exists in the working directory and whether it ends with a newline, so the new line doesn't merge with the last one.
+- Append \`done\` on its own line (e.g. \`printf 'done\\n' >> notes.md\`), then read the file back to confirm.
+"
+,
+              },
+              "output": 
+"User has approved your plan. You can now start coding. Start with updating your todo list if applicable
+
+Your plan has been saved to: /Users/kei/.claude/plans/plan-how-to-append-generic-dream.md
+You can refer back to it if needed during implementation.
+
+## Approved Plan:
+# Plan: append "done" to notes.md
+
+- Check whether \`notes.md\` exists in the working directory and whether it ends with a newline, so the new line doesn't merge with the last one.
+- Append \`done\` on its own line (e.g. \`printf 'done\\n' >> notes.md\`), then read the file back to confirm.
+"
+,
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "plan_exit",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 20537,
+            "write": 3456,
+          },
+          "input": 2,
+          "output": 31,
+          "reasoning": 0,
+          "total": 24026,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjjtcfktNt712YVh6eQ",
+        "claudeUuid": "8cdc9414-43fc-4133-9041-b2192165787b",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m8",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p9",
+            "messageID": "m8",
+            "text": 
+"With the plan approved, I'll check notes.md exists with a trailing newline, append "done", and read it back to confirm, working in the scratchpad fixture-sandbox directory. The attribution reminder doesn't apply here since no commit is involved.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "callID": "toolu_01QUe7kYsf1tC4S39s1Yh1Nq",
+            "claude": {
+              "input": {
+                "command": "ls -la notes.md && tail -c 1 notes.md | xxd",
+                "description": "Check notes.md exists and its last byte",
+              },
+              "name": "Bash",
+            },
+            "id": "p10",
+            "messageID": "m8",
+            "metadata": {
+              "resultUuid": "f75c59f9-0eb2-4a05-a75e-bd749a54a343",
+            },
+            "state": {
+              "input": {
+                "command": "ls -la notes.md && tail -c 1 notes.md | xxd",
+                "description": "Check notes.md exists and its last byte",
+              },
+              "metadata": {
+                "command": "ls -la notes.md && tail -c 1 notes.md | xxd",
+                "description": "Check notes.md exists and its last byte",
+              },
+              "output": 
+"-rw-r--r--@ 1 kei  wheel  32 Oct  9 20:24 notes.md
+00000000: 0a                                       ."
+,
+              "status": "completed",
+              "title": "Check notes.md exists and its last byte",
+            },
+            "tool": "bash",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 14868,
+            "write": 9732,
+          },
+          "input": 2,
+          "output": 269,
+          "reasoning": 88,
+          "total": 24871,
+        },
+      },
+      {
+        "apiMessageId": "msg_011Cfrjk9A2kegqpXiP3jK2g",
+        "claudeUuid": "086fd13a-1353-4048-abbb-abbffa420769",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m11",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p12",
+            "messageID": "m11",
+            "text": "The file ends with a newline, so appending directly is safe.",
+            "type": "text",
+          },
+          {
+            "callID": "toolu_01R9sTZaBSHRn7ah6x9Ea3Hg",
+            "claude": {
+              "input": {
+                "command": "printf 'done\\n' >> notes.md && cat notes.md",
+                "description": "Append done line to notes.md and print file",
+              },
+              "name": "Bash",
+            },
+            "id": "p13",
+            "messageID": "m11",
+            "metadata": {
+              "resultUuid": "03dabc88-cdf0-494d-9c41-8f9602d8a403",
+            },
+            "state": {
+              "input": {
+                "command": "printf 'done\\n' >> notes.md && cat notes.md",
+                "description": "Append done line to notes.md and print file",
+              },
+              "metadata": {
+                "command": "printf 'done\\n' >> notes.md && cat notes.md",
+                "description": "Append done line to notes.md and print file",
+              },
+              "output": 
+"# Notes
+
+- alpha
+- beta
+- gamma
+done"
+,
+              "status": "completed",
+              "title": "Append done line to notes.md and print file",
+            },
+            "tool": "bash",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 24600,
+            "write": 346,
+          },
+          "input": 2,
+          "output": 195,
+          "reasoning": 0,
+          "total": 25143,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjkFWXqhgGHqTyK2ozQ",
+        "claudeUuid": "2f6e6716-0cc5-4c50-b395-bccd9a2de74f",
+        "cost": 0.04981424,
+        "finish": "end_turn",
+        "id": "m14",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p15",
+            "messageID": "m14",
+            "text": 
+"The output confirms "done" was appended successfully, growing the file from 32 bytes to include the new line. That looks good, so I can report this briefly.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p16",
+            "messageID": "m14",
+            "text": "I appended \`done\` as a new last line in \`notes.md\`. The file ends with a newline, so the line sits on its own. Reading the file back shows \`done\` after \`- gamma\`.",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 24946,
+            "write": 244,
+          },
+          "input": 2,
+          "output": 107,
+          "reasoning": 49,
+          "total": 25299,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly plan-exit-accept 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 27,
+    "message.part.updated": 22,
+    "message.updated": 12,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "plan",
+        "claudeUuid": "7a746cf3-3e36-4e21-a368-9d55206b0126",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Plan how to append the line 'done' to notes.md. When your plan is ready, call ExitPlanMode with it. Keep the plan to 2 bullets.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjkXwFLPMxpZkheWcwA",
+        "claudeUuid": "50eab103-7c3c-469c-af8d-253cf2be17d9",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-sonnet-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_018qqBovQNenPQxF52czvCYA",
+            "claude": {
+              "input": {
+                "max_results": 1,
+                "query": "select:ExitPlanMode",
+              },
+              "name": "ToolSearch",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "61369bb4-d9dd-4a3c-b063-bc273934ab15",
+            },
+            "state": {
+              "input": {
+                "max_results": 1,
+                "query": "select:ExitPlanMode",
+              },
+              "metadata": {},
+              "output": "",
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "ToolSearch",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 14868,
+            "write": 5671,
+          },
+          "input": 2,
+          "output": 82,
+          "reasoning": 0,
+          "total": 20623,
+        },
+      },
+      {
+        "apiMessageId": "msg_011Cfrjkejmn5YzBg1j5LVJN",
+        "claudeUuid": "812c733c-1262-459c-803f-04930c2d9c0f",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m5",
+        "modelID": "claude-sonnet-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01AhrXe7kP3UvJ5wxKHoBk9k",
+            "claude": {
+              "input": {
+                "content": 
+"## Context
+Append the line \`done\` to \`notes.md\` in the working directory (not a git repo).
+
+## Plan
+- Check that \`notes.md\` exists and whether it ends with a trailing newline (Read it).
+- Append \`done\` on its own line, adding a leading newline only if the file lacks a trailing one (e.g. \`printf 'done\\n' >> notes.md\`). Then confirm that \`done\` is the last line.
+"
+,
+                "file_path": "/Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md",
+              },
+              "name": "Write",
+            },
+            "id": "p6",
+            "messageID": "m5",
+            "metadata": {
+              "resultUuid": "5e0ec5e5-57f7-41de-8e25-da3d02eccf2b",
+            },
+            "state": {
+              "input": {
+                "content": 
+"## Context
+Append the line \`done\` to \`notes.md\` in the working directory (not a git repo).
+
+## Plan
+- Check that \`notes.md\` exists and whether it ends with a trailing newline (Read it).
+- Append \`done\` on its own line, adding a leading newline only if the file lacks a trailing one (e.g. \`printf 'done\\n' >> notes.md\`). Then confirm that \`done\` is the last line.
+"
+,
+                "filePath": "/Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md",
+              },
+              "metadata": {
+                "diff": 
+"--- /dev/null
++++ b//Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md
+@@ -0,0 +1,6 @@
++## Context
++Append the line \`done\` to \`notes.md\` in the working directory (not a git repo).
++
++## Plan
++- Check that \`notes.md\` exists and whether it ends with a trailing newline (Read it).
++- Append \`done\` on its own line, adding a leading newline only if the file lacks a trailing one (e.g. \`printf 'done\\n' >> notes.md\`). Then confirm that \`done\` is the last line.
+"
+,
+                "filePath": "/Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md",
+                "filediff": {
+                  "additions": 6,
+                  "deletions": 0,
+                  "file": "/Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md",
+                  "patch": 
+"--- /dev/null
++++ b//Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md
+@@ -0,0 +1,6 @@
++## Context
++Append the line \`done\` to \`notes.md\` in the working directory (not a git repo).
++
++## Plan
++- Check that \`notes.md\` exists and whether it ends with a trailing newline (Read it).
++- Append \`done\` on its own line, adding a leading newline only if the file lacks a trailing one (e.g. \`printf 'done\\n' >> notes.md\`). Then confirm that \`done\` is the last line.
+"
+,
+                },
+                "files": [
+                  {
+                    "additions": 6,
+                    "deletions": 0,
+                    "filePath": "/Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md",
+                    "patch": 
+"--- /dev/null
++++ b//Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md
+@@ -0,0 +1,6 @@
++## Context
++Append the line \`done\` to \`notes.md\` in the working directory (not a git repo).
++
++## Plan
++- Check that \`notes.md\` exists and whether it ends with a trailing newline (Read it).
++- Append \`done\` on its own line, adding a leading newline only if the file lacks a trailing one (e.g. \`printf 'done\\n' >> notes.md\`). Then confirm that \`done\` is the last line.
+"
+,
+                    "relativePath": "/Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md",
+                  },
+                ],
+              },
+              "output": "File created successfully at: /Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md (file state is current in your context — no need to Read it back)",
+              "status": "completed",
+              "title": "/Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md",
+            },
+            "tool": "write",
+            "type": "tool",
+          },
+          {
+            "callID": "toolu_019mAyE4TLaE5QGDvQP8xocW",
+            "claude": {
+              "input": {
+                "plan": 
+"## Context
+Append the line \`done\` to \`notes.md\` in the working directory (not a git repo).
+
+## Plan
+- Check that \`notes.md\` exists and whether it ends with a trailing newline (Read it).
+- Append \`done\` on its own line, adding a leading newline only if the file lacks a trailing one (e.g. \`printf 'done\\n' >> notes.md\`). Then confirm that \`done\` is the last line.
+"
+,
+                "planFilePath": "/Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md",
+              },
+              "name": "ExitPlanMode",
+            },
+            "id": "p7",
+            "messageID": "m5",
+            "metadata": {
+              "resultUuid": "bdf65855-26f0-42a4-a544-871d5ecb5c78",
+            },
+            "state": {
+              "input": {
+                "plan": 
+"## Context
+Append the line \`done\` to \`notes.md\` in the working directory (not a git repo).
+
+## Plan
+- Check that \`notes.md\` exists and whether it ends with a trailing newline (Read it).
+- Append \`done\` on its own line, adding a leading newline only if the file lacks a trailing one (e.g. \`printf 'done\\n' >> notes.md\`). Then confirm that \`done\` is the last line.
+"
+,
+                "planFilePath": "/Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md",
+              },
+              "metadata": {
+                "plan": 
+"## Context
+Append the line \`done\` to \`notes.md\` in the working directory (not a git repo).
+
+## Plan
+- Check that \`notes.md\` exists and whether it ends with a trailing newline (Read it).
+- Append \`done\` on its own line, adding a leading newline only if the file lacks a trailing one (e.g. \`printf 'done\\n' >> notes.md\`). Then confirm that \`done\` is the last line.
+"
+,
+              },
+              "output": 
+"User has approved your plan. You can now start coding. Start with updating your todo list if applicable
+
+Your plan has been saved to: /Users/kei/.claude/plans/plan-how-to-append-flickering-fountain.md
+You can refer back to it if needed during implementation.
+
+## Approved Plan:
+## Context
+Append the line \`done\` to \`notes.md\` in the working directory (not a git repo).
+
+## Plan
+- Check that \`notes.md\` exists and whether it ends with a trailing newline (Read it).
+- Append \`done\` on its own line, adding a leading newline only if the file lacks a trailing one (e.g. \`printf 'done\\n' >> notes.md\`). Then confirm that \`done\` is the last line.
+"
+,
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "plan_exit",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 20539,
+            "write": 3160,
+          },
+          "input": 2,
+          "output": 261,
+          "reasoning": 0,
+          "total": 23962,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjksQXb6WJfiXXmoXnp",
+        "claudeUuid": "4ae979c3-69da-45dd-aa6b-30de8a0e642c",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m8",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p9",
+            "messageID": "m8",
+            "text": 
+"Plan's approved, so I'll start by reading notes.md to check the trailing newline before moving forward.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "callID": "toolu_01VXFaXEdTd5W4sTW1PTovny",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+              },
+              "name": "Read",
+            },
+            "id": "p10",
+            "messageID": "m8",
+            "metadata": {
+              "resultUuid": "e150e440-6eb1-480a-939c-e24b7b29c2ba",
+            },
+            "state": {
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+              },
+              "metadata": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/notes.md",
+                "numLines": 6,
+                "startLine": 1,
+                "totalLines": 6,
+              },
+              "output": 
+"1	# Notes
+2	
+3	- alpha
+4	- beta
+5	- gamma
+6	"
+,
+              "status": "completed",
+              "title": "notes.md",
+            },
+            "tool": "read",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 14868,
+            "write": 9814,
+          },
+          "input": 2,
+          "output": 261,
+          "reasoning": 134,
+          "total": 24945,
+        },
+      },
+      {
+        "apiMessageId": "msg_011Cfrjm3HqZjLLRvH7Tgg73",
+        "claudeUuid": "75ede946-4a00-442c-847a-316876835a20",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m11",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p12",
+            "messageID": "m11",
+            "text": 
+"I'm not sure if the file ends with a trailing newline, so I'll check the last byte with a quick bash command before deciding how to append.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "callID": "toolu_013WUSi9pGdGL9enCbGBo5z5",
+            "claude": {
+              "input": {
+                "command": "if [ -n "$(tail -c 1 notes.md)" ]; then printf '\\n' >> notes.md; fi && printf 'done\\n' >> notes.md && tail -n 3 notes.md",
+                "description": "Append done line to notes.md and show last lines",
+              },
+              "name": "Bash",
+            },
+            "id": "p13",
+            "messageID": "m11",
+            "metadata": {
+              "resultUuid": "f98a9a13-9e2f-48e3-a4e2-6faf1f590cfd",
+            },
+            "state": {
+              "input": {
+                "command": "if [ -n "$(tail -c 1 notes.md)" ]; then printf '\\n' >> notes.md; fi && printf 'done\\n' >> notes.md && tail -n 3 notes.md",
+                "description": "Append done line to notes.md and show last lines",
+              },
+              "metadata": {
+                "command": "if [ -n "$(tail -c 1 notes.md)" ]; then printf '\\n' >> notes.md; fi && printf 'done\\n' >> notes.md && tail -n 3 notes.md",
+                "description": "Append done line to notes.md and show last lines",
+              },
+              "output": 
+"- beta
+- gamma
+done"
+,
+              "status": "completed",
+              "title": "Append done line to notes.md and show last lines",
+            },
+            "tool": "bash",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 24682,
+            "write": 322,
+          },
+          "input": 2,
+          "output": 284,
+          "reasoning": 59,
+          "total": 25290,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjmFmRk5nftfqjWTBcG",
+        "claudeUuid": "30ced080-fb45-4df1-ad5d-2130c04e25e3",
+        "cost": 0.04901744000000001,
+        "finish": "end_turn",
+        "id": "m14",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p15",
+            "messageID": "m14",
+            "text": "I appended \`done\` as the last line of \`notes.md\`. The file already ended with a newline, so no extra blank line was added. The tail of the file now reads \`- beta\`, \`- gamma\`, \`done\`.",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 25004,
+            "write": 323,
+          },
+          "input": 2,
+          "output": 66,
+          "reasoning": 0,
+          "total": 25395,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly read 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 8,
+    "message.part.updated": 8,
+    "message.updated": 6,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "fe850956-5e86-4561-a3ea-be33e122fc8e",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Read hello.txt with the Read tool and tell me the second line, nothing else.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011Cfrjakgg5vKYi6XWm3eFz",
+        "claudeUuid": "45a5b9e6-96b6-4f6f-951e-3a0df726d44c",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01GXP6Tn9kQnYBtG4wHpUYnm",
+            "claude": {
+              "input": {
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt",
+              },
+              "name": "Read",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "b8b77c02-b0d2-4b07-ac87-03c8a40c0581",
+            },
+            "state": {
+              "input": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt",
+              },
+              "metadata": {
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt",
+                "numLines": 4,
+                "startLine": 1,
+                "totalLines": 4,
+              },
+              "output": 
+"1	hello from the sandbox
+2	second line
+3	third line
+4	"
+,
+              "status": "completed",
+              "title": "hello.txt",
+            },
+            "tool": "read",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18744,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 127,
+          "reasoning": 0,
+          "total": 18873,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjaqwSDrhUUcigrDHb1",
+        "claudeUuid": "8f414dc3-d3b5-4d26-baeb-4b98eeac5efd",
+        "cost": 0.0006170500000000001,
+        "finish": "end_turn",
+        "id": "m5",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p6",
+            "messageID": "m5",
+            "text": 
+"The user just wants the second line, which is "second line" - that's all I need to provide here.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p7",
+            "messageID": "m5",
+            "text": "second line",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21071,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 53,
+          "reasoning": 49,
+          "total": 21126,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly resume 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 9,
+    "message.part.updated": 3,
+    "message.updated": 4,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "4ca7b8dc-59d0-4e04-ab9d-e051d356a8ee",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "What two words did you reply with earlier? One line.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjZVKw5bD3oC4a4BNca",
+        "claudeUuid": "d48d2f37-bc56-46a9-b476-81b1df2f56f6",
+        "cost": 0.00204019,
+        "finish": "end_turn",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": "I replied with "one" in my first response, and "two" in my second. The question asks for "two words," but each reply was a single word.",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 14868,
+            "write": 6571,
+          },
+          "input": 2,
+          "output": 40,
+          "reasoning": 0,
+          "total": 21481,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly task 1`] = `
+{
+  "children": [
+    {
+      "id": "sub_<toolUseId>",
+      "state": {
+        "messages": [
+          {
+            "agent": "general-purpose",
+            "id": "m1",
+            "instruction": {
+              "fromMessageID": "17000000000050000",
+              "fromSessionID": "21f58e7f-13cf-4eb8-aa4b-c39eb74e5e7b",
+              "index": 1,
+              "kind": "initial",
+              "toolCallID": "toolu_012P7dDEMpUoLLEpUduJSyto",
+            },
+            "model": {
+              "modelID": "claude-haiku-5-5",
+              "providerID": "anthropic",
+            },
+            "parts": [
+              {
+                "id": "p2",
+                "messageID": "m1",
+                "text": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox) and report its first line exactly as written. Reply with only that line.",
+                "type": "text",
+              },
+            ],
+            "role": "user",
+          },
+          {
+            "apiMessageId": "msg_011CfrjfePZ6eSNcpniBhbv2",
+            "claudeUuid": "73e4ea4c-2e6b-4711-b6a0-e776ff1edba9",
+            "cost": 0,
+            "id": "m3",
+            "modelID": "claude-haiku-5-5",
+            "parentID": "m1",
+            "parts": [
+              {
+                "callID": "toolu_01AKGCYzYz52gJjR8DfV82aE",
+                "claude": {
+                  "input": {
+                    "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt",
+                  },
+                  "name": "Read",
+                },
+                "id": "p4",
+                "messageID": "m3",
+                "metadata": {
+                  "resultUuid": "b8d7d246-c136-43c5-ab38-c3a258fd04fc",
+                },
+                "state": {
+                  "input": {
+                    "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt",
+                  },
+                  "metadata": {
+                    "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt",
+                  },
+                  "output": 
+"1	hello from the sandbox
+2	second line
+3	third line
+4	"
+,
+                  "status": "completed",
+                  "title": "hello.txt",
+                },
+                "tool": "read",
+                "type": "tool",
+              },
+            ],
+            "providerID": "anthropic",
+            "role": "assistant",
+            "tokens": {
+              "cache": {
+                "read": 5898,
+                "write": 4266,
+              },
+              "input": 2,
+              "output": 16,
+              "reasoning": 0,
+              "total": 10182,
+            },
+          },
+          {
+            "apiMessageId": "msg_011CfrjfkKjv69JY4SFsbYoP",
+            "claudeUuid": "634967f0-78f3-4191-bbba-8101622d5dd2",
+            "cost": 0,
+            "id": "m5",
+            "modelID": "claude-haiku-5-5",
+            "parentID": "m1",
+            "parts": [
+              {
+                "id": "p6",
+                "messageID": "m5",
+                "text": 
+"The user just wants the first line, which is "hello from the sandbox" — nothing else matters here, so I'll respond with just that line.
+
+"
+,
+                "type": "reasoning",
+              },
+              {
+                "id": "p7",
+                "messageID": "m5",
+                "text": "hello from the sandbox",
+                "type": "text",
+              },
+            ],
+            "providerID": "anthropic",
+            "role": "assistant",
+            "tokens": {
+              "cache": {
+                "read": 10164,
+                "write": 1859,
+              },
+              "input": 2,
+              "output": 4,
+              "reasoning": 0,
+              "total": 12029,
+            },
+          },
+        ],
+        "status": {
+          "type": "idle",
+        },
+        "todos": [],
+      },
+    },
+  ],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 18,
+    "message.part.updated": 22,
+    "message.updated": 14,
+    "session.created": 1,
+    "session.status": 6,
+    "session.updated": 3,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "7c3db305-d8b2-4058-b6b6-2097f980a85a",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Use the Task tool with subagent_type general-purpose to read hello.txt and report its first line. Then reply with that line only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjfXKQGrf6hvjht6VtP",
+        "claudeUuid": "8a94cb43-ea2d-42e5-8f53-c461766fc964",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_012P7dDEMpUoLLEpUduJSyto",
+            "claude": {
+              "input": {
+                "description": "Read first line of hello.txt",
+                "prompt": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox) and report its first line exactly as written. Reply with only that line.",
+                "subagent_type": "general-purpose",
+              },
+              "name": "Agent",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "05837b57-df4d-4a52-82c3-9db7d541bfa4",
+            },
+            "state": {
+              "input": {
+                "description": "Read first line of hello.txt",
+                "prompt": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox) and report its first line exactly as written. Reply with only that line.",
+                "subagent_type": "general-purpose",
+              },
+              "metadata": {
+                "agentId": "ad078cfd9c8f72062",
+                "agentType": "general-purpose",
+                "childMessageID": "17000000000110000",
+                "message": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox) and report its first line exactly as written. Reply with only that line.",
+                "reply": "hello from the sandbox",
+                "runStatus": "completed",
+                "sessionID": "sub_toolu_012P7dDEMpUoLLEpUduJSyto",
+              },
+              "output": "hello from the sandbox",
+              "status": "completed",
+              "title": "Read first line of hello.txt",
+            },
+            "tool": "task",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18758,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 217,
+          "reasoning": 0,
+          "total": 18977,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjfechbSu2TjypopR6o",
+        "claudeUuid": "64aa9a39-4377-45a9-a318-8441198d2bd5",
+        "cost": 0.00191509,
+        "finish": "end_turn",
+        "id": "m5",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p6",
+            "messageID": "m5",
+            "text": 
+"The agent is still running in the background, so I shouldn't fabricate results. I'll let the user know it's still processing and reply once it completes.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p7",
+            "messageID": "m5",
+            "text": "The subagent is still reading hello.txt. I'll reply with its first line once it reports back.",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18758,
+            "write": 2831,
+          },
+          "input": 2,
+          "output": 157,
+          "reasoning": 126,
+          "total": 21748,
+        },
+      },
+      {
+        "apiMessageId": "msg_011Cfrjfuozj6LZ2b8EET7hf",
+        "claudeUuid": "3c060927-f816-4c77-8cf4-3ec6b883ef88",
+        "cost": 0.002645695,
+        "finish": "end_turn",
+        "id": "m8",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p9",
+            "messageID": "m8",
+            "text": "hello from the sandbox",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21589,
+            "write": 713,
+          },
+          "input": 4,
+          "output": 10,
+          "reasoning": 0,
+          "total": 22316,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly task-forward 1`] = `
+{
+  "children": [
+    {
+      "id": "sub_<toolUseId>",
+      "state": {
+        "messages": [
+          {
+            "agent": "general-purpose",
+            "id": "m1",
+            "instruction": {
+              "fromMessageID": "17000000000050000",
+              "fromSessionID": "b969ff11-33c3-44ae-a81e-de6acbb8c081",
+              "index": 1,
+              "kind": "initial",
+              "toolCallID": "toolu_013rVQZfKVWthr2rU5WZz8WU",
+            },
+            "model": {
+              "modelID": "claude-haiku-5-5",
+              "providerID": "anthropic",
+            },
+            "parts": [
+              {
+                "id": "p2",
+                "messageID": "m1",
+                "text": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox). Report only its first line, exactly as written.",
+                "type": "text",
+              },
+            ],
+            "role": "user",
+          },
+          {
+            "apiMessageId": "msg_011CfrjgGF4mhGamGxtSJ42J",
+            "claudeUuid": "aaf27343-e7d8-404d-a7f2-1dabef67a538",
+            "cost": 0,
+            "id": "m3",
+            "modelID": "claude-haiku-5-5",
+            "parentID": "m1",
+            "parts": [
+              {
+                "callID": "toolu_01B9ds2irJpiYU8PQE5iJiri",
+                "claude": {
+                  "input": {
+                    "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt",
+                  },
+                  "name": "Read",
+                },
+                "id": "p4",
+                "messageID": "m3",
+                "metadata": {
+                  "resultUuid": "63281d09-cde0-493e-a4c8-c0f2b1f26b9b",
+                },
+                "state": {
+                  "input": {
+                    "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt",
+                  },
+                  "metadata": {
+                    "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt",
+                  },
+                  "output": 
+"1	hello from the sandbox
+2	second line
+3	third line
+4	"
+,
+                  "status": "completed",
+                  "title": "hello.txt",
+                },
+                "tool": "read",
+                "type": "tool",
+              },
+            ],
+            "providerID": "anthropic",
+            "role": "assistant",
+            "tokens": {
+              "cache": {
+                "read": 5898,
+                "write": 3313,
+              },
+              "input": 2,
+              "output": 16,
+              "reasoning": 0,
+              "total": 9229,
+            },
+          },
+          {
+            "apiMessageId": "msg_011CfrjgMoBzL1X3Kw1kNH9B",
+            "claudeUuid": "e94825c9-b6c2-4e75-9a94-d4cbbc1b4cb4",
+            "cost": 0,
+            "id": "m5",
+            "modelID": "claude-haiku-5-5",
+            "parentID": "m1",
+            "parts": [
+              {
+                "id": "p6",
+                "messageID": "m5",
+                "text": 
+"The first line of hello.txt is:
+
+\`hello from the sandbox\`"
+,
+                "type": "text",
+              },
+            ],
+            "providerID": "anthropic",
+            "role": "assistant",
+            "tokens": {
+              "cache": {
+                "read": 9211,
+                "write": 1859,
+              },
+              "input": 2,
+              "output": 8,
+              "reasoning": 0,
+              "total": 11080,
+            },
+          },
+        ],
+        "status": {
+          "type": "idle",
+        },
+        "todos": [],
+      },
+    },
+  ],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 27,
+    "message.part.updated": 22,
+    "message.updated": 14,
+    "session.created": 1,
+    "session.status": 6,
+    "session.updated": 3,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "36c5c16c-5935-4570-98ca-f29bf3388e2e",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Use the Task tool with subagent_type general-purpose to read hello.txt and report its first line. Then reply with that line only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011Cfrjg9V2TptiBvTV3Tq6G",
+        "claudeUuid": "4a5680b5-8195-473b-a384-7bf9d8fc099a",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_013rVQZfKVWthr2rU5WZz8WU",
+            "claude": {
+              "input": {
+                "description": "Read hello.txt first line",
+                "prompt": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox). Report only its first line, exactly as written.",
+                "subagent_type": "general-purpose",
+              },
+              "name": "Agent",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "385fe8e0-7135-4192-ae12-cb9b015ad228",
+            },
+            "state": {
+              "input": {
+                "description": "Read hello.txt first line",
+                "prompt": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox). Report only its first line, exactly as written.",
+                "subagent_type": "general-purpose",
+              },
+              "metadata": {
+                "agentId": "a6764737eca90eb05",
+                "agentType": "general-purpose",
+                "childMessageID": "17000000000110000",
+                "message": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox). Report only its first line, exactly as written.",
+                "reply": 
+"The first line of hello.txt is:
+
+\`hello from the sandbox\`"
+,
+                "runStatus": "completed",
+                "sessionID": "sub_toolu_013rVQZfKVWthr2rU5WZz8WU",
+              },
+              "output": 
+"The first line of hello.txt is:
+
+\`hello from the sandbox\`"
+,
+              "status": "completed",
+              "title": "Read hello.txt first line",
+            },
+            "tool": "task",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18758,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 210,
+          "reasoning": 0,
+          "total": 18970,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjgGdP76ygwN33dMozb",
+        "claudeUuid": "dccc97ac-12e2-42c2-b6f9-ccf014e05994",
+        "cost": 0.0014141650000000002,
+        "finish": "end_turn",
+        "id": "m5",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p6",
+            "messageID": "m5",
+            "text": 
+"I'll wait for the notification rather than guessing the outcome, and just note that it's running.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p7",
+            "messageID": "m5",
+            "text": "The subagent is still reading hello.txt. I'll reply with its first line when it reports back.",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18758,
+            "write": 1177,
+          },
+          "input": 2,
+          "output": 64,
+          "reasoning": 33,
+          "total": 20001,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjgSVUKQphwCjhjDD34",
+        "claudeUuid": "0303a67f-a21b-4034-a69d-d867af8fea53",
+        "cost": 0.0025399000000000003,
+        "finish": "end_turn",
+        "id": "m8",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p9",
+            "messageID": "m8",
+            "text": 
+"The subagent result came back as "hello from the sandbox" — the user just wants that exact line returned, so I'll reply with only that.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p10",
+            "messageID": "m8",
+            "text": "hello from the sandbox",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 19935,
+            "write": 2775,
+          },
+          "input": 2,
+          "output": 69,
+          "reasoning": 59,
+          "total": 22781,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly task-sync 1`] = `
+{
+  "children": [
+    {
+      "id": "sub_<toolUseId>",
+      "state": {
+        "messages": [
+          {
+            "agent": "general-purpose",
+            "id": "m1",
+            "instruction": {
+              "fromMessageID": "17000000000050000",
+              "fromSessionID": "edc5ac95-a875-4059-96df-d4a3c68d0220",
+              "index": 1,
+              "kind": "initial",
+              "toolCallID": "toolu_01AmQvCxbh9wpueEkoJJ7uo6",
+            },
+            "model": {
+              "modelID": "claude-haiku-5-5",
+              "providerID": "anthropic",
+            },
+            "parts": [
+              {
+                "id": "p2",
+                "messageID": "m1",
+                "text": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox) and report its first line. Reply with only that first line, nothing else.",
+                "type": "text",
+              },
+            ],
+            "role": "user",
+          },
+          {
+            "apiMessageId": "msg_011CfrjgroCGsq8hBswv2yCn",
+            "claudeUuid": "e3c45394-f7a6-4d9e-b938-4c2d9cb6a3e8",
+            "cost": 0,
+            "id": "m3",
+            "modelID": "claude-haiku-5-5",
+            "parentID": "m1",
+            "parts": [
+              {
+                "callID": "toolu_01MZGRob2Zx4JceGFHRU2jZV",
+                "claude": {
+                  "input": {
+                    "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt",
+                  },
+                  "name": "Read",
+                },
+                "id": "p4",
+                "messageID": "m3",
+                "metadata": {
+                  "resultUuid": "8dc183af-3559-4b99-8878-5c977e421810",
+                },
+                "state": {
+                  "input": {
+                    "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt",
+                  },
+                  "metadata": {
+                    "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/hello.txt",
+                  },
+                  "output": 
+"1	hello from the sandbox
+2	second line
+3	third line
+4	"
+,
+                  "status": "completed",
+                  "title": "hello.txt",
+                },
+                "tool": "read",
+                "type": "tool",
+              },
+            ],
+            "providerID": "anthropic",
+            "role": "assistant",
+            "tokens": {
+              "cache": {
+                "read": 7181,
+                "write": 4304,
+              },
+              "input": 2,
+              "output": 16,
+              "reasoning": 0,
+              "total": 11503,
+            },
+          },
+          {
+            "apiMessageId": "reply:17000000000250000",
+            "cost": 0,
+            "finish": "end_turn",
+            "id": "m5",
+            "modelID": "claude-haiku-5-5",
+            "parentID": "m1",
+            "parts": [
+              {
+                "id": "p6",
+                "messageID": "m5",
+                "text": "hello from the sandbox",
+                "type": "text",
+              },
+            ],
+            "providerID": "anthropic",
+            "role": "assistant",
+            "tokens": {
+              "cache": {
+                "read": 0,
+                "write": 0,
+              },
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+            },
+          },
+        ],
+        "status": {
+          "type": "idle",
+        },
+        "todos": [],
+      },
+    },
+  ],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 9,
+    "message.part.updated": 17,
+    "message.updated": 11,
+    "session.created": 1,
+    "session.status": 4,
+    "session.updated": 3,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "36bb83bc-50f4-4421-9458-4b059154d9c6",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Use the Task tool with subagent_type general-purpose to read hello.txt and report its first line. Then reply with that line only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011Cfrjgk9bsRqiUbEYwuecq",
+        "claudeUuid": "298bd51e-17bb-4142-9a8d-ac759edf5eef",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01AmQvCxbh9wpueEkoJJ7uo6",
+            "claude": {
+              "input": {
+                "description": "Read hello.txt first line",
+                "prompt": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox) and report its first line. Reply with only that first line, nothing else.",
+                "subagent_type": "general-purpose",
+              },
+              "name": "Agent",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "state": {
+              "input": {
+                "description": "Read hello.txt first line",
+                "prompt": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox) and report its first line. Reply with only that first line, nothing else.",
+                "subagent_type": "general-purpose",
+              },
+              "metadata": {
+                "agentId": "a30911323c6257daf",
+                "agentType": "general-purpose",
+                "childMessageID": "17000000000110000",
+                "message": "Read the file hello.txt in the current working directory (/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox) and report its first line. Reply with only that first line, nothing else.",
+                "reply": "hello from the sandbox",
+                "runStatus": "completed",
+                "sessionID": "sub_toolu_01AmQvCxbh9wpueEkoJJ7uo6",
+              },
+              "output": "hello from the sandbox",
+              "status": "completed",
+              "title": "Read hello.txt first line",
+            },
+            "tool": "task",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18345,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 217,
+          "reasoning": 0,
+          "total": 18564,
+        },
+      },
+      {
+        "apiMessageId": "msg_011Cfrjh7DNe7F6CHXiPQbmi",
+        "claudeUuid": "a413ab4e-c644-4869-a6ae-948ac4462817",
+        "cost": 0.002223735,
+        "finish": "end_turn",
+        "id": "m5",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p6",
+            "messageID": "m5",
+            "text": 
+"The subagent returned "hello from the sandbox" - that's the exact line the user wants, so I'll just reply with that.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p7",
+            "messageID": "m5",
+            "text": "hello from the sandbox",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18345,
+            "write": 2633,
+          },
+          "input": 2,
+          "output": 76,
+          "reasoning": 66,
+          "total": 21056,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly tasks-v2 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 27,
+    "message.part.updated": 25,
+    "message.updated": 12,
+    "session.status": 2,
+    "todo.updated": 4,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "58b0e747-aabc-4c3a-a216-7300de3368a5",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Use the TodoWrite tool to create a todo list with 3 items (a, b, c), then mark the first completed using TodoWrite again. Reply 'done' only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjdqgPkeDJV69UsbmKa",
+        "claudeUuid": "a41ff36a-f566-4958-8925-374da94f0432",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": 
+"TodoWrite doesn't appear directly in my tool list, but TaskCreate/TaskUpdate look like the closest equivalents. Let me search for TodoWrite specifically before assuming it's unavailable.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "callID": "toolu_015SFiAPyKuwsTFKShdCv2Mx",
+            "claude": {
+              "input": {
+                "max_results": 5,
+                "query": "select:TodoWrite",
+              },
+              "name": "ToolSearch",
+            },
+            "id": "p5",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "8b917ae3-ad34-457e-9ab2-f20cb4b26724",
+            },
+            "state": {
+              "input": {
+                "max_results": 5,
+                "query": "select:TodoWrite",
+              },
+              "metadata": {},
+              "output": "No matching deferred tools found",
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "ToolSearch",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18798,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 212,
+          "reasoning": 131,
+          "total": 19012,
+        },
+      },
+      {
+        "apiMessageId": "msg_011Cfrje43nk58uEmLj6gH1G",
+        "claudeUuid": "6d7c7bae-0652-43e8-9e34-a67f45f2cfa4",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m6",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p7",
+            "messageID": "m6",
+            "text": 
+"TodoWrite doesn't seem available here—the closest equivalents are TaskCreate and TaskUpdate. I'll let the user know and use those instead to accomplish the same goal.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "callID": "toolu_0181BoJe7UUrLwE5AVMTQMr3",
+            "claude": {
+              "input": {
+                "max_results": 2,
+                "query": "select:TaskCreate,TaskUpdate",
+              },
+              "name": "ToolSearch",
+            },
+            "id": "p8",
+            "messageID": "m6",
+            "metadata": {
+              "resultUuid": "13127cdc-f409-4a10-bb4a-5143c3a04b20",
+            },
+            "state": {
+              "input": {
+                "max_results": 2,
+                "query": "select:TaskCreate,TaskUpdate",
+              },
+              "metadata": {},
+              "output": "",
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "ToolSearch",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18798,
+            "write": 2398,
+          },
+          "input": 2,
+          "output": 185,
+          "reasoning": 96,
+          "total": 21383,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjeFEyz9v5xTbvj8ZaT",
+        "claudeUuid": "86c48bb4-0e21-4705-a169-d6dd7e78bbf4",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m9",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01WAaB1EReneKCvhvrZkcd7L",
+            "claude": {
+              "input": {
+                "description": "Todo item a",
+                "subject": "a",
+              },
+              "name": "TaskCreate",
+            },
+            "id": "p10",
+            "messageID": "m9",
+            "metadata": {
+              "resultUuid": "b1e59d74-47f7-4025-82ff-a788950744ce",
+            },
+            "state": {
+              "input": {
+                "description": "Todo item a",
+                "subject": "a",
+              },
+              "metadata": {},
+              "output": "Task #1 created successfully: a",
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "TaskCreate",
+            "type": "tool",
+          },
+          {
+            "callID": "toolu_01TwQZZ2c3hLogDuXGwmiJVA",
+            "claude": {
+              "input": {
+                "description": "Todo item b",
+                "subject": "b",
+              },
+              "name": "TaskCreate",
+            },
+            "id": "p11",
+            "messageID": "m9",
+            "metadata": {
+              "resultUuid": "c4593dd9-9f3f-46d4-ac96-f3c8e9255dcf",
+            },
+            "state": {
+              "input": {
+                "description": "Todo item b",
+                "subject": "b",
+              },
+              "metadata": {},
+              "output": "Task #2 created successfully: b",
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "TaskCreate",
+            "type": "tool",
+          },
+          {
+            "callID": "toolu_01QtxpiENoNqVKuyzGbe23gs",
+            "claude": {
+              "input": {
+                "description": "Todo item c",
+                "subject": "c",
+              },
+              "name": "TaskCreate",
+            },
+            "id": "p12",
+            "messageID": "m9",
+            "metadata": {
+              "resultUuid": "e17db6d2-0d28-4e59-841d-006c08632c87",
+            },
+            "state": {
+              "input": {
+                "description": "Todo item c",
+                "subject": "c",
+              },
+              "metadata": {},
+              "output": "Task #3 created successfully: c",
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "TaskCreate",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21196,
+            "write": 2643,
+          },
+          "input": 2,
+          "output": 222,
+          "reasoning": 0,
+          "total": 24063,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjeLy2kJ9GLGeM1iEXh",
+        "claudeUuid": "2e43efae-92a0-4697-970f-247e5dc44da2",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m13",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01LECzFRPHNQwPjq1SZEnNKU",
+            "claude": {
+              "input": {
+                "status": "completed",
+                "taskId": "1",
+              },
+              "name": "TaskUpdate",
+            },
+            "id": "p14",
+            "messageID": "m13",
+            "metadata": {
+              "resultUuid": "fd5d7f2d-5622-408d-8651-1ecd4cacbb18",
+            },
+            "state": {
+              "input": {
+                "status": "completed",
+                "taskId": "1",
+              },
+              "metadata": {},
+              "output": "Updated task #1 status",
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "TaskUpdate",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 23839,
+            "write": 369,
+          },
+          "input": 2,
+          "output": 75,
+          "reasoning": 0,
+          "total": 24285,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjeR4LkmEpTuJmZ2Jbs",
+        "claudeUuid": "2bb7a047-436f-444b-aaa4-62337a88fe62",
+        "cost": 0.00265309,
+        "finish": "end_turn",
+        "id": "m15",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p16",
+            "messageID": "m15",
+            "text": "done",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 24208,
+            "write": 112,
+          },
+          "input": 2,
+          "output": 3,
+          "reasoning": 0,
+          "total": 24325,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [
+      {
+        "content": "a",
+        "id": "1",
+        "priority": "medium",
+        "status": "completed",
+      },
+      {
+        "content": "b",
+        "id": "2",
+        "priority": "medium",
+        "status": "pending",
+      },
+      {
+        "content": "c",
+        "id": "3",
+        "priority": "medium",
+        "status": "pending",
+      },
+    ],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly text 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 1,
+    "message.part.updated": 3,
+    "message.updated": 4,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "df90b371-93a1-4e71-9d1c-e1783be86ae5",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Reply with exactly: hello",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjXxVzcTd6KALuFersn",
+        "claudeUuid": "84f01ad6-9b1b-41b1-969d-2fc42f0b51e2",
+        "cost": 0.00031538,
+        "finish": "end_turn",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": "hello",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18728,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 4,
+          "reasoning": 0,
+          "total": 18734,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly text-usersettings 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 2,
+    "message.part.updated": 3,
+    "message.updated": 4,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "a2f2f979-e09b-413f-b9d4-88563c475649",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Reply with exactly: hello",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjYm5gWRMheGkvr2gMG",
+        "claudeUuid": "238e082f-495b-414c-8b39-aac9f890fdb6",
+        "cost": 0.00038694999999999995,
+        "finish": "end_turn",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": "hello",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 25885,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 4,
+          "reasoning": 0,
+          "total": 25891,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly thinking 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 16,
+    "message.part.updated": 5,
+    "message.updated": 4,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "d3747cf4-e7c7-45c5-85f3-805a2cc3a56f",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "A bat and a ball cost 1.10 total; the bat costs 1.00 more than the ball. Think carefully, then give the ball price in one sentence.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjYCtgdt9AgjRUz7s3S",
+        "claudeUuid": "f34884e2-23dd-4827-8bd6-b25fdb8bc6f3",
+        "cost": 0.00035778000000000003,
+        "finish": "end_turn",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": 
+"If the ball costs 0.05, the bat costs 1.05, and together they total 1.10 — that checks out.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "id": "p5",
+            "messageID": "m3",
+            "text": "The ball costs **$0.05**, since the bat is then $1.05 and $0.05 + $1.05 = $1.10.",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18768,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 78,
+          "reasoning": 35,
+          "total": 18848,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly thinking-default 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 14,
+    "message.part.updated": 5,
+    "message.updated": 4,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "942c5d48-1979-4352-a0a4-e55f7c630802",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "A bat and a ball cost 1.10 total; the bat costs 1.00 more than the ball. Think carefully, then give the ball price in one sentence.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011CfrjYW7GsJT5NS6AuDauq",
+        "claudeUuid": "d7049cf4-2fbe-42b9-9c4e-4de2bec5958e",
+        "cost": 0.00036928000000000004,
+        "finish": "end_turn",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": "",
+            "type": "reasoning",
+          },
+          {
+            "id": "p5",
+            "messageID": "m3",
+            "text": "The ball costs **$0.05**, since the bat is $1.05 and $0.05 + $1.05 = $1.10, with the bat exactly $1.00 more.",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18768,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 100,
+          "reasoning": 44,
+          "total": 18870,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly todowrite 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 31,
+    "message.part.updated": 18,
+    "message.updated": 10,
+    "session.status": 2,
+    "todo.updated": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "default",
+        "claudeUuid": "15b0d41d-f803-4f85-acfb-27f3e730d906",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Use the TodoWrite tool to create a todo list with 3 items (a, b, c), then mark the first completed using TodoWrite again. Reply 'done' only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011Cfrjec8LfXhYLkHhcW5E3",
+        "claudeUuid": "410825b5-6e9e-49a0-aa2c-72dee51e3ec3",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p4",
+            "messageID": "m3",
+            "text": 
+"I need to use TodoWrite, but since it's deferred I should load its schema via ToolSearch first, then create three todo items and mark the first as completed, replying with just "done" afterward.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "callID": "toolu_012eM2X6wjwKVnSj25XeMtAS",
+            "claude": {
+              "input": {
+                "max_results": 1,
+                "query": "select:TodoWrite",
+              },
+              "name": "ToolSearch",
+            },
+            "id": "p5",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "f7cb63ba-69b5-4313-bc05-08dac19e1e10",
+            },
+            "state": {
+              "input": {
+                "max_results": 1,
+                "query": "select:TodoWrite",
+              },
+              "metadata": {},
+              "output": "",
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "ToolSearch",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18779,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 152,
+          "reasoning": 71,
+          "total": 18933,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjeqQYhGap6RQH1oAcV",
+        "claudeUuid": "53b8b703-af21-409a-8858-51ef4cc06c83",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m6",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p7",
+            "messageID": "m6",
+            "text": 
+"That message is just an informational note, nothing requiring action on my part. I'll continue with the original task and proceed to call TodoWrite.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "callID": "toolu_01MTNwjy9BKduV7gU6B3bVxA",
+            "claude": {
+              "input": {
+                "todos": [
+                  {
+                    "activeForm": "Working on a",
+                    "content": "a",
+                    "status": "in_progress",
+                  },
+                  {
+                    "activeForm": "Working on b",
+                    "content": "b",
+                    "status": "pending",
+                  },
+                  {
+                    "activeForm": "Working on c",
+                    "content": "c",
+                    "status": "pending",
+                  },
+                ],
+              },
+              "name": "TodoWrite",
+            },
+            "id": "p8",
+            "messageID": "m6",
+            "metadata": {
+              "resultUuid": "7e15cec1-7303-436d-9c61-e642d04a55ab",
+            },
+            "state": {
+              "input": {
+                "todos": [
+                  {
+                    "activeForm": "Working on a",
+                    "content": "a",
+                    "id": "1",
+                    "priority": "medium",
+                    "status": "in_progress",
+                  },
+                  {
+                    "activeForm": "Working on b",
+                    "content": "b",
+                    "id": "2",
+                    "priority": "medium",
+                    "status": "pending",
+                  },
+                  {
+                    "activeForm": "Working on c",
+                    "content": "c",
+                    "id": "3",
+                    "priority": "medium",
+                    "status": "pending",
+                  },
+                ],
+              },
+              "metadata": {
+                "todos": [
+                  {
+                    "activeForm": "Working on a",
+                    "content": "a",
+                    "status": "in_progress",
+                  },
+                  {
+                    "activeForm": "Working on b",
+                    "content": "b",
+                    "status": "pending",
+                  },
+                  {
+                    "activeForm": "Working on c",
+                    "content": "c",
+                    "status": "pending",
+                  },
+                ],
+              },
+              "output": "Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable",
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "todowrite",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21498,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 288,
+          "reasoning": 158,
+          "total": 21788,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjfApcLhMyVdNZvhKmP",
+        "claudeUuid": "2af78b28-ef9e-407c-8e16-128cd97041e1",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m9",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p10",
+            "messageID": "m9",
+            "text": 
+"I'll mark the first task as completed and leave the rest pending for now.
+
+"
+,
+            "type": "reasoning",
+          },
+          {
+            "callID": "toolu_011WCCdNLjLdeihzYYaP1f85",
+            "claude": {
+              "input": {
+                "todos": [
+                  {
+                    "activeForm": "Working on a",
+                    "content": "a",
+                    "status": "completed",
+                  },
+                  {
+                    "activeForm": "Working on b",
+                    "content": "b",
+                    "status": "pending",
+                  },
+                  {
+                    "activeForm": "Working on c",
+                    "content": "c",
+                    "status": "pending",
+                  },
+                ],
+              },
+              "name": "TodoWrite",
+            },
+            "id": "p11",
+            "messageID": "m9",
+            "metadata": {
+              "resultUuid": "38c3193b-79d1-42f2-b667-f0e25cc8aff6",
+            },
+            "state": {
+              "input": {
+                "todos": [
+                  {
+                    "activeForm": "Working on a",
+                    "content": "a",
+                    "id": "1",
+                    "priority": "medium",
+                    "status": "completed",
+                  },
+                  {
+                    "activeForm": "Working on b",
+                    "content": "b",
+                    "id": "2",
+                    "priority": "medium",
+                    "status": "pending",
+                  },
+                  {
+                    "activeForm": "Working on c",
+                    "content": "c",
+                    "id": "3",
+                    "priority": "medium",
+                    "status": "pending",
+                  },
+                ],
+              },
+              "metadata": {
+                "todos": [
+                  {
+                    "activeForm": "Working on a",
+                    "content": "a",
+                    "status": "completed",
+                  },
+                  {
+                    "activeForm": "Working on b",
+                    "content": "b",
+                    "status": "pending",
+                  },
+                  {
+                    "activeForm": "Working on c",
+                    "content": "c",
+                    "status": "pending",
+                  },
+                ],
+              },
+              "output": "Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable",
+              "status": "completed",
+              "title": "",
+            },
+            "tool": "todowrite",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21498,
+            "write": 371,
+          },
+          "input": 2,
+          "output": 163,
+          "reasoning": 27,
+          "total": 22034,
+        },
+      },
+      {
+        "apiMessageId": "msg_011CfrjfJx1FQRfjsQZGQHHa",
+        "claudeUuid": "5177e9b8-b4ef-4663-9e19-6da7d646f32f",
+        "cost": 0.0013928400000000002,
+        "finish": "end_turn",
+        "id": "m12",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p13",
+            "messageID": "m12",
+            "text": "done",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21869,
+            "write": 238,
+          },
+          "input": 2,
+          "output": 3,
+          "reasoning": 0,
+          "total": 22112,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [
+      {
+        "activeForm": "Working on a",
+        "content": "a",
+        "id": "1",
+        "priority": "medium",
+        "status": "completed",
+      },
+      {
+        "activeForm": "Working on b",
+        "content": "b",
+        "id": "2",
+        "priority": "medium",
+        "status": "pending",
+      },
+      {
+        "activeForm": "Working on c",
+        "content": "c",
+        "id": "3",
+        "priority": "medium",
+        "status": "pending",
+      },
+    ],
+  },
+}
+`;
+
+exports[`golden: every fixture maps cleanly write 1`] = `
+{
+  "children": [],
+  "errors": [],
+  "histogram": {
+    "message.part.delta": 1,
+    "message.part.updated": 6,
+    "message.updated": 6,
+    "session.status": 2,
+  },
+  "main": {
+    "messages": [
+      {
+        "agent": "acceptEdits",
+        "claudeUuid": "a9440337-1c39-4d30-8a12-58b8407a787f",
+        "id": "m1",
+        "model": {
+          "modelID": "haiku",
+          "providerID": "anthropic",
+        },
+        "parts": [
+          {
+            "id": "p2",
+            "messageID": "m1",
+            "text": "Use the Write tool to create docs/out.txt with the content 'written by fixture'. Reply 'done' only.",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "apiMessageId": "msg_011Cfrjc27QF7XN5mFFWFqtF",
+        "claudeUuid": "f20a9373-33fd-463c-91bf-ac2d40b58f3f",
+        "cost": 0,
+        "finish": "tool_use",
+        "id": "m3",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "callID": "toolu_01Qo4qW7BSuWjMGFjHCDdr2J",
+            "claude": {
+              "input": {
+                "content": "written by fixture",
+                "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/docs/out.txt",
+              },
+              "name": "Write",
+            },
+            "id": "p4",
+            "messageID": "m3",
+            "metadata": {
+              "resultUuid": "b1d2fe75-b30c-4c25-8244-d6ef83769ace",
+            },
+            "state": {
+              "input": {
+                "content": "written by fixture",
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/docs/out.txt",
+              },
+              "metadata": {
+                "diff": 
+"--- /dev/null
++++ b/docs/out.txt
+@@ -0,0 +1,1 @@
++written by fixture
+\\ No newline at end of file
+"
+,
+                "filePath": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/docs/out.txt",
+                "filediff": {
+                  "additions": 1,
+                  "deletions": 0,
+                  "file": "docs/out.txt",
+                  "patch": 
+"--- /dev/null
++++ b/docs/out.txt
+@@ -0,0 +1,1 @@
++written by fixture
+\\ No newline at end of file
+"
+,
+                },
+                "files": [
+                  {
+                    "additions": 1,
+                    "deletions": 0,
+                    "filePath": "docs/out.txt",
+                    "patch": 
+"--- /dev/null
++++ b/docs/out.txt
+@@ -0,0 +1,1 @@
++written by fixture
+\\ No newline at end of file
+"
+,
+                    "relativePath": "docs/out.txt",
+                  },
+                ],
+              },
+              "output": "File created successfully at: /private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/docs/out.txt (file state is current in your context — no need to Read it back)",
+              "status": "completed",
+              "title": "docs/out.txt",
+            },
+            "tool": "write",
+            "type": "tool",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 18755,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 154,
+          "reasoning": 0,
+          "total": 18911,
+        },
+      },
+      {
+        "apiMessageId": "msg_011Cfrjc7vuDPiNKhkKwUcPi",
+        "claudeUuid": "83694a01-a12c-4ba1-8029-b151551353c4",
+        "cost": 0.00060897,
+        "finish": "end_turn",
+        "id": "m5",
+        "modelID": "claude-haiku-5-5",
+        "parentID": "m1",
+        "parts": [
+          {
+            "id": "p6",
+            "messageID": "m5",
+            "text": "done",
+            "type": "text",
+          },
+        ],
+        "providerID": "anthropic",
+        "role": "assistant",
+        "tokens": {
+          "cache": {
+            "read": 21192,
+            "write": 0,
+          },
+          "input": 2,
+          "output": 3,
+          "reasoning": 0,
+          "total": 21197,
+        },
+      },
+    ],
+    "status": {
+      "type": "idle",
+    },
+    "todos": [],
+  },
+}
+`;

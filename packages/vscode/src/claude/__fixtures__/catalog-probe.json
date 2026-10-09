@@ -1,0 +1,2875 @@
+{
+  "sdkProbe": [
+    {
+      "variant": "pending",
+      "initializationResult": {
+        "commands": [
+          {
+            "name": "deep-research",
+            "description": "Deep research harness — fan-out web searches, fetch sources, adversarially verify claims, synthesize a cited report. (dynamic workflow)",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "design",
+            "description": "Grant or revoke Claude agent access to your Design projects",
+            "argumentHint": "consent | revoke",
+            "builtin": true
+          },
+          {
+            "name": "design-sync",
+            "description": "Push a React design system to claude.ai/design. This runs a converter that bundles the real component code (from Storybook or a bare package) and uploads it. Use when the user runs /design-sync or says \"sync my design system to Claude Design\".",
+            "argumentHint": "[<project hint, e.g. \"Acme DS\">]",
+            "builtin": true
+          },
+          {
+            "name": "dataviz",
+            "description": "Use this skill whenever you are about to create ANY chart, graph, plot, dashboard, or data visualization, in ANY output medium — an HTML or React artifact, inline SVG, plotting code in any library (matplotlib, plotly, d3, Recharts, …), an image/PNG you will render and upload, or a chart shared into Slack. Read it BEFORE writing the first line of chart code, choosing chart colors, building a stat tile / meter / KPI row, or laying out a dashboard. When the destination is a first-party document connector (host-designated, never self-described) that renders live charts, hand it the rows (inline, or as an uploaded data file the chart cites) rather than a rendered PNG/SVG — a picture of a chart loses hover, data inspection and per-value comments. Produces visualizations that read as one system — elegant, accessible, consistent in light and dark — using a brand-neutral placeholder palette you swap for your own. Teaches a design-system-agnostic method: a form heuristic, a color formula with a runnable validator, mark specs, and interaction rules. A validated default palette is documented in `references/palette.md` — swap that file's values for your brand's. Triggers on: \"chart\", \"graph\", \"plot\", \"data viz\", \"visualization\", \"dashboard\", \"analytics\", \"visualize data\", \"categorical colors\", \"sequential / diverging palette\", \"stat tile\", \"sparkline\", \"heatmap\", \"legend\", \"axis\", \"tooltip\", \"chart colors\", \"color by series\".",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "update-config",
+            "description": "Use this skill to configure the Claude Code harness via settings.json. Automated behaviors (\"from now on when X\", \"each time X\", \"whenever X\", \"before/after X\") require hooks configured in settings.json - the harness executes these, not Claude, so memory/preferences cannot fulfill them. Also use for: permissions (\"allow X\", \"add permission\", \"move permission to\"), env vars (\"set X=Y\"), hook troubleshooting, or any changes to settings.json/settings.local.json files. Examples: \"allow npm commands\", \"add bq permission to global settings\", \"move permission to user settings\", \"set DEBUG=true\", \"when claude stops show X\". For simple settings like theme/model, suggest the /config command.",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "verify",
+            "description": "Verify that a code change actually does what it's supposed to by exercising it end-to-end and observing behavior — drive the affected flow, not just tests or typecheck. Run before committing nontrivial changes; bootstraps this repo's project verify skill if none exists yet. Don't invoke it on a diff that only touches tests, docs, or other code with no runtime surface to drive (a change to product source always has one) — there's nothing to observe.",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "debug",
+            "description": "Enable debug logging for this session and help diagnose issues",
+            "argumentHint": "[issue description]",
+            "builtin": true
+          },
+          {
+            "name": "code-review",
+            "description": "Review the current diff, or a PR number/branch/path target, for correctness bugs (plus reuse/simplification/efficiency cleanups where the model's review recipe covers them) at the given effort level (low|medium|high|xhigh|max: from few high-confidence findings up to many, some of them uncertain); with no level given, it reuses the level you typed last. Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review. Pass --max-findings <n> to report up to n findings, or --max-findings all for every finding. The choice stays until you pass --max-findings default.",
+            "argumentHint": "[low|medium|high|xhigh|max] [--fix] [--comment] [<pr#>|<branch>|<path>] [--max-findings <n>|all]",
+            "aliases": [
+              "review"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "simplify",
+            "description": "Review the changed code for reuse, simplification, efficiency, and altitude cleanups, then apply the fixes. Quality only — it does not hunt for bugs; use /code-review for that.",
+            "argumentHint": "[<target>]",
+            "builtin": true
+          },
+          {
+            "name": "batch",
+            "description": "Research and plan a large-scale change, then execute it in parallel across 5–30 isolated worktree agents that each open a PR.",
+            "argumentHint": "<instruction>",
+            "builtin": true
+          },
+          {
+            "name": "fewer-permission-prompts",
+            "description": "Scan your transcripts for common read-only Bash and MCP tool calls, then add a prioritized allowlist to project .claude/settings.json to reduce permission prompts.",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "doctor",
+            "description": "Health-check the user's Claude Code setup and fix issues: diagnose installation health — what the `claude doctor` terminal diagnostics cover — from local data (duplicate or leftover installs, PATH, unparseable settings files, broken or colliding agent definitions, skills whose frontmatter fails to parse); find unused skills, MCP servers, and plugins versus their context cost and disable dead weight; deduplicate local CLAUDE.md files against checked-in ones; trim checked-in CLAUDE.md files by cutting content a session could derive from the codebase (directory layouts, tech-stack lists, architecture overviews) while keeping gotchas, rationale, and non-standard conventions; migrate always-loaded CLAUDE.md guidance into lazy skills and nested CLAUDE.md files; flag slow hooks and context-heavy extensions; check the installed version is current; make auto mode the default permission mode; and pre-approve frequently denied read-only commands. Use when the user asks for a doctor run, checkup, audit, tune-up, or cleanup of their Claude Code setup or configuration.",
+            "argumentHint": "[prompt-audit [<path>]]",
+            "aliases": [
+              "checkup"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "loop",
+            "description": "Run a prompt or slash command on a recurring interval (e.g. /loop 5m /foo). Omit the interval to let the model self-pace.",
+            "argumentHint": "[interval] [prompt]",
+            "aliases": [
+              "proactive"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "schedule",
+            "description": "Create, update, list, or run scheduled cloud agents (routines) that execute on a cron schedule.",
+            "argumentHint": "",
+            "aliases": [
+              "routines"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "claude-api",
+            "description": "Reference for the Claude API / Anthropic SDK — model ids, pricing, params, streaming, tool use, MCP, agents, caching, token counting, model migration.\nTRIGGER — read BEFORE opening the target file; don't skip because it \"looks like a one-liner\" — whenever: the prompt names Claude/Anthropic in any form (Claude, Anthropic, Fable, Opus, Sonnet, Haiku, `anthropic`, `@anthropic-ai`, `claude-*`, `us.anthropic.*`, `[1m]`); the user asks about an LLM (pricing/model choice/limits/caching) — never answer from memory; OR the task is LLM-shaped with provider unstated (agent/MCP/tool-definition/multi-agent/RAG/LLM-judge/computer-use; generate/summarize/extract/classify/rewrite/converse over NL; debugging refusals/cutoffs/streaming/tool-calls/tokens).\nSKIP only when another provider is being worked on (overrides all triggers): OpenAI/GPT/Gemini/Llama/Mistral/Cohere/Ollama named in the query; OR `grep -rE 'openai|langchain_openai|google.generativeai|genai|mistralai|cohere|ollama'` over the project hits (run this grep FIRST if no provider named — don't Read the file).",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "workflow-authoring",
+            "description": "Reference for writing a Workflow tool script (script API and gotchas, resume, quality patterns, worked examples). Load before authoring a script for a workflow the user already opted into; it does not itself authorize running one.",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "run",
+            "description": "Launch and drive this project's app to see a change working. Use when asked to run, start, or screenshot the app, or to confirm a change works in the real app (not just tests). First looks for a project skill that already covers launching the app; otherwise falls back to built-in patterns per project type (CLI, server, TUI, Electron, browser-driven, library).",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "run-skill-generator",
+            "description": "Author or improve the run-<unit> skill - a per-project skill that tells agents how to build, launch, and drive this project's app. Use when the user asks to set up the project, get it running, write run instructions, or verify build/run steps work from a clean environment.",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "plugin-authoring",
+            "description": "Make a mod: a change to Claude's own interface or behaviour, such as a live pane or panel, a band above the prompt, a status line, a toast, a slash command, or a hook on tool calls or prompts. Use to make, change or debug a mod or its hooks module.",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "advisor",
+            "description": "Let Claude consult a stronger model at key moments",
+            "argumentHint": "[fable|opus|sonnet|off]",
+            "builtin": true
+          },
+          {
+            "name": "agents",
+            "description": "(removed) Ask Claude to create/manage subagents, or edit .claude/agents/",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "auto-mode-setup",
+            "description": "Teach auto mode about your environment, plus optional rule tweaks",
+            "argumentHint": "[--request-id <uuid>] (--wizard posture=… scope=… depth=… --propose | --expect-sha256 <64-hex> --apply-file <path>)",
+            "builtin": true
+          },
+          {
+            "name": "autocompact",
+            "description": "Configure the auto-compact window size",
+            "argumentHint": "[auto|<tokens>]",
+            "builtin": true
+          },
+          {
+            "name": "clear",
+            "description": "Start a new session with empty context; previous session stays on disk (resumable with /resume)",
+            "argumentHint": "[name]",
+            "aliases": [
+              "reset",
+              "new"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "color",
+            "description": "Set the prompt bar color for this session",
+            "argumentHint": "[red|blue|green|yellow|purple|orange|pink|cyan|default]",
+            "builtin": true
+          },
+          {
+            "name": "compact",
+            "description": "Free up context by summarizing the conversation so far",
+            "argumentHint": "<optional custom summarization instructions>",
+            "builtin": true
+          },
+          {
+            "name": "config",
+            "description": "Set a setting by key",
+            "argumentHint": "key=value",
+            "aliases": [
+              "settings"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "output-style",
+            "description": "List output styles or switch to one",
+            "argumentHint": "[style]",
+            "builtin": true
+          },
+          {
+            "name": "context",
+            "description": "Show current context usage",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "effort",
+            "description": "Set effort level for model usage",
+            "argumentHint": "<low|medium|high|xhigh|max|auto|ultracode [on|off]>",
+            "builtin": true
+          },
+          {
+            "name": "fast",
+            "description": "Toggle fast mode (Opus 5.5)",
+            "argumentHint": "[on|off]",
+            "builtin": true
+          },
+          {
+            "name": "focus",
+            "description": "Toggle focus view: just your prompt, summary, and response",
+            "argumentHint": "[on|off]",
+            "builtin": true
+          },
+          {
+            "name": "heapdump",
+            "description": "Dump the JS heap to the Desktop; on Linux with no Desktop folder, the home directory",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "init",
+            "description": "Initialize a new CLAUDE.md file with codebase documentation",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "mcp",
+            "description": "Manage MCP servers",
+            "argumentHint": "[reconnect|enable|disable [<server>|all]]",
+            "builtin": true
+          },
+          {
+            "name": "import",
+            "description": "Import config from another AI coding agent",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "model",
+            "description": "Set the AI model for Claude Code",
+            "argumentHint": "<model>",
+            "builtin": true
+          },
+          {
+            "name": "__remote-workflow",
+            "description": "Run the workflow script delivered in this session environment (server-launched sessions only)",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "workflow-launch-exec",
+            "description": "Execute a server-launched workflow handoff (workflow_launch event sessions only)",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "reload-plugins",
+            "description": "Activate pending plugin changes in the current session",
+            "argumentHint": "[--force]",
+            "builtin": true
+          },
+          {
+            "name": "reload-skills",
+            "description": "Pick up skills added or changed on disk during this session",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "rename",
+            "description": "Rename the current conversation",
+            "argumentHint": "[name]",
+            "aliases": [
+              "name"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "security-review",
+            "description": "Complete a security review of the pending changes on the current branch",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "usage-credits",
+            "description": "Configure usage credits or request them from your admin when you hit a limit",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "extra-usage",
+            "description": "Renamed to /usage-credits",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "usage",
+            "description": "Show session cost, plan usage, and what's contributing to your limits",
+            "argumentHint": "",
+            "aliases": [
+              "cost",
+              "stats"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "insights",
+            "description": "Generate a report analyzing your Claude Code sessions",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "recap",
+            "description": "Generate a one-line session recap now",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "skill-doctor",
+            "description": "Show which loaded skills are unused and costing context",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "goal",
+            "description": "Set a goal — keep working until the condition is met",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "design-consent",
+            "description": "Grant Claude agent access to your Design projects",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "design-revoke",
+            "description": "Revoke Claude agent access to your Design projects",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "list-agents",
+            "description": "List subagents, teammates, and other Claude sessions you can message",
+            "argumentHint": "",
+            "aliases": [
+              "peers"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "team-onboarding",
+            "description": "Help teammates ramp on Claude Code with a guide from your usage",
+            "argumentHint": "",
+            "builtin": true
+          }
+        ],
+        "agents": [
+          {
+            "name": "claude",
+            "description": "Catch-all for any task that doesn't fit a more specific agent. FleetView's default when no agent name is typed."
+          },
+          {
+            "name": "Explore",
+            "description": "Fast read-only search agent for locating code. Use it to find files by pattern (eg. \"src/components/**/*.tsx\"), grep for symbols or keywords (eg. \"API endpoints\"), or answer \"where is X defined / which files reference Y.\" Do NOT use it for code review, design-doc auditing, cross-file consistency checks, or open-ended analysis — it reads excerpts rather than whole files and will miss content past its read window. When calling, specify search breadth: \"quick\" for a single targeted lookup, \"medium\" for moderate exploration, or \"very thorough\" to search across multiple locations and naming conventions.",
+            "model": "inherit"
+          },
+          {
+            "name": "general-purpose",
+            "description": "General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you."
+          },
+          {
+            "name": "Plan",
+            "description": "Software architect agent for designing implementation plans. Use this when you need to plan the implementation strategy for a task. Returns step-by-step plans, identifies critical files, and considers architectural trade-offs.",
+            "model": "inherit"
+          },
+          {
+            "name": "statusline-setup",
+            "description": "Use this agent to configure the user's Claude Code status line setting.",
+            "model": "sonnet"
+          }
+        ],
+        "output_style": "default",
+        "available_output_styles": [
+          "default",
+          "Proactive",
+          "Concise",
+          "Explanatory",
+          "Learning"
+        ],
+        "user_output_styles_dir": "/Users/kei/.claude/output-styles",
+        "models": [
+          {
+            "value": "default",
+            "resolvedModel": "claude-opus-5-5",
+            "displayName": "Default (recommended)",
+            "description": "Opus 5.5 · Best for everyday, complex tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsFastMode": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "opus",
+            "resolvedModel": "claude-opus-5-5",
+            "displayName": "Opus 5.5",
+            "description": "For complex work and everyday tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsFastMode": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "fable",
+            "resolvedModel": "claude-fable-5-1",
+            "displayName": "Fable 5.1",
+            "description": "For your toughest challenges",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "sonnet",
+            "resolvedModel": "claude-sonnet-5-5",
+            "displayName": "Sonnet 5.5",
+            "description": "Most efficient for simpler tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "haiku",
+            "resolvedModel": "claude-haiku-5-5",
+            "displayName": "Haiku 5.5",
+            "description": "Fastest for quick answers",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-haiku-4-5-20251001",
+            "resolvedModel": "claude-haiku-4-5-20251001",
+            "displayName": "Haiku 4.5",
+            "description": "Fastest for quick answers"
+          },
+          {
+            "value": "claude-sonnet-5",
+            "resolvedModel": "claude-sonnet-5",
+            "displayName": "Sonnet 5",
+            "description": "Efficient for routine tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-opus-5",
+            "resolvedModel": "claude-opus-5",
+            "displayName": "Opus 5",
+            "description": "Best for everyday, complex tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsFastMode": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-fable-5",
+            "resolvedModel": "claude-fable-5",
+            "displayName": "Fable 5",
+            "description": "Most capable for your hardest and longest-running tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-opus-4-8",
+            "resolvedModel": "claude-opus-4-8",
+            "displayName": "Opus 4.8",
+            "description": "Best for everyday, complex tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsFastMode": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-opus-4-7",
+            "resolvedModel": "claude-opus-4-7",
+            "displayName": "Opus 4.7",
+            "description": "Best for everyday, complex tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-opus-4-6",
+            "resolvedModel": "claude-opus-4-6",
+            "displayName": "Opus 4.6",
+            "description": "Best for everyday, complex tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-sonnet-4-6",
+            "resolvedModel": "claude-sonnet-4-6",
+            "displayName": "Sonnet 4.6",
+            "description": "Efficient for routine tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          }
+        ],
+        "account": {
+          "email": "user@example.com",
+          "organization": "Example Org",
+          "subscriptionType": "Claude Team",
+          "apiProvider": "firstParty"
+        },
+        "pid": 0,
+        "current_permission_mode": "default",
+        "feedback_mode": {
+          "kind": "post"
+        },
+        "analytics_disabled": false,
+        "remote_control_auto_enable": false,
+        "remote_control_auto_connect_default": false,
+        "remote_control_available": true,
+        "remote_control_auto_on_by_default": false,
+        "ide_rc_auto_enable_gate": true,
+        "fast_mode_state": "off",
+        "fast_mode_disabled_reason": "sdk_opt_in_required",
+        "session_state": "idle",
+        "capabilities": [
+          "ui_surface_v1"
+        ]
+      },
+      "supportedModels": [
+        {
+          "value": "default",
+          "resolvedModel": "claude-opus-5-5",
+          "displayName": "Default (recommended)",
+          "description": "Opus 5.5 · Best for everyday, complex tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsFastMode": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "opus",
+          "resolvedModel": "claude-opus-5-5",
+          "displayName": "Opus 5.5",
+          "description": "For complex work and everyday tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsFastMode": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "fable",
+          "resolvedModel": "claude-fable-5-1",
+          "displayName": "Fable 5.1",
+          "description": "For your toughest challenges",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "sonnet",
+          "resolvedModel": "claude-sonnet-5-5",
+          "displayName": "Sonnet 5.5",
+          "description": "Most efficient for simpler tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "haiku",
+          "resolvedModel": "claude-haiku-5-5",
+          "displayName": "Haiku 5.5",
+          "description": "Fastest for quick answers",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-haiku-4-5-20251001",
+          "resolvedModel": "claude-haiku-4-5-20251001",
+          "displayName": "Haiku 4.5",
+          "description": "Fastest for quick answers"
+        },
+        {
+          "value": "claude-sonnet-5",
+          "resolvedModel": "claude-sonnet-5",
+          "displayName": "Sonnet 5",
+          "description": "Efficient for routine tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-opus-5",
+          "resolvedModel": "claude-opus-5",
+          "displayName": "Opus 5",
+          "description": "Best for everyday, complex tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsFastMode": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-fable-5",
+          "resolvedModel": "claude-fable-5",
+          "displayName": "Fable 5",
+          "description": "Most capable for your hardest and longest-running tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-opus-4-8",
+          "resolvedModel": "claude-opus-4-8",
+          "displayName": "Opus 4.8",
+          "description": "Best for everyday, complex tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsFastMode": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-opus-4-7",
+          "resolvedModel": "claude-opus-4-7",
+          "displayName": "Opus 4.7",
+          "description": "Best for everyday, complex tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-opus-4-6",
+          "resolvedModel": "claude-opus-4-6",
+          "displayName": "Opus 4.6",
+          "description": "Best for everyday, complex tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-sonnet-4-6",
+          "resolvedModel": "claude-sonnet-4-6",
+          "displayName": "Sonnet 4.6",
+          "description": "Efficient for routine tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        }
+      ],
+      "supportedCommands": [
+        {
+          "name": "deep-research",
+          "description": "Deep research harness — fan-out web searches, fetch sources, adversarially verify claims, synthesize a cited report. (dynamic workflow)",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "design",
+          "description": "Grant or revoke Claude agent access to your Design projects",
+          "argumentHint": "consent | revoke",
+          "builtin": true
+        },
+        {
+          "name": "design-sync",
+          "description": "Push a React design system to claude.ai/design. This runs a converter that bundles the real component code (from Storybook or a bare package) and uploads it. Use when the user runs /design-sync or says \"sync my design system to Claude Design\".",
+          "argumentHint": "[<project hint, e.g. \"Acme DS\">]",
+          "builtin": true
+        },
+        {
+          "name": "dataviz",
+          "description": "Use this skill whenever you are about to create ANY chart, graph, plot, dashboard, or data visualization, in ANY output medium — an HTML or React artifact, inline SVG, plotting code in any library (matplotlib, plotly, d3, Recharts, …), an image/PNG you will render and upload, or a chart shared into Slack. Read it BEFORE writing the first line of chart code, choosing chart colors, building a stat tile / meter / KPI row, or laying out a dashboard. When the destination is a first-party document connector (host-designated, never self-described) that renders live charts, hand it the rows (inline, or as an uploaded data file the chart cites) rather than a rendered PNG/SVG — a picture of a chart loses hover, data inspection and per-value comments. Produces visualizations that read as one system — elegant, accessible, consistent in light and dark — using a brand-neutral placeholder palette you swap for your own. Teaches a design-system-agnostic method: a form heuristic, a color formula with a runnable validator, mark specs, and interaction rules. A validated default palette is documented in `references/palette.md` — swap that file's values for your brand's. Triggers on: \"chart\", \"graph\", \"plot\", \"data viz\", \"visualization\", \"dashboard\", \"analytics\", \"visualize data\", \"categorical colors\", \"sequential / diverging palette\", \"stat tile\", \"sparkline\", \"heatmap\", \"legend\", \"axis\", \"tooltip\", \"chart colors\", \"color by series\".",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "update-config",
+          "description": "Use this skill to configure the Claude Code harness via settings.json. Automated behaviors (\"from now on when X\", \"each time X\", \"whenever X\", \"before/after X\") require hooks configured in settings.json - the harness executes these, not Claude, so memory/preferences cannot fulfill them. Also use for: permissions (\"allow X\", \"add permission\", \"move permission to\"), env vars (\"set X=Y\"), hook troubleshooting, or any changes to settings.json/settings.local.json files. Examples: \"allow npm commands\", \"add bq permission to global settings\", \"move permission to user settings\", \"set DEBUG=true\", \"when claude stops show X\". For simple settings like theme/model, suggest the /config command.",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "verify",
+          "description": "Verify that a code change actually does what it's supposed to by exercising it end-to-end and observing behavior — drive the affected flow, not just tests or typecheck. Run before committing nontrivial changes; bootstraps this repo's project verify skill if none exists yet. Don't invoke it on a diff that only touches tests, docs, or other code with no runtime surface to drive (a change to product source always has one) — there's nothing to observe.",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "debug",
+          "description": "Enable debug logging for this session and help diagnose issues",
+          "argumentHint": "[issue description]",
+          "builtin": true
+        },
+        {
+          "name": "code-review",
+          "description": "Review the current diff, or a PR number/branch/path target, for correctness bugs (plus reuse/simplification/efficiency cleanups where the model's review recipe covers them) at the given effort level (low|medium|high|xhigh|max: from few high-confidence findings up to many, some of them uncertain); with no level given, it reuses the level you typed last. Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review. Pass --max-findings <n> to report up to n findings, or --max-findings all for every finding. The choice stays until you pass --max-findings default.",
+          "argumentHint": "[low|medium|high|xhigh|max] [--fix] [--comment] [<pr#>|<branch>|<path>] [--max-findings <n>|all]",
+          "aliases": [
+            "review"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "simplify",
+          "description": "Review the changed code for reuse, simplification, efficiency, and altitude cleanups, then apply the fixes. Quality only — it does not hunt for bugs; use /code-review for that.",
+          "argumentHint": "[<target>]",
+          "builtin": true
+        },
+        {
+          "name": "batch",
+          "description": "Research and plan a large-scale change, then execute it in parallel across 5–30 isolated worktree agents that each open a PR.",
+          "argumentHint": "<instruction>",
+          "builtin": true
+        },
+        {
+          "name": "fewer-permission-prompts",
+          "description": "Scan your transcripts for common read-only Bash and MCP tool calls, then add a prioritized allowlist to project .claude/settings.json to reduce permission prompts.",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "doctor",
+          "description": "Health-check the user's Claude Code setup and fix issues: diagnose installation health — what the `claude doctor` terminal diagnostics cover — from local data (duplicate or leftover installs, PATH, unparseable settings files, broken or colliding agent definitions, skills whose frontmatter fails to parse); find unused skills, MCP servers, and plugins versus their context cost and disable dead weight; deduplicate local CLAUDE.md files against checked-in ones; trim checked-in CLAUDE.md files by cutting content a session could derive from the codebase (directory layouts, tech-stack lists, architecture overviews) while keeping gotchas, rationale, and non-standard conventions; migrate always-loaded CLAUDE.md guidance into lazy skills and nested CLAUDE.md files; flag slow hooks and context-heavy extensions; check the installed version is current; make auto mode the default permission mode; and pre-approve frequently denied read-only commands. Use when the user asks for a doctor run, checkup, audit, tune-up, or cleanup of their Claude Code setup or configuration.",
+          "argumentHint": "[prompt-audit [<path>]]",
+          "aliases": [
+            "checkup"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "loop",
+          "description": "Run a prompt or slash command on a recurring interval (e.g. /loop 5m /foo). Omit the interval to let the model self-pace.",
+          "argumentHint": "[interval] [prompt]",
+          "aliases": [
+            "proactive"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "schedule",
+          "description": "Create, update, list, or run scheduled cloud agents (routines) that execute on a cron schedule.",
+          "argumentHint": "",
+          "aliases": [
+            "routines"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "claude-api",
+          "description": "Reference for the Claude API / Anthropic SDK — model ids, pricing, params, streaming, tool use, MCP, agents, caching, token counting, model migration.\nTRIGGER — read BEFORE opening the target file; don't skip because it \"looks like a one-liner\" — whenever: the prompt names Claude/Anthropic in any form (Claude, Anthropic, Fable, Opus, Sonnet, Haiku, `anthropic`, `@anthropic-ai`, `claude-*`, `us.anthropic.*`, `[1m]`); the user asks about an LLM (pricing/model choice/limits/caching) — never answer from memory; OR the task is LLM-shaped with provider unstated (agent/MCP/tool-definition/multi-agent/RAG/LLM-judge/computer-use; generate/summarize/extract/classify/rewrite/converse over NL; debugging refusals/cutoffs/streaming/tool-calls/tokens).\nSKIP only when another provider is being worked on (overrides all triggers): OpenAI/GPT/Gemini/Llama/Mistral/Cohere/Ollama named in the query; OR `grep -rE 'openai|langchain_openai|google.generativeai|genai|mistralai|cohere|ollama'` over the project hits (run this grep FIRST if no provider named — don't Read the file).",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "workflow-authoring",
+          "description": "Reference for writing a Workflow tool script (script API and gotchas, resume, quality patterns, worked examples). Load before authoring a script for a workflow the user already opted into; it does not itself authorize running one.",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "run",
+          "description": "Launch and drive this project's app to see a change working. Use when asked to run, start, or screenshot the app, or to confirm a change works in the real app (not just tests). First looks for a project skill that already covers launching the app; otherwise falls back to built-in patterns per project type (CLI, server, TUI, Electron, browser-driven, library).",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "run-skill-generator",
+          "description": "Author or improve the run-<unit> skill - a per-project skill that tells agents how to build, launch, and drive this project's app. Use when the user asks to set up the project, get it running, write run instructions, or verify build/run steps work from a clean environment.",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "plugin-authoring",
+          "description": "Make a mod: a change to Claude's own interface or behaviour, such as a live pane or panel, a band above the prompt, a status line, a toast, a slash command, or a hook on tool calls or prompts. Use to make, change or debug a mod or its hooks module.",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "advisor",
+          "description": "Let Claude consult a stronger model at key moments",
+          "argumentHint": "[fable|opus|sonnet|off]",
+          "builtin": true
+        },
+        {
+          "name": "agents",
+          "description": "(removed) Ask Claude to create/manage subagents, or edit .claude/agents/",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "auto-mode-setup",
+          "description": "Teach auto mode about your environment, plus optional rule tweaks",
+          "argumentHint": "[--request-id <uuid>] (--wizard posture=… scope=… depth=… --propose | --expect-sha256 <64-hex> --apply-file <path>)",
+          "builtin": true
+        },
+        {
+          "name": "autocompact",
+          "description": "Configure the auto-compact window size",
+          "argumentHint": "[auto|<tokens>]",
+          "builtin": true
+        },
+        {
+          "name": "clear",
+          "description": "Start a new session with empty context; previous session stays on disk (resumable with /resume)",
+          "argumentHint": "[name]",
+          "aliases": [
+            "reset",
+            "new"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "color",
+          "description": "Set the prompt bar color for this session",
+          "argumentHint": "[red|blue|green|yellow|purple|orange|pink|cyan|default]",
+          "builtin": true
+        },
+        {
+          "name": "compact",
+          "description": "Free up context by summarizing the conversation so far",
+          "argumentHint": "<optional custom summarization instructions>",
+          "builtin": true
+        },
+        {
+          "name": "config",
+          "description": "Set a setting by key",
+          "argumentHint": "key=value",
+          "aliases": [
+            "settings"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "output-style",
+          "description": "List output styles or switch to one",
+          "argumentHint": "[style]",
+          "builtin": true
+        },
+        {
+          "name": "context",
+          "description": "Show current context usage",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "effort",
+          "description": "Set effort level for model usage",
+          "argumentHint": "<low|medium|high|xhigh|max|auto|ultracode [on|off]>",
+          "builtin": true
+        },
+        {
+          "name": "fast",
+          "description": "Toggle fast mode (Opus 5.5)",
+          "argumentHint": "[on|off]",
+          "builtin": true
+        },
+        {
+          "name": "focus",
+          "description": "Toggle focus view: just your prompt, summary, and response",
+          "argumentHint": "[on|off]",
+          "builtin": true
+        },
+        {
+          "name": "heapdump",
+          "description": "Dump the JS heap to the Desktop; on Linux with no Desktop folder, the home directory",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "init",
+          "description": "Initialize a new CLAUDE.md file with codebase documentation",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "mcp",
+          "description": "Manage MCP servers",
+          "argumentHint": "[reconnect|enable|disable [<server>|all]]",
+          "builtin": true
+        },
+        {
+          "name": "import",
+          "description": "Import config from another AI coding agent",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "model",
+          "description": "Set the AI model for Claude Code",
+          "argumentHint": "<model>",
+          "builtin": true
+        },
+        {
+          "name": "__remote-workflow",
+          "description": "Run the workflow script delivered in this session environment (server-launched sessions only)",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "workflow-launch-exec",
+          "description": "Execute a server-launched workflow handoff (workflow_launch event sessions only)",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "reload-plugins",
+          "description": "Activate pending plugin changes in the current session",
+          "argumentHint": "[--force]",
+          "builtin": true
+        },
+        {
+          "name": "reload-skills",
+          "description": "Pick up skills added or changed on disk during this session",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "rename",
+          "description": "Rename the current conversation",
+          "argumentHint": "[name]",
+          "aliases": [
+            "name"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "security-review",
+          "description": "Complete a security review of the pending changes on the current branch",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "usage-credits",
+          "description": "Configure usage credits or request them from your admin when you hit a limit",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "extra-usage",
+          "description": "Renamed to /usage-credits",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "usage",
+          "description": "Show session cost, plan usage, and what's contributing to your limits",
+          "argumentHint": "",
+          "aliases": [
+            "cost",
+            "stats"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "insights",
+          "description": "Generate a report analyzing your Claude Code sessions",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "recap",
+          "description": "Generate a one-line session recap now",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "skill-doctor",
+          "description": "Show which loaded skills are unused and costing context",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "goal",
+          "description": "Set a goal — keep working until the condition is met",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "design-consent",
+          "description": "Grant Claude agent access to your Design projects",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "design-revoke",
+          "description": "Revoke Claude agent access to your Design projects",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "list-agents",
+          "description": "List subagents, teammates, and other Claude sessions you can message",
+          "argumentHint": "",
+          "aliases": [
+            "peers"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "team-onboarding",
+          "description": "Help teammates ramp on Claude Code with a guide from your usage",
+          "argumentHint": "",
+          "builtin": true
+        }
+      ],
+      "supportedAgents": [
+        {
+          "name": "claude",
+          "description": "Catch-all for any task that doesn't fit a more specific agent. FleetView's default when no agent name is typed."
+        },
+        {
+          "name": "Explore",
+          "description": "Fast read-only search agent for locating code. Use it to find files by pattern (eg. \"src/components/**/*.tsx\"), grep for symbols or keywords (eg. \"API endpoints\"), or answer \"where is X defined / which files reference Y.\" Do NOT use it for code review, design-doc auditing, cross-file consistency checks, or open-ended analysis — it reads excerpts rather than whole files and will miss content past its read window. When calling, specify search breadth: \"quick\" for a single targeted lookup, \"medium\" for moderate exploration, or \"very thorough\" to search across multiple locations and naming conventions.",
+          "model": "inherit"
+        },
+        {
+          "name": "general-purpose",
+          "description": "General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you."
+        },
+        {
+          "name": "Plan",
+          "description": "Software architect agent for designing implementation plans. Use this when you need to plan the implementation strategy for a task. Returns step-by-step plans, identifies critical files, and considers architectural trade-offs.",
+          "model": "inherit"
+        },
+        {
+          "name": "statusline-setup",
+          "description": "Use this agent to configure the user's Claude Code status line setting.",
+          "model": "sonnet"
+        }
+      ],
+      "accountInfo": {
+        "email": "user@example.com",
+        "organization": "Example Org",
+        "subscriptionType": "Claude Team",
+        "apiProvider": "firstParty"
+      },
+      "getContextUsage": {
+        "ok": true,
+        "keys": [
+          "categories",
+          "totalTokens",
+          "maxTokens",
+          "rawMaxTokens",
+          "autocompactSource",
+          "percentage",
+          "gridRows",
+          "model",
+          "memoryFiles",
+          "mcpTools",
+          "agents",
+          "slashCommands",
+          "skills",
+          "autoCompactThreshold",
+          "isAutoCompactEnabled",
+          "messageBreakdown",
+          "apiUsage"
+        ]
+      },
+      "timingsMs": {
+        "initializationResult": 261,
+        "supportedModels": 0,
+        "supportedCommands": 0,
+        "supportedAgents": 0,
+        "accountInfo": 0,
+        "getContextUsage": 37,
+        "totalUntilCatalogMs": 306
+      },
+      "messagesEmittedByIteratorBeforeClose": [],
+      "messagesEmittedTotal": [],
+      "iteratorFinishedAfterClose": true,
+      "transcriptFilesBefore": [
+        "00e4ed21-fb85-4d6c-b758-19f7b364bd7c.jsonl",
+        "0280dfd4-b0c4-488c-9bda-4be1c2f0a1a6.jsonl",
+        "0434517e-d368-4243-b0b3-ccd5ad4ae99c.jsonl",
+        "061c02c9-a8b3-4bdd-8a51-d7e03b8f1042.jsonl",
+        "07087435-0ae1-4f0c-ab84-be32846bdd1e.jsonl",
+        "0d86fb93-272e-4c7d-b69d-7ae36977065d.jsonl",
+        "0f6b44fb-759d-4b3c-b853-c7f06d571b26.jsonl",
+        "117d2a2f-95b0-47c6-b098-6ae5394d0b41.jsonl",
+        "18d63e0a-5f20-4583-b300-3bb313b9857b.jsonl",
+        "1e7991f1-4d5f-4aee-ad1f-0baf62d795fe.jsonl",
+        "21f58e7f-13cf-4eb8-aa4b-c39eb74e5e7b",
+        "21f58e7f-13cf-4eb8-aa4b-c39eb74e5e7b.jsonl",
+        "25f0f5c8-1390-497b-b35d-5ebe08708087.jsonl",
+        "26669c1a-7fb9-4785-a935-7535c65e5060.jsonl",
+        "26abdb62-8ecc-45f3-9c51-ad49a5370f11.jsonl",
+        "28ee118f-c58f-4953-b823-61ddd3579164.jsonl",
+        "28fae733-d638-4b1c-9f0c-04ff166d0dab.jsonl",
+        "2a1c8083-baef-4348-b19b-29adcc1ad381.jsonl",
+        "2da5176a-d241-453e-8109-920967a5eb99.jsonl",
+        "366118f4-e56d-42a3-a255-078cc6882a83.jsonl",
+        "37497696-30b0-4153-a58e-bdfaf0c7d374.jsonl",
+        "3d19bde4-4ec4-411a-a2bd-b4601e4fa791.jsonl",
+        "3e764f82-f182-411e-ab1a-1f1b06214fbe.jsonl",
+        "3f097a04-ca17-4a57-9ace-f3e2e521804c.jsonl",
+        "417f4d27-52c2-401c-a358-caa517c697b2.jsonl",
+        "47743940-149c-4617-98d7-bdf3f54310ff.jsonl",
+        "49b41388-03fb-4fb7-8956-723aa7f97b6b.jsonl",
+        "5a37cc98-6cee-4211-bd47-e747917ccef0.jsonl",
+        "5b2c799d-2375-437f-8353-34019ee88998.jsonl",
+        "5ecc5aed-496e-45ca-941b-661a5720eb38.jsonl",
+        "5eee2f28-89eb-4ccb-b1ac-5298abd35971",
+        "5eee2f28-89eb-4ccb-b1ac-5298abd35971.jsonl",
+        "60ffc0ea-221a-47e8-8f38-781c9277e669.jsonl",
+        "62574511-1c26-4917-87e1-50db4a3a2b3f.jsonl",
+        "63c3f8b2-3295-4bc1-99aa-13028d3a17aa.jsonl",
+        "64eb68e2-3a6d-47a4-a588-0c943251f5b2.jsonl",
+        "6743b38c-7968-4c03-b74c-cb8dd219c49c.jsonl",
+        "6a43bf8e-f092-4f7b-b86b-34efab306d2e.jsonl",
+        "6d13c714-91f9-49a2-9211-7cb4379c8fea.jsonl",
+        "6e4466ab-6932-4e2e-8ab8-822c9bee49d6.jsonl",
+        "749ba99f-10d4-41e0-8cf4-c8a1fba33a60.jsonl",
+        "75c2d31b-e7a1-45b2-a4a3-21e421d1c3fa.jsonl",
+        "775ffa5a-a7e4-498d-bfdd-1bf513fd34a1.jsonl",
+        "78c7f21c-34dc-4ffa-abdf-04479825bb91.jsonl",
+        "78e952c3-fc6c-486d-9d46-a977f48d3b65.jsonl",
+        "791bb5b6-3287-4819-9813-3d962abc15fb",
+        "791bb5b6-3287-4819-9813-3d962abc15fb.jsonl",
+        "7e90ffa5-625e-41e2-9d5e-b8290bb1f863.jsonl",
+        "7e98ea3e-9c14-43f6-8dd6-e6e8dd7b3e7a.jsonl",
+        "84235b34-ac40-4644-a46a-6d76a0c35c68.jsonl",
+        "8676c139-319c-4618-99cf-db89a378a8f5.jsonl",
+        "86ec896b-bbf6-4722-8c99-468b4ff272d7.jsonl",
+        "8de7c35d-382b-4e90-b360-d05f7a09dd93.jsonl",
+        "8f9f5176-d15d-40bd-9c2c-086c36060093.jsonl",
+        "9165d3d4-4c22-4f4a-8209-b9d7b5181e81",
+        "9165d3d4-4c22-4f4a-8209-b9d7b5181e81.jsonl",
+        "92474cfd-13d1-4584-a861-68bbaee08f19.jsonl",
+        "94ef768e-7051-4f43-a457-735f7fe1417d.jsonl",
+        "9901582f-23eb-4ced-9f9e-194a9cfb80af",
+        "9901582f-23eb-4ced-9f9e-194a9cfb80af.jsonl",
+        "995eec25-e3fc-4641-910a-2ec5da5c4a4c.jsonl",
+        "a5c062bb-a69d-49cd-b226-63267a0fb929.jsonl",
+        "a7669c15-e529-4756-9a0d-3f3bb2631a36.jsonl",
+        "a9e36486-2019-42cc-92dc-0a2117e9643b.jsonl",
+        "adbf0598-bb85-4ba6-9482-d805953920ea.jsonl",
+        "b120b9e8-c724-493c-afe1-704cbb72dc87.jsonl",
+        "b3406f2f-2c9e-43ca-8977-34c1e57655a8.jsonl",
+        "b3a22c0b-155b-40b2-8170-005b8e17b4e0.jsonl",
+        "b6956bdd-4446-4973-9886-3f0948ec24e5.jsonl",
+        "b969ff11-33c3-44ae-a81e-de6acbb8c081",
+        "b969ff11-33c3-44ae-a81e-de6acbb8c081.jsonl",
+        "ba66409b-f0e7-4d64-b7a8-abee86382c8b",
+        "ba66409b-f0e7-4d64-b7a8-abee86382c8b.jsonl",
+        "bb993f24-0b1c-46b1-b316-25c5b0122f92.jsonl",
+        "bcf539b1-cf12-4fec-a87a-99e912282aab.jsonl",
+        "bd26a1d8-2fb0-4138-a779-f10dfa8dd806.jsonl",
+        "bd2b552d-3a81-45c6-b924-ca9c31e2e4ee.jsonl",
+        "bf4f6865-f709-41a4-baa0-dbfdfc5b5e82.jsonl",
+        "c2b90c3e-399c-4873-b460-d62817944f1e.jsonl",
+        "cba6d0c6-301f-47f5-8c3f-0769ae15a287.jsonl",
+        "ce8f58d1-5807-4d45-8999-1361256b0c8a.jsonl",
+        "d01a1c13-62f1-4f73-981d-bc380829c0d7",
+        "d01a1c13-62f1-4f73-981d-bc380829c0d7.jsonl",
+        "d2de3ebe-c2a2-41a1-aebf-a7d7782dfaa5.jsonl",
+        "d4eb083c-0c3f-4da0-bd7c-22c0b5b6ec33.jsonl",
+        "dcdab1f8-9803-4a62-b41d-3152c1e42544.jsonl",
+        "e1bf7ad3-eeb6-431d-b59b-129cc4849825.jsonl",
+        "e248a5a1-75e0-4fa3-bd76-083215447664.jsonl",
+        "e56c867c-0aae-4b85-b8e5-e679f22a9503.jsonl",
+        "e5c00291-1059-4a6e-8853-595c130023a1.jsonl",
+        "ea35dcd7-e51c-487d-ab8a-a2f6b2c3d79f.jsonl",
+        "ea64eef7-c67f-42d5-99e9-26b18072d44e.jsonl",
+        "edc5ac95-a875-4059-96df-d4a3c68d0220",
+        "edc5ac95-a875-4059-96df-d4a3c68d0220.jsonl",
+        "f626e5e1-d7fc-4940-a89b-41759b226cc4.jsonl",
+        "fa2c16a6-5eff-4e4e-b0d3-76369f187c75.jsonl",
+        "fd0397c1-e54e-4cf2-a499-ce7d57223197.jsonl",
+        "fe951f6e-22ad-410a-9b25-a924013ed835.jsonl",
+        "memory"
+      ],
+      "transcriptFilesAfter": [
+        "00e4ed21-fb85-4d6c-b758-19f7b364bd7c.jsonl",
+        "0280dfd4-b0c4-488c-9bda-4be1c2f0a1a6.jsonl",
+        "0434517e-d368-4243-b0b3-ccd5ad4ae99c.jsonl",
+        "061c02c9-a8b3-4bdd-8a51-d7e03b8f1042.jsonl",
+        "07087435-0ae1-4f0c-ab84-be32846bdd1e.jsonl",
+        "0d86fb93-272e-4c7d-b69d-7ae36977065d.jsonl",
+        "0f6b44fb-759d-4b3c-b853-c7f06d571b26.jsonl",
+        "117d2a2f-95b0-47c6-b098-6ae5394d0b41.jsonl",
+        "18d63e0a-5f20-4583-b300-3bb313b9857b.jsonl",
+        "1e7991f1-4d5f-4aee-ad1f-0baf62d795fe.jsonl",
+        "21f58e7f-13cf-4eb8-aa4b-c39eb74e5e7b",
+        "21f58e7f-13cf-4eb8-aa4b-c39eb74e5e7b.jsonl",
+        "25f0f5c8-1390-497b-b35d-5ebe08708087.jsonl",
+        "26669c1a-7fb9-4785-a935-7535c65e5060.jsonl",
+        "26abdb62-8ecc-45f3-9c51-ad49a5370f11.jsonl",
+        "28ee118f-c58f-4953-b823-61ddd3579164.jsonl",
+        "28fae733-d638-4b1c-9f0c-04ff166d0dab.jsonl",
+        "2a1c8083-baef-4348-b19b-29adcc1ad381.jsonl",
+        "2da5176a-d241-453e-8109-920967a5eb99.jsonl",
+        "366118f4-e56d-42a3-a255-078cc6882a83.jsonl",
+        "37497696-30b0-4153-a58e-bdfaf0c7d374.jsonl",
+        "3d19bde4-4ec4-411a-a2bd-b4601e4fa791.jsonl",
+        "3e764f82-f182-411e-ab1a-1f1b06214fbe.jsonl",
+        "3f097a04-ca17-4a57-9ace-f3e2e521804c.jsonl",
+        "417f4d27-52c2-401c-a358-caa517c697b2.jsonl",
+        "47743940-149c-4617-98d7-bdf3f54310ff.jsonl",
+        "49b41388-03fb-4fb7-8956-723aa7f97b6b.jsonl",
+        "5a37cc98-6cee-4211-bd47-e747917ccef0.jsonl",
+        "5b2c799d-2375-437f-8353-34019ee88998.jsonl",
+        "5ecc5aed-496e-45ca-941b-661a5720eb38.jsonl",
+        "5eee2f28-89eb-4ccb-b1ac-5298abd35971",
+        "5eee2f28-89eb-4ccb-b1ac-5298abd35971.jsonl",
+        "60ffc0ea-221a-47e8-8f38-781c9277e669.jsonl",
+        "62574511-1c26-4917-87e1-50db4a3a2b3f.jsonl",
+        "63c3f8b2-3295-4bc1-99aa-13028d3a17aa.jsonl",
+        "64eb68e2-3a6d-47a4-a588-0c943251f5b2.jsonl",
+        "6743b38c-7968-4c03-b74c-cb8dd219c49c.jsonl",
+        "6a43bf8e-f092-4f7b-b86b-34efab306d2e.jsonl",
+        "6d13c714-91f9-49a2-9211-7cb4379c8fea.jsonl",
+        "6e4466ab-6932-4e2e-8ab8-822c9bee49d6.jsonl",
+        "749ba99f-10d4-41e0-8cf4-c8a1fba33a60.jsonl",
+        "75c2d31b-e7a1-45b2-a4a3-21e421d1c3fa.jsonl",
+        "775ffa5a-a7e4-498d-bfdd-1bf513fd34a1.jsonl",
+        "78c7f21c-34dc-4ffa-abdf-04479825bb91.jsonl",
+        "78e952c3-fc6c-486d-9d46-a977f48d3b65.jsonl",
+        "791bb5b6-3287-4819-9813-3d962abc15fb",
+        "791bb5b6-3287-4819-9813-3d962abc15fb.jsonl",
+        "7e90ffa5-625e-41e2-9d5e-b8290bb1f863.jsonl",
+        "7e98ea3e-9c14-43f6-8dd6-e6e8dd7b3e7a.jsonl",
+        "84235b34-ac40-4644-a46a-6d76a0c35c68.jsonl",
+        "8676c139-319c-4618-99cf-db89a378a8f5.jsonl",
+        "86ec896b-bbf6-4722-8c99-468b4ff272d7.jsonl",
+        "8de7c35d-382b-4e90-b360-d05f7a09dd93.jsonl",
+        "8f9f5176-d15d-40bd-9c2c-086c36060093.jsonl",
+        "9165d3d4-4c22-4f4a-8209-b9d7b5181e81",
+        "9165d3d4-4c22-4f4a-8209-b9d7b5181e81.jsonl",
+        "92474cfd-13d1-4584-a861-68bbaee08f19.jsonl",
+        "94ef768e-7051-4f43-a457-735f7fe1417d.jsonl",
+        "9901582f-23eb-4ced-9f9e-194a9cfb80af",
+        "9901582f-23eb-4ced-9f9e-194a9cfb80af.jsonl",
+        "995eec25-e3fc-4641-910a-2ec5da5c4a4c.jsonl",
+        "a5c062bb-a69d-49cd-b226-63267a0fb929.jsonl",
+        "a7669c15-e529-4756-9a0d-3f3bb2631a36.jsonl",
+        "a9e36486-2019-42cc-92dc-0a2117e9643b.jsonl",
+        "adbf0598-bb85-4ba6-9482-d805953920ea.jsonl",
+        "b120b9e8-c724-493c-afe1-704cbb72dc87.jsonl",
+        "b3406f2f-2c9e-43ca-8977-34c1e57655a8.jsonl",
+        "b3a22c0b-155b-40b2-8170-005b8e17b4e0.jsonl",
+        "b6956bdd-4446-4973-9886-3f0948ec24e5.jsonl",
+        "b969ff11-33c3-44ae-a81e-de6acbb8c081",
+        "b969ff11-33c3-44ae-a81e-de6acbb8c081.jsonl",
+        "ba66409b-f0e7-4d64-b7a8-abee86382c8b",
+        "ba66409b-f0e7-4d64-b7a8-abee86382c8b.jsonl",
+        "bb993f24-0b1c-46b1-b316-25c5b0122f92.jsonl",
+        "bcf539b1-cf12-4fec-a87a-99e912282aab.jsonl",
+        "bd26a1d8-2fb0-4138-a779-f10dfa8dd806.jsonl",
+        "bd2b552d-3a81-45c6-b924-ca9c31e2e4ee.jsonl",
+        "bf4f6865-f709-41a4-baa0-dbfdfc5b5e82.jsonl",
+        "c2b90c3e-399c-4873-b460-d62817944f1e.jsonl",
+        "cba6d0c6-301f-47f5-8c3f-0769ae15a287.jsonl",
+        "ce8f58d1-5807-4d45-8999-1361256b0c8a.jsonl",
+        "d01a1c13-62f1-4f73-981d-bc380829c0d7",
+        "d01a1c13-62f1-4f73-981d-bc380829c0d7.jsonl",
+        "d2de3ebe-c2a2-41a1-aebf-a7d7782dfaa5.jsonl",
+        "d4eb083c-0c3f-4da0-bd7c-22c0b5b6ec33.jsonl",
+        "dcdab1f8-9803-4a62-b41d-3152c1e42544.jsonl",
+        "e1bf7ad3-eeb6-431d-b59b-129cc4849825.jsonl",
+        "e248a5a1-75e0-4fa3-bd76-083215447664.jsonl",
+        "e56c867c-0aae-4b85-b8e5-e679f22a9503.jsonl",
+        "e5c00291-1059-4a6e-8853-595c130023a1.jsonl",
+        "ea35dcd7-e51c-487d-ab8a-a2f6b2c3d79f.jsonl",
+        "ea64eef7-c67f-42d5-99e9-26b18072d44e.jsonl",
+        "edc5ac95-a875-4059-96df-d4a3c68d0220",
+        "edc5ac95-a875-4059-96df-d4a3c68d0220.jsonl",
+        "f626e5e1-d7fc-4940-a89b-41759b226cc4.jsonl",
+        "fa2c16a6-5eff-4e4e-b0d3-76369f187c75.jsonl",
+        "fd0397c1-e54e-4cf2-a499-ce7d57223197.jsonl",
+        "fe951f6e-22ad-410a-9b25-a924013ed835.jsonl",
+        "memory"
+      ],
+      "newTranscriptFiles": [],
+      "newTranscriptSizes": {}
+    },
+    {
+      "variant": "ended",
+      "initializationResult": {
+        "commands": [
+          {
+            "name": "deep-research",
+            "description": "Deep research harness — fan-out web searches, fetch sources, adversarially verify claims, synthesize a cited report. (dynamic workflow)",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "design",
+            "description": "Grant or revoke Claude agent access to your Design projects",
+            "argumentHint": "consent | revoke",
+            "builtin": true
+          },
+          {
+            "name": "design-sync",
+            "description": "Push a React design system to claude.ai/design. This runs a converter that bundles the real component code (from Storybook or a bare package) and uploads it. Use when the user runs /design-sync or says \"sync my design system to Claude Design\".",
+            "argumentHint": "[<project hint, e.g. \"Acme DS\">]",
+            "builtin": true
+          },
+          {
+            "name": "dataviz",
+            "description": "Use this skill whenever you are about to create ANY chart, graph, plot, dashboard, or data visualization, in ANY output medium — an HTML or React artifact, inline SVG, plotting code in any library (matplotlib, plotly, d3, Recharts, …), an image/PNG you will render and upload, or a chart shared into Slack. Read it BEFORE writing the first line of chart code, choosing chart colors, building a stat tile / meter / KPI row, or laying out a dashboard. When the destination is a first-party document connector (host-designated, never self-described) that renders live charts, hand it the rows (inline, or as an uploaded data file the chart cites) rather than a rendered PNG/SVG — a picture of a chart loses hover, data inspection and per-value comments. Produces visualizations that read as one system — elegant, accessible, consistent in light and dark — using a brand-neutral placeholder palette you swap for your own. Teaches a design-system-agnostic method: a form heuristic, a color formula with a runnable validator, mark specs, and interaction rules. A validated default palette is documented in `references/palette.md` — swap that file's values for your brand's. Triggers on: \"chart\", \"graph\", \"plot\", \"data viz\", \"visualization\", \"dashboard\", \"analytics\", \"visualize data\", \"categorical colors\", \"sequential / diverging palette\", \"stat tile\", \"sparkline\", \"heatmap\", \"legend\", \"axis\", \"tooltip\", \"chart colors\", \"color by series\".",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "update-config",
+            "description": "Use this skill to configure the Claude Code harness via settings.json. Automated behaviors (\"from now on when X\", \"each time X\", \"whenever X\", \"before/after X\") require hooks configured in settings.json - the harness executes these, not Claude, so memory/preferences cannot fulfill them. Also use for: permissions (\"allow X\", \"add permission\", \"move permission to\"), env vars (\"set X=Y\"), hook troubleshooting, or any changes to settings.json/settings.local.json files. Examples: \"allow npm commands\", \"add bq permission to global settings\", \"move permission to user settings\", \"set DEBUG=true\", \"when claude stops show X\". For simple settings like theme/model, suggest the /config command.",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "verify",
+            "description": "Verify that a code change actually does what it's supposed to by exercising it end-to-end and observing behavior — drive the affected flow, not just tests or typecheck. Run before committing nontrivial changes; bootstraps this repo's project verify skill if none exists yet. Don't invoke it on a diff that only touches tests, docs, or other code with no runtime surface to drive (a change to product source always has one) — there's nothing to observe.",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "debug",
+            "description": "Enable debug logging for this session and help diagnose issues",
+            "argumentHint": "[issue description]",
+            "builtin": true
+          },
+          {
+            "name": "code-review",
+            "description": "Review the current diff, or a PR number/branch/path target, for correctness bugs (plus reuse/simplification/efficiency cleanups where the model's review recipe covers them) at the given effort level (low|medium|high|xhigh|max: from few high-confidence findings up to many, some of them uncertain); with no level given, it reuses the level you typed last. Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review. Pass --max-findings <n> to report up to n findings, or --max-findings all for every finding. The choice stays until you pass --max-findings default.",
+            "argumentHint": "[low|medium|high|xhigh|max] [--fix] [--comment] [<pr#>|<branch>|<path>] [--max-findings <n>|all]",
+            "aliases": [
+              "review"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "simplify",
+            "description": "Review the changed code for reuse, simplification, efficiency, and altitude cleanups, then apply the fixes. Quality only — it does not hunt for bugs; use /code-review for that.",
+            "argumentHint": "[<target>]",
+            "builtin": true
+          },
+          {
+            "name": "batch",
+            "description": "Research and plan a large-scale change, then execute it in parallel across 5–30 isolated worktree agents that each open a PR.",
+            "argumentHint": "<instruction>",
+            "builtin": true
+          },
+          {
+            "name": "fewer-permission-prompts",
+            "description": "Scan your transcripts for common read-only Bash and MCP tool calls, then add a prioritized allowlist to project .claude/settings.json to reduce permission prompts.",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "doctor",
+            "description": "Health-check the user's Claude Code setup and fix issues: diagnose installation health — what the `claude doctor` terminal diagnostics cover — from local data (duplicate or leftover installs, PATH, unparseable settings files, broken or colliding agent definitions, skills whose frontmatter fails to parse); find unused skills, MCP servers, and plugins versus their context cost and disable dead weight; deduplicate local CLAUDE.md files against checked-in ones; trim checked-in CLAUDE.md files by cutting content a session could derive from the codebase (directory layouts, tech-stack lists, architecture overviews) while keeping gotchas, rationale, and non-standard conventions; migrate always-loaded CLAUDE.md guidance into lazy skills and nested CLAUDE.md files; flag slow hooks and context-heavy extensions; check the installed version is current; make auto mode the default permission mode; and pre-approve frequently denied read-only commands. Use when the user asks for a doctor run, checkup, audit, tune-up, or cleanup of their Claude Code setup or configuration.",
+            "argumentHint": "[prompt-audit [<path>]]",
+            "aliases": [
+              "checkup"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "loop",
+            "description": "Run a prompt or slash command on a recurring interval (e.g. /loop 5m /foo). Omit the interval to let the model self-pace.",
+            "argumentHint": "[interval] [prompt]",
+            "aliases": [
+              "proactive"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "schedule",
+            "description": "Create, update, list, or run scheduled cloud agents (routines) that execute on a cron schedule.",
+            "argumentHint": "",
+            "aliases": [
+              "routines"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "claude-api",
+            "description": "Reference for the Claude API / Anthropic SDK — model ids, pricing, params, streaming, tool use, MCP, agents, caching, token counting, model migration.\nTRIGGER — read BEFORE opening the target file; don't skip because it \"looks like a one-liner\" — whenever: the prompt names Claude/Anthropic in any form (Claude, Anthropic, Fable, Opus, Sonnet, Haiku, `anthropic`, `@anthropic-ai`, `claude-*`, `us.anthropic.*`, `[1m]`); the user asks about an LLM (pricing/model choice/limits/caching) — never answer from memory; OR the task is LLM-shaped with provider unstated (agent/MCP/tool-definition/multi-agent/RAG/LLM-judge/computer-use; generate/summarize/extract/classify/rewrite/converse over NL; debugging refusals/cutoffs/streaming/tool-calls/tokens).\nSKIP only when another provider is being worked on (overrides all triggers): OpenAI/GPT/Gemini/Llama/Mistral/Cohere/Ollama named in the query; OR `grep -rE 'openai|langchain_openai|google.generativeai|genai|mistralai|cohere|ollama'` over the project hits (run this grep FIRST if no provider named — don't Read the file).",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "workflow-authoring",
+            "description": "Reference for writing a Workflow tool script (script API and gotchas, resume, quality patterns, worked examples). Load before authoring a script for a workflow the user already opted into; it does not itself authorize running one.",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "run",
+            "description": "Launch and drive this project's app to see a change working. Use when asked to run, start, or screenshot the app, or to confirm a change works in the real app (not just tests). First looks for a project skill that already covers launching the app; otherwise falls back to built-in patterns per project type (CLI, server, TUI, Electron, browser-driven, library).",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "run-skill-generator",
+            "description": "Author or improve the run-<unit> skill - a per-project skill that tells agents how to build, launch, and drive this project's app. Use when the user asks to set up the project, get it running, write run instructions, or verify build/run steps work from a clean environment.",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "plugin-authoring",
+            "description": "Make a mod: a change to Claude's own interface or behaviour, such as a live pane or panel, a band above the prompt, a status line, a toast, a slash command, or a hook on tool calls or prompts. Use to make, change or debug a mod or its hooks module.",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "advisor",
+            "description": "Let Claude consult a stronger model at key moments",
+            "argumentHint": "[fable|opus|sonnet|off]",
+            "builtin": true
+          },
+          {
+            "name": "agents",
+            "description": "(removed) Ask Claude to create/manage subagents, or edit .claude/agents/",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "auto-mode-setup",
+            "description": "Teach auto mode about your environment, plus optional rule tweaks",
+            "argumentHint": "[--request-id <uuid>] (--wizard posture=… scope=… depth=… --propose | --expect-sha256 <64-hex> --apply-file <path>)",
+            "builtin": true
+          },
+          {
+            "name": "autocompact",
+            "description": "Configure the auto-compact window size",
+            "argumentHint": "[auto|<tokens>]",
+            "builtin": true
+          },
+          {
+            "name": "clear",
+            "description": "Start a new session with empty context; previous session stays on disk (resumable with /resume)",
+            "argumentHint": "[name]",
+            "aliases": [
+              "reset",
+              "new"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "color",
+            "description": "Set the prompt bar color for this session",
+            "argumentHint": "[red|blue|green|yellow|purple|orange|pink|cyan|default]",
+            "builtin": true
+          },
+          {
+            "name": "compact",
+            "description": "Free up context by summarizing the conversation so far",
+            "argumentHint": "<optional custom summarization instructions>",
+            "builtin": true
+          },
+          {
+            "name": "config",
+            "description": "Set a setting by key",
+            "argumentHint": "key=value",
+            "aliases": [
+              "settings"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "output-style",
+            "description": "List output styles or switch to one",
+            "argumentHint": "[style]",
+            "builtin": true
+          },
+          {
+            "name": "context",
+            "description": "Show current context usage",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "effort",
+            "description": "Set effort level for model usage",
+            "argumentHint": "<low|medium|high|xhigh|max|auto|ultracode [on|off]>",
+            "builtin": true
+          },
+          {
+            "name": "fast",
+            "description": "Toggle fast mode (Opus 5.5)",
+            "argumentHint": "[on|off]",
+            "builtin": true
+          },
+          {
+            "name": "focus",
+            "description": "Toggle focus view: just your prompt, summary, and response",
+            "argumentHint": "[on|off]",
+            "builtin": true
+          },
+          {
+            "name": "heapdump",
+            "description": "Dump the JS heap to the Desktop; on Linux with no Desktop folder, the home directory",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "init",
+            "description": "Initialize a new CLAUDE.md file with codebase documentation",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "mcp",
+            "description": "Manage MCP servers",
+            "argumentHint": "[reconnect|enable|disable [<server>|all]]",
+            "builtin": true
+          },
+          {
+            "name": "import",
+            "description": "Import config from another AI coding agent",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "model",
+            "description": "Set the AI model for Claude Code",
+            "argumentHint": "<model>",
+            "builtin": true
+          },
+          {
+            "name": "__remote-workflow",
+            "description": "Run the workflow script delivered in this session environment (server-launched sessions only)",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "workflow-launch-exec",
+            "description": "Execute a server-launched workflow handoff (workflow_launch event sessions only)",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "reload-plugins",
+            "description": "Activate pending plugin changes in the current session",
+            "argumentHint": "[--force]",
+            "builtin": true
+          },
+          {
+            "name": "reload-skills",
+            "description": "Pick up skills added or changed on disk during this session",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "rename",
+            "description": "Rename the current conversation",
+            "argumentHint": "[name]",
+            "aliases": [
+              "name"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "security-review",
+            "description": "Complete a security review of the pending changes on the current branch",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "usage-credits",
+            "description": "Configure usage credits or request them from your admin when you hit a limit",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "extra-usage",
+            "description": "Renamed to /usage-credits",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "usage",
+            "description": "Show session cost, plan usage, and what's contributing to your limits",
+            "argumentHint": "",
+            "aliases": [
+              "cost",
+              "stats"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "insights",
+            "description": "Generate a report analyzing your Claude Code sessions",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "recap",
+            "description": "Generate a one-line session recap now",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "skill-doctor",
+            "description": "Show which loaded skills are unused and costing context",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "goal",
+            "description": "Set a goal — keep working until the condition is met",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "design-consent",
+            "description": "Grant Claude agent access to your Design projects",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "design-revoke",
+            "description": "Revoke Claude agent access to your Design projects",
+            "argumentHint": "",
+            "builtin": true
+          },
+          {
+            "name": "list-agents",
+            "description": "List subagents, teammates, and other Claude sessions you can message",
+            "argumentHint": "",
+            "aliases": [
+              "peers"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "team-onboarding",
+            "description": "Help teammates ramp on Claude Code with a guide from your usage",
+            "argumentHint": "",
+            "builtin": true
+          }
+        ],
+        "agents": [
+          {
+            "name": "claude",
+            "description": "Catch-all for any task that doesn't fit a more specific agent. FleetView's default when no agent name is typed."
+          },
+          {
+            "name": "Explore",
+            "description": "Fast read-only search agent for locating code. Use it to find files by pattern (eg. \"src/components/**/*.tsx\"), grep for symbols or keywords (eg. \"API endpoints\"), or answer \"where is X defined / which files reference Y.\" Do NOT use it for code review, design-doc auditing, cross-file consistency checks, or open-ended analysis — it reads excerpts rather than whole files and will miss content past its read window. When calling, specify search breadth: \"quick\" for a single targeted lookup, \"medium\" for moderate exploration, or \"very thorough\" to search across multiple locations and naming conventions.",
+            "model": "inherit"
+          },
+          {
+            "name": "general-purpose",
+            "description": "General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you."
+          },
+          {
+            "name": "Plan",
+            "description": "Software architect agent for designing implementation plans. Use this when you need to plan the implementation strategy for a task. Returns step-by-step plans, identifies critical files, and considers architectural trade-offs.",
+            "model": "inherit"
+          },
+          {
+            "name": "statusline-setup",
+            "description": "Use this agent to configure the user's Claude Code status line setting.",
+            "model": "sonnet"
+          }
+        ],
+        "output_style": "default",
+        "available_output_styles": [
+          "default",
+          "Proactive",
+          "Concise",
+          "Explanatory",
+          "Learning"
+        ],
+        "user_output_styles_dir": "/Users/kei/.claude/output-styles",
+        "models": [
+          {
+            "value": "default",
+            "resolvedModel": "claude-opus-5-5",
+            "displayName": "Default (recommended)",
+            "description": "Opus 5.5 · Best for everyday, complex tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsFastMode": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "opus",
+            "resolvedModel": "claude-opus-5-5",
+            "displayName": "Opus 5.5",
+            "description": "For complex work and everyday tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsFastMode": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "fable",
+            "resolvedModel": "claude-fable-5-1",
+            "displayName": "Fable 5.1",
+            "description": "For your toughest challenges",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "sonnet",
+            "resolvedModel": "claude-sonnet-5-5",
+            "displayName": "Sonnet 5.5",
+            "description": "Most efficient for simpler tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "haiku",
+            "resolvedModel": "claude-haiku-5-5",
+            "displayName": "Haiku 5.5",
+            "description": "Fastest for quick answers",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-haiku-4-5-20251001",
+            "resolvedModel": "claude-haiku-4-5-20251001",
+            "displayName": "Haiku 4.5",
+            "description": "Fastest for quick answers"
+          },
+          {
+            "value": "claude-sonnet-5",
+            "resolvedModel": "claude-sonnet-5",
+            "displayName": "Sonnet 5",
+            "description": "Efficient for routine tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-opus-5",
+            "resolvedModel": "claude-opus-5",
+            "displayName": "Opus 5",
+            "description": "Best for everyday, complex tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsFastMode": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-fable-5",
+            "resolvedModel": "claude-fable-5",
+            "displayName": "Fable 5",
+            "description": "Most capable for your hardest and longest-running tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-opus-4-8",
+            "resolvedModel": "claude-opus-4-8",
+            "displayName": "Opus 4.8",
+            "description": "Best for everyday, complex tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsFastMode": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-opus-4-7",
+            "resolvedModel": "claude-opus-4-7",
+            "displayName": "Opus 4.7",
+            "description": "Best for everyday, complex tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-opus-4-6",
+            "resolvedModel": "claude-opus-4-6",
+            "displayName": "Opus 4.6",
+            "description": "Best for everyday, complex tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          },
+          {
+            "value": "claude-sonnet-4-6",
+            "resolvedModel": "claude-sonnet-4-6",
+            "displayName": "Sonnet 4.6",
+            "description": "Efficient for routine tasks",
+            "supportsEffort": true,
+            "supportedEffortLevels": [
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "supportsAdaptiveThinking": true,
+            "supportsAutoMode": true
+          }
+        ],
+        "account": {
+          "email": "user@example.com",
+          "organization": "Example Org",
+          "subscriptionType": "Claude Team",
+          "apiProvider": "firstParty"
+        },
+        "pid": 0,
+        "current_permission_mode": "default",
+        "feedback_mode": {
+          "kind": "post"
+        },
+        "analytics_disabled": false,
+        "remote_control_auto_enable": false,
+        "remote_control_auto_connect_default": false,
+        "remote_control_available": true,
+        "remote_control_auto_on_by_default": false,
+        "ide_rc_auto_enable_gate": true,
+        "fast_mode_state": "off",
+        "fast_mode_disabled_reason": "sdk_opt_in_required",
+        "session_state": "idle",
+        "capabilities": [
+          "ui_surface_v1"
+        ]
+      },
+      "supportedModels": [
+        {
+          "value": "default",
+          "resolvedModel": "claude-opus-5-5",
+          "displayName": "Default (recommended)",
+          "description": "Opus 5.5 · Best for everyday, complex tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsFastMode": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "opus",
+          "resolvedModel": "claude-opus-5-5",
+          "displayName": "Opus 5.5",
+          "description": "For complex work and everyday tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsFastMode": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "fable",
+          "resolvedModel": "claude-fable-5-1",
+          "displayName": "Fable 5.1",
+          "description": "For your toughest challenges",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "sonnet",
+          "resolvedModel": "claude-sonnet-5-5",
+          "displayName": "Sonnet 5.5",
+          "description": "Most efficient for simpler tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "haiku",
+          "resolvedModel": "claude-haiku-5-5",
+          "displayName": "Haiku 5.5",
+          "description": "Fastest for quick answers",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-haiku-4-5-20251001",
+          "resolvedModel": "claude-haiku-4-5-20251001",
+          "displayName": "Haiku 4.5",
+          "description": "Fastest for quick answers"
+        },
+        {
+          "value": "claude-sonnet-5",
+          "resolvedModel": "claude-sonnet-5",
+          "displayName": "Sonnet 5",
+          "description": "Efficient for routine tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-opus-5",
+          "resolvedModel": "claude-opus-5",
+          "displayName": "Opus 5",
+          "description": "Best for everyday, complex tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsFastMode": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-fable-5",
+          "resolvedModel": "claude-fable-5",
+          "displayName": "Fable 5",
+          "description": "Most capable for your hardest and longest-running tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-opus-4-8",
+          "resolvedModel": "claude-opus-4-8",
+          "displayName": "Opus 4.8",
+          "description": "Best for everyday, complex tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsFastMode": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-opus-4-7",
+          "resolvedModel": "claude-opus-4-7",
+          "displayName": "Opus 4.7",
+          "description": "Best for everyday, complex tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-opus-4-6",
+          "resolvedModel": "claude-opus-4-6",
+          "displayName": "Opus 4.6",
+          "description": "Best for everyday, complex tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        },
+        {
+          "value": "claude-sonnet-4-6",
+          "resolvedModel": "claude-sonnet-4-6",
+          "displayName": "Sonnet 4.6",
+          "description": "Efficient for routine tasks",
+          "supportsEffort": true,
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true
+        }
+      ],
+      "supportedCommands": [
+        {
+          "name": "deep-research",
+          "description": "Deep research harness — fan-out web searches, fetch sources, adversarially verify claims, synthesize a cited report. (dynamic workflow)",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "design",
+          "description": "Grant or revoke Claude agent access to your Design projects",
+          "argumentHint": "consent | revoke",
+          "builtin": true
+        },
+        {
+          "name": "design-sync",
+          "description": "Push a React design system to claude.ai/design. This runs a converter that bundles the real component code (from Storybook or a bare package) and uploads it. Use when the user runs /design-sync or says \"sync my design system to Claude Design\".",
+          "argumentHint": "[<project hint, e.g. \"Acme DS\">]",
+          "builtin": true
+        },
+        {
+          "name": "dataviz",
+          "description": "Use this skill whenever you are about to create ANY chart, graph, plot, dashboard, or data visualization, in ANY output medium — an HTML or React artifact, inline SVG, plotting code in any library (matplotlib, plotly, d3, Recharts, …), an image/PNG you will render and upload, or a chart shared into Slack. Read it BEFORE writing the first line of chart code, choosing chart colors, building a stat tile / meter / KPI row, or laying out a dashboard. When the destination is a first-party document connector (host-designated, never self-described) that renders live charts, hand it the rows (inline, or as an uploaded data file the chart cites) rather than a rendered PNG/SVG — a picture of a chart loses hover, data inspection and per-value comments. Produces visualizations that read as one system — elegant, accessible, consistent in light and dark — using a brand-neutral placeholder palette you swap for your own. Teaches a design-system-agnostic method: a form heuristic, a color formula with a runnable validator, mark specs, and interaction rules. A validated default palette is documented in `references/palette.md` — swap that file's values for your brand's. Triggers on: \"chart\", \"graph\", \"plot\", \"data viz\", \"visualization\", \"dashboard\", \"analytics\", \"visualize data\", \"categorical colors\", \"sequential / diverging palette\", \"stat tile\", \"sparkline\", \"heatmap\", \"legend\", \"axis\", \"tooltip\", \"chart colors\", \"color by series\".",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "update-config",
+          "description": "Use this skill to configure the Claude Code harness via settings.json. Automated behaviors (\"from now on when X\", \"each time X\", \"whenever X\", \"before/after X\") require hooks configured in settings.json - the harness executes these, not Claude, so memory/preferences cannot fulfill them. Also use for: permissions (\"allow X\", \"add permission\", \"move permission to\"), env vars (\"set X=Y\"), hook troubleshooting, or any changes to settings.json/settings.local.json files. Examples: \"allow npm commands\", \"add bq permission to global settings\", \"move permission to user settings\", \"set DEBUG=true\", \"when claude stops show X\". For simple settings like theme/model, suggest the /config command.",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "verify",
+          "description": "Verify that a code change actually does what it's supposed to by exercising it end-to-end and observing behavior — drive the affected flow, not just tests or typecheck. Run before committing nontrivial changes; bootstraps this repo's project verify skill if none exists yet. Don't invoke it on a diff that only touches tests, docs, or other code with no runtime surface to drive (a change to product source always has one) — there's nothing to observe.",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "debug",
+          "description": "Enable debug logging for this session and help diagnose issues",
+          "argumentHint": "[issue description]",
+          "builtin": true
+        },
+        {
+          "name": "code-review",
+          "description": "Review the current diff, or a PR number/branch/path target, for correctness bugs (plus reuse/simplification/efficiency cleanups where the model's review recipe covers them) at the given effort level (low|medium|high|xhigh|max: from few high-confidence findings up to many, some of them uncertain); with no level given, it reuses the level you typed last. Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review. Pass --max-findings <n> to report up to n findings, or --max-findings all for every finding. The choice stays until you pass --max-findings default.",
+          "argumentHint": "[low|medium|high|xhigh|max] [--fix] [--comment] [<pr#>|<branch>|<path>] [--max-findings <n>|all]",
+          "aliases": [
+            "review"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "simplify",
+          "description": "Review the changed code for reuse, simplification, efficiency, and altitude cleanups, then apply the fixes. Quality only — it does not hunt for bugs; use /code-review for that.",
+          "argumentHint": "[<target>]",
+          "builtin": true
+        },
+        {
+          "name": "batch",
+          "description": "Research and plan a large-scale change, then execute it in parallel across 5–30 isolated worktree agents that each open a PR.",
+          "argumentHint": "<instruction>",
+          "builtin": true
+        },
+        {
+          "name": "fewer-permission-prompts",
+          "description": "Scan your transcripts for common read-only Bash and MCP tool calls, then add a prioritized allowlist to project .claude/settings.json to reduce permission prompts.",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "doctor",
+          "description": "Health-check the user's Claude Code setup and fix issues: diagnose installation health — what the `claude doctor` terminal diagnostics cover — from local data (duplicate or leftover installs, PATH, unparseable settings files, broken or colliding agent definitions, skills whose frontmatter fails to parse); find unused skills, MCP servers, and plugins versus their context cost and disable dead weight; deduplicate local CLAUDE.md files against checked-in ones; trim checked-in CLAUDE.md files by cutting content a session could derive from the codebase (directory layouts, tech-stack lists, architecture overviews) while keeping gotchas, rationale, and non-standard conventions; migrate always-loaded CLAUDE.md guidance into lazy skills and nested CLAUDE.md files; flag slow hooks and context-heavy extensions; check the installed version is current; make auto mode the default permission mode; and pre-approve frequently denied read-only commands. Use when the user asks for a doctor run, checkup, audit, tune-up, or cleanup of their Claude Code setup or configuration.",
+          "argumentHint": "[prompt-audit [<path>]]",
+          "aliases": [
+            "checkup"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "loop",
+          "description": "Run a prompt or slash command on a recurring interval (e.g. /loop 5m /foo). Omit the interval to let the model self-pace.",
+          "argumentHint": "[interval] [prompt]",
+          "aliases": [
+            "proactive"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "schedule",
+          "description": "Create, update, list, or run scheduled cloud agents (routines) that execute on a cron schedule.",
+          "argumentHint": "",
+          "aliases": [
+            "routines"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "claude-api",
+          "description": "Reference for the Claude API / Anthropic SDK — model ids, pricing, params, streaming, tool use, MCP, agents, caching, token counting, model migration.\nTRIGGER — read BEFORE opening the target file; don't skip because it \"looks like a one-liner\" — whenever: the prompt names Claude/Anthropic in any form (Claude, Anthropic, Fable, Opus, Sonnet, Haiku, `anthropic`, `@anthropic-ai`, `claude-*`, `us.anthropic.*`, `[1m]`); the user asks about an LLM (pricing/model choice/limits/caching) — never answer from memory; OR the task is LLM-shaped with provider unstated (agent/MCP/tool-definition/multi-agent/RAG/LLM-judge/computer-use; generate/summarize/extract/classify/rewrite/converse over NL; debugging refusals/cutoffs/streaming/tool-calls/tokens).\nSKIP only when another provider is being worked on (overrides all triggers): OpenAI/GPT/Gemini/Llama/Mistral/Cohere/Ollama named in the query; OR `grep -rE 'openai|langchain_openai|google.generativeai|genai|mistralai|cohere|ollama'` over the project hits (run this grep FIRST if no provider named — don't Read the file).",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "workflow-authoring",
+          "description": "Reference for writing a Workflow tool script (script API and gotchas, resume, quality patterns, worked examples). Load before authoring a script for a workflow the user already opted into; it does not itself authorize running one.",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "run",
+          "description": "Launch and drive this project's app to see a change working. Use when asked to run, start, or screenshot the app, or to confirm a change works in the real app (not just tests). First looks for a project skill that already covers launching the app; otherwise falls back to built-in patterns per project type (CLI, server, TUI, Electron, browser-driven, library).",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "run-skill-generator",
+          "description": "Author or improve the run-<unit> skill - a per-project skill that tells agents how to build, launch, and drive this project's app. Use when the user asks to set up the project, get it running, write run instructions, or verify build/run steps work from a clean environment.",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "plugin-authoring",
+          "description": "Make a mod: a change to Claude's own interface or behaviour, such as a live pane or panel, a band above the prompt, a status line, a toast, a slash command, or a hook on tool calls or prompts. Use to make, change or debug a mod or its hooks module.",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "advisor",
+          "description": "Let Claude consult a stronger model at key moments",
+          "argumentHint": "[fable|opus|sonnet|off]",
+          "builtin": true
+        },
+        {
+          "name": "agents",
+          "description": "(removed) Ask Claude to create/manage subagents, or edit .claude/agents/",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "auto-mode-setup",
+          "description": "Teach auto mode about your environment, plus optional rule tweaks",
+          "argumentHint": "[--request-id <uuid>] (--wizard posture=… scope=… depth=… --propose | --expect-sha256 <64-hex> --apply-file <path>)",
+          "builtin": true
+        },
+        {
+          "name": "autocompact",
+          "description": "Configure the auto-compact window size",
+          "argumentHint": "[auto|<tokens>]",
+          "builtin": true
+        },
+        {
+          "name": "clear",
+          "description": "Start a new session with empty context; previous session stays on disk (resumable with /resume)",
+          "argumentHint": "[name]",
+          "aliases": [
+            "reset",
+            "new"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "color",
+          "description": "Set the prompt bar color for this session",
+          "argumentHint": "[red|blue|green|yellow|purple|orange|pink|cyan|default]",
+          "builtin": true
+        },
+        {
+          "name": "compact",
+          "description": "Free up context by summarizing the conversation so far",
+          "argumentHint": "<optional custom summarization instructions>",
+          "builtin": true
+        },
+        {
+          "name": "config",
+          "description": "Set a setting by key",
+          "argumentHint": "key=value",
+          "aliases": [
+            "settings"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "output-style",
+          "description": "List output styles or switch to one",
+          "argumentHint": "[style]",
+          "builtin": true
+        },
+        {
+          "name": "context",
+          "description": "Show current context usage",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "effort",
+          "description": "Set effort level for model usage",
+          "argumentHint": "<low|medium|high|xhigh|max|auto|ultracode [on|off]>",
+          "builtin": true
+        },
+        {
+          "name": "fast",
+          "description": "Toggle fast mode (Opus 5.5)",
+          "argumentHint": "[on|off]",
+          "builtin": true
+        },
+        {
+          "name": "focus",
+          "description": "Toggle focus view: just your prompt, summary, and response",
+          "argumentHint": "[on|off]",
+          "builtin": true
+        },
+        {
+          "name": "heapdump",
+          "description": "Dump the JS heap to the Desktop; on Linux with no Desktop folder, the home directory",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "init",
+          "description": "Initialize a new CLAUDE.md file with codebase documentation",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "mcp",
+          "description": "Manage MCP servers",
+          "argumentHint": "[reconnect|enable|disable [<server>|all]]",
+          "builtin": true
+        },
+        {
+          "name": "import",
+          "description": "Import config from another AI coding agent",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "model",
+          "description": "Set the AI model for Claude Code",
+          "argumentHint": "<model>",
+          "builtin": true
+        },
+        {
+          "name": "__remote-workflow",
+          "description": "Run the workflow script delivered in this session environment (server-launched sessions only)",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "workflow-launch-exec",
+          "description": "Execute a server-launched workflow handoff (workflow_launch event sessions only)",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "reload-plugins",
+          "description": "Activate pending plugin changes in the current session",
+          "argumentHint": "[--force]",
+          "builtin": true
+        },
+        {
+          "name": "reload-skills",
+          "description": "Pick up skills added or changed on disk during this session",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "rename",
+          "description": "Rename the current conversation",
+          "argumentHint": "[name]",
+          "aliases": [
+            "name"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "security-review",
+          "description": "Complete a security review of the pending changes on the current branch",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "usage-credits",
+          "description": "Configure usage credits or request them from your admin when you hit a limit",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "extra-usage",
+          "description": "Renamed to /usage-credits",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "usage",
+          "description": "Show session cost, plan usage, and what's contributing to your limits",
+          "argumentHint": "",
+          "aliases": [
+            "cost",
+            "stats"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "insights",
+          "description": "Generate a report analyzing your Claude Code sessions",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "recap",
+          "description": "Generate a one-line session recap now",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "skill-doctor",
+          "description": "Show which loaded skills are unused and costing context",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "goal",
+          "description": "Set a goal — keep working until the condition is met",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "design-consent",
+          "description": "Grant Claude agent access to your Design projects",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "design-revoke",
+          "description": "Revoke Claude agent access to your Design projects",
+          "argumentHint": "",
+          "builtin": true
+        },
+        {
+          "name": "list-agents",
+          "description": "List subagents, teammates, and other Claude sessions you can message",
+          "argumentHint": "",
+          "aliases": [
+            "peers"
+          ],
+          "builtin": true
+        },
+        {
+          "name": "team-onboarding",
+          "description": "Help teammates ramp on Claude Code with a guide from your usage",
+          "argumentHint": "",
+          "builtin": true
+        }
+      ],
+      "supportedAgents": [
+        {
+          "name": "claude",
+          "description": "Catch-all for any task that doesn't fit a more specific agent. FleetView's default when no agent name is typed."
+        },
+        {
+          "name": "Explore",
+          "description": "Fast read-only search agent for locating code. Use it to find files by pattern (eg. \"src/components/**/*.tsx\"), grep for symbols or keywords (eg. \"API endpoints\"), or answer \"where is X defined / which files reference Y.\" Do NOT use it for code review, design-doc auditing, cross-file consistency checks, or open-ended analysis — it reads excerpts rather than whole files and will miss content past its read window. When calling, specify search breadth: \"quick\" for a single targeted lookup, \"medium\" for moderate exploration, or \"very thorough\" to search across multiple locations and naming conventions.",
+          "model": "inherit"
+        },
+        {
+          "name": "general-purpose",
+          "description": "General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you."
+        },
+        {
+          "name": "Plan",
+          "description": "Software architect agent for designing implementation plans. Use this when you need to plan the implementation strategy for a task. Returns step-by-step plans, identifies critical files, and considers architectural trade-offs.",
+          "model": "inherit"
+        },
+        {
+          "name": "statusline-setup",
+          "description": "Use this agent to configure the user's Claude Code status line setting.",
+          "model": "sonnet"
+        }
+      ],
+      "accountInfo": {
+        "email": "user@example.com",
+        "organization": "Example Org",
+        "subscriptionType": "Claude Team",
+        "apiProvider": "firstParty"
+      },
+      "getContextUsage": {
+        "error": "Query closed before response received"
+      },
+      "timingsMs": {
+        "initializationResult": 253,
+        "supportedModels": 0,
+        "supportedCommands": 0,
+        "supportedAgents": 0,
+        "accountInfo": 0,
+        "getContextUsage": "ERR Query closed before response received",
+        "totalUntilCatalogMs": 1185
+      },
+      "messagesEmittedByIteratorBeforeClose": [],
+      "messagesEmittedTotal": [],
+      "iteratorFinishedAfterClose": true,
+      "transcriptFilesBefore": [
+        "00e4ed21-fb85-4d6c-b758-19f7b364bd7c.jsonl",
+        "0280dfd4-b0c4-488c-9bda-4be1c2f0a1a6.jsonl",
+        "0434517e-d368-4243-b0b3-ccd5ad4ae99c.jsonl",
+        "061c02c9-a8b3-4bdd-8a51-d7e03b8f1042.jsonl",
+        "07087435-0ae1-4f0c-ab84-be32846bdd1e.jsonl",
+        "0d86fb93-272e-4c7d-b69d-7ae36977065d.jsonl",
+        "0f6b44fb-759d-4b3c-b853-c7f06d571b26.jsonl",
+        "117d2a2f-95b0-47c6-b098-6ae5394d0b41.jsonl",
+        "18d63e0a-5f20-4583-b300-3bb313b9857b.jsonl",
+        "1e7991f1-4d5f-4aee-ad1f-0baf62d795fe.jsonl",
+        "21f58e7f-13cf-4eb8-aa4b-c39eb74e5e7b",
+        "21f58e7f-13cf-4eb8-aa4b-c39eb74e5e7b.jsonl",
+        "25f0f5c8-1390-497b-b35d-5ebe08708087.jsonl",
+        "26669c1a-7fb9-4785-a935-7535c65e5060.jsonl",
+        "26abdb62-8ecc-45f3-9c51-ad49a5370f11.jsonl",
+        "28ee118f-c58f-4953-b823-61ddd3579164.jsonl",
+        "28fae733-d638-4b1c-9f0c-04ff166d0dab.jsonl",
+        "2a1c8083-baef-4348-b19b-29adcc1ad381.jsonl",
+        "2da5176a-d241-453e-8109-920967a5eb99.jsonl",
+        "366118f4-e56d-42a3-a255-078cc6882a83.jsonl",
+        "37497696-30b0-4153-a58e-bdfaf0c7d374.jsonl",
+        "3d19bde4-4ec4-411a-a2bd-b4601e4fa791.jsonl",
+        "3e764f82-f182-411e-ab1a-1f1b06214fbe.jsonl",
+        "3f097a04-ca17-4a57-9ace-f3e2e521804c.jsonl",
+        "417f4d27-52c2-401c-a358-caa517c697b2.jsonl",
+        "47743940-149c-4617-98d7-bdf3f54310ff.jsonl",
+        "49b41388-03fb-4fb7-8956-723aa7f97b6b.jsonl",
+        "5a37cc98-6cee-4211-bd47-e747917ccef0.jsonl",
+        "5b2c799d-2375-437f-8353-34019ee88998.jsonl",
+        "5ecc5aed-496e-45ca-941b-661a5720eb38.jsonl",
+        "5eee2f28-89eb-4ccb-b1ac-5298abd35971",
+        "5eee2f28-89eb-4ccb-b1ac-5298abd35971.jsonl",
+        "60ffc0ea-221a-47e8-8f38-781c9277e669.jsonl",
+        "62574511-1c26-4917-87e1-50db4a3a2b3f.jsonl",
+        "63c3f8b2-3295-4bc1-99aa-13028d3a17aa.jsonl",
+        "64eb68e2-3a6d-47a4-a588-0c943251f5b2.jsonl",
+        "6743b38c-7968-4c03-b74c-cb8dd219c49c.jsonl",
+        "6a43bf8e-f092-4f7b-b86b-34efab306d2e.jsonl",
+        "6d13c714-91f9-49a2-9211-7cb4379c8fea.jsonl",
+        "6e4466ab-6932-4e2e-8ab8-822c9bee49d6.jsonl",
+        "749ba99f-10d4-41e0-8cf4-c8a1fba33a60.jsonl",
+        "75c2d31b-e7a1-45b2-a4a3-21e421d1c3fa.jsonl",
+        "775ffa5a-a7e4-498d-bfdd-1bf513fd34a1.jsonl",
+        "78c7f21c-34dc-4ffa-abdf-04479825bb91.jsonl",
+        "78e952c3-fc6c-486d-9d46-a977f48d3b65.jsonl",
+        "791bb5b6-3287-4819-9813-3d962abc15fb",
+        "791bb5b6-3287-4819-9813-3d962abc15fb.jsonl",
+        "7e90ffa5-625e-41e2-9d5e-b8290bb1f863.jsonl",
+        "7e98ea3e-9c14-43f6-8dd6-e6e8dd7b3e7a.jsonl",
+        "84235b34-ac40-4644-a46a-6d76a0c35c68.jsonl",
+        "8676c139-319c-4618-99cf-db89a378a8f5.jsonl",
+        "86ec896b-bbf6-4722-8c99-468b4ff272d7.jsonl",
+        "8de7c35d-382b-4e90-b360-d05f7a09dd93.jsonl",
+        "8f9f5176-d15d-40bd-9c2c-086c36060093.jsonl",
+        "9165d3d4-4c22-4f4a-8209-b9d7b5181e81",
+        "9165d3d4-4c22-4f4a-8209-b9d7b5181e81.jsonl",
+        "92474cfd-13d1-4584-a861-68bbaee08f19.jsonl",
+        "94ef768e-7051-4f43-a457-735f7fe1417d.jsonl",
+        "9901582f-23eb-4ced-9f9e-194a9cfb80af",
+        "9901582f-23eb-4ced-9f9e-194a9cfb80af.jsonl",
+        "995eec25-e3fc-4641-910a-2ec5da5c4a4c.jsonl",
+        "a5c062bb-a69d-49cd-b226-63267a0fb929.jsonl",
+        "a7669c15-e529-4756-9a0d-3f3bb2631a36.jsonl",
+        "a9e36486-2019-42cc-92dc-0a2117e9643b.jsonl",
+        "adbf0598-bb85-4ba6-9482-d805953920ea.jsonl",
+        "b120b9e8-c724-493c-afe1-704cbb72dc87.jsonl",
+        "b3406f2f-2c9e-43ca-8977-34c1e57655a8.jsonl",
+        "b3a22c0b-155b-40b2-8170-005b8e17b4e0.jsonl",
+        "b6956bdd-4446-4973-9886-3f0948ec24e5.jsonl",
+        "b969ff11-33c3-44ae-a81e-de6acbb8c081",
+        "b969ff11-33c3-44ae-a81e-de6acbb8c081.jsonl",
+        "ba66409b-f0e7-4d64-b7a8-abee86382c8b",
+        "ba66409b-f0e7-4d64-b7a8-abee86382c8b.jsonl",
+        "bb993f24-0b1c-46b1-b316-25c5b0122f92.jsonl",
+        "bcf539b1-cf12-4fec-a87a-99e912282aab.jsonl",
+        "bd26a1d8-2fb0-4138-a779-f10dfa8dd806.jsonl",
+        "bd2b552d-3a81-45c6-b924-ca9c31e2e4ee.jsonl",
+        "bf4f6865-f709-41a4-baa0-dbfdfc5b5e82.jsonl",
+        "c2b90c3e-399c-4873-b460-d62817944f1e.jsonl",
+        "cba6d0c6-301f-47f5-8c3f-0769ae15a287.jsonl",
+        "ce8f58d1-5807-4d45-8999-1361256b0c8a.jsonl",
+        "d01a1c13-62f1-4f73-981d-bc380829c0d7",
+        "d01a1c13-62f1-4f73-981d-bc380829c0d7.jsonl",
+        "d2de3ebe-c2a2-41a1-aebf-a7d7782dfaa5.jsonl",
+        "d4eb083c-0c3f-4da0-bd7c-22c0b5b6ec33.jsonl",
+        "dcdab1f8-9803-4a62-b41d-3152c1e42544.jsonl",
+        "e1bf7ad3-eeb6-431d-b59b-129cc4849825.jsonl",
+        "e248a5a1-75e0-4fa3-bd76-083215447664.jsonl",
+        "e56c867c-0aae-4b85-b8e5-e679f22a9503.jsonl",
+        "e5c00291-1059-4a6e-8853-595c130023a1.jsonl",
+        "ea35dcd7-e51c-487d-ab8a-a2f6b2c3d79f.jsonl",
+        "ea64eef7-c67f-42d5-99e9-26b18072d44e.jsonl",
+        "edc5ac95-a875-4059-96df-d4a3c68d0220",
+        "edc5ac95-a875-4059-96df-d4a3c68d0220.jsonl",
+        "f626e5e1-d7fc-4940-a89b-41759b226cc4.jsonl",
+        "fa2c16a6-5eff-4e4e-b0d3-76369f187c75.jsonl",
+        "fd0397c1-e54e-4cf2-a499-ce7d57223197.jsonl",
+        "fe951f6e-22ad-410a-9b25-a924013ed835.jsonl",
+        "memory"
+      ],
+      "transcriptFilesAfter": [
+        "00e4ed21-fb85-4d6c-b758-19f7b364bd7c.jsonl",
+        "0280dfd4-b0c4-488c-9bda-4be1c2f0a1a6.jsonl",
+        "0434517e-d368-4243-b0b3-ccd5ad4ae99c.jsonl",
+        "061c02c9-a8b3-4bdd-8a51-d7e03b8f1042.jsonl",
+        "07087435-0ae1-4f0c-ab84-be32846bdd1e.jsonl",
+        "0d86fb93-272e-4c7d-b69d-7ae36977065d.jsonl",
+        "0f6b44fb-759d-4b3c-b853-c7f06d571b26.jsonl",
+        "117d2a2f-95b0-47c6-b098-6ae5394d0b41.jsonl",
+        "18d63e0a-5f20-4583-b300-3bb313b9857b.jsonl",
+        "1e7991f1-4d5f-4aee-ad1f-0baf62d795fe.jsonl",
+        "21f58e7f-13cf-4eb8-aa4b-c39eb74e5e7b",
+        "21f58e7f-13cf-4eb8-aa4b-c39eb74e5e7b.jsonl",
+        "25f0f5c8-1390-497b-b35d-5ebe08708087.jsonl",
+        "26669c1a-7fb9-4785-a935-7535c65e5060.jsonl",
+        "26abdb62-8ecc-45f3-9c51-ad49a5370f11.jsonl",
+        "28ee118f-c58f-4953-b823-61ddd3579164.jsonl",
+        "28fae733-d638-4b1c-9f0c-04ff166d0dab.jsonl",
+        "2a1c8083-baef-4348-b19b-29adcc1ad381.jsonl",
+        "2da5176a-d241-453e-8109-920967a5eb99.jsonl",
+        "366118f4-e56d-42a3-a255-078cc6882a83.jsonl",
+        "37497696-30b0-4153-a58e-bdfaf0c7d374.jsonl",
+        "3d19bde4-4ec4-411a-a2bd-b4601e4fa791.jsonl",
+        "3e764f82-f182-411e-ab1a-1f1b06214fbe.jsonl",
+        "3f097a04-ca17-4a57-9ace-f3e2e521804c.jsonl",
+        "417f4d27-52c2-401c-a358-caa517c697b2.jsonl",
+        "47743940-149c-4617-98d7-bdf3f54310ff.jsonl",
+        "49b41388-03fb-4fb7-8956-723aa7f97b6b.jsonl",
+        "5a37cc98-6cee-4211-bd47-e747917ccef0.jsonl",
+        "5b2c799d-2375-437f-8353-34019ee88998.jsonl",
+        "5ecc5aed-496e-45ca-941b-661a5720eb38.jsonl",
+        "5eee2f28-89eb-4ccb-b1ac-5298abd35971",
+        "5eee2f28-89eb-4ccb-b1ac-5298abd35971.jsonl",
+        "60ffc0ea-221a-47e8-8f38-781c9277e669.jsonl",
+        "62574511-1c26-4917-87e1-50db4a3a2b3f.jsonl",
+        "63c3f8b2-3295-4bc1-99aa-13028d3a17aa.jsonl",
+        "64eb68e2-3a6d-47a4-a588-0c943251f5b2.jsonl",
+        "6743b38c-7968-4c03-b74c-cb8dd219c49c.jsonl",
+        "6a43bf8e-f092-4f7b-b86b-34efab306d2e.jsonl",
+        "6d13c714-91f9-49a2-9211-7cb4379c8fea.jsonl",
+        "6e4466ab-6932-4e2e-8ab8-822c9bee49d6.jsonl",
+        "749ba99f-10d4-41e0-8cf4-c8a1fba33a60.jsonl",
+        "75c2d31b-e7a1-45b2-a4a3-21e421d1c3fa.jsonl",
+        "775ffa5a-a7e4-498d-bfdd-1bf513fd34a1.jsonl",
+        "78c7f21c-34dc-4ffa-abdf-04479825bb91.jsonl",
+        "78e952c3-fc6c-486d-9d46-a977f48d3b65.jsonl",
+        "791bb5b6-3287-4819-9813-3d962abc15fb",
+        "791bb5b6-3287-4819-9813-3d962abc15fb.jsonl",
+        "7e90ffa5-625e-41e2-9d5e-b8290bb1f863.jsonl",
+        "7e98ea3e-9c14-43f6-8dd6-e6e8dd7b3e7a.jsonl",
+        "84235b34-ac40-4644-a46a-6d76a0c35c68.jsonl",
+        "8676c139-319c-4618-99cf-db89a378a8f5.jsonl",
+        "86ec896b-bbf6-4722-8c99-468b4ff272d7.jsonl",
+        "8de7c35d-382b-4e90-b360-d05f7a09dd93.jsonl",
+        "8f9f5176-d15d-40bd-9c2c-086c36060093.jsonl",
+        "9165d3d4-4c22-4f4a-8209-b9d7b5181e81",
+        "9165d3d4-4c22-4f4a-8209-b9d7b5181e81.jsonl",
+        "92474cfd-13d1-4584-a861-68bbaee08f19.jsonl",
+        "94ef768e-7051-4f43-a457-735f7fe1417d.jsonl",
+        "9901582f-23eb-4ced-9f9e-194a9cfb80af",
+        "9901582f-23eb-4ced-9f9e-194a9cfb80af.jsonl",
+        "995eec25-e3fc-4641-910a-2ec5da5c4a4c.jsonl",
+        "a5c062bb-a69d-49cd-b226-63267a0fb929.jsonl",
+        "a7669c15-e529-4756-9a0d-3f3bb2631a36.jsonl",
+        "a9e36486-2019-42cc-92dc-0a2117e9643b.jsonl",
+        "adbf0598-bb85-4ba6-9482-d805953920ea.jsonl",
+        "b120b9e8-c724-493c-afe1-704cbb72dc87.jsonl",
+        "b3406f2f-2c9e-43ca-8977-34c1e57655a8.jsonl",
+        "b3a22c0b-155b-40b2-8170-005b8e17b4e0.jsonl",
+        "b6956bdd-4446-4973-9886-3f0948ec24e5.jsonl",
+        "b969ff11-33c3-44ae-a81e-de6acbb8c081",
+        "b969ff11-33c3-44ae-a81e-de6acbb8c081.jsonl",
+        "ba66409b-f0e7-4d64-b7a8-abee86382c8b",
+        "ba66409b-f0e7-4d64-b7a8-abee86382c8b.jsonl",
+        "bb993f24-0b1c-46b1-b316-25c5b0122f92.jsonl",
+        "bcf539b1-cf12-4fec-a87a-99e912282aab.jsonl",
+        "bd26a1d8-2fb0-4138-a779-f10dfa8dd806.jsonl",
+        "bd2b552d-3a81-45c6-b924-ca9c31e2e4ee.jsonl",
+        "bf4f6865-f709-41a4-baa0-dbfdfc5b5e82.jsonl",
+        "c2b90c3e-399c-4873-b460-d62817944f1e.jsonl",
+        "cba6d0c6-301f-47f5-8c3f-0769ae15a287.jsonl",
+        "ce8f58d1-5807-4d45-8999-1361256b0c8a.jsonl",
+        "d01a1c13-62f1-4f73-981d-bc380829c0d7",
+        "d01a1c13-62f1-4f73-981d-bc380829c0d7.jsonl",
+        "d2de3ebe-c2a2-41a1-aebf-a7d7782dfaa5.jsonl",
+        "d4eb083c-0c3f-4da0-bd7c-22c0b5b6ec33.jsonl",
+        "dcdab1f8-9803-4a62-b41d-3152c1e42544.jsonl",
+        "e1bf7ad3-eeb6-431d-b59b-129cc4849825.jsonl",
+        "e248a5a1-75e0-4fa3-bd76-083215447664.jsonl",
+        "e56c867c-0aae-4b85-b8e5-e679f22a9503.jsonl",
+        "e5c00291-1059-4a6e-8853-595c130023a1.jsonl",
+        "ea35dcd7-e51c-487d-ab8a-a2f6b2c3d79f.jsonl",
+        "ea64eef7-c67f-42d5-99e9-26b18072d44e.jsonl",
+        "edc5ac95-a875-4059-96df-d4a3c68d0220",
+        "edc5ac95-a875-4059-96df-d4a3c68d0220.jsonl",
+        "f626e5e1-d7fc-4940-a89b-41759b226cc4.jsonl",
+        "fa2c16a6-5eff-4e4e-b0d3-76369f187c75.jsonl",
+        "fd0397c1-e54e-4cf2-a499-ce7d57223197.jsonl",
+        "fe951f6e-22ad-410a-9b25-a924013ed835.jsonl",
+        "memory"
+      ],
+      "newTranscriptFiles": [],
+      "newTranscriptSizes": {}
+    }
+  ]
+}

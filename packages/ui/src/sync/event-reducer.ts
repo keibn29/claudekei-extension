@@ -1,0 +1,453 @@
+import type {
+  Message,
+  Part,
+  PermissionRequest,
+  QuestionRequest,
+  Session,
+  SessionStatus,
+  Todo,
+} from "@/lib/claude/types"
+import type { ClaudeEvent } from "@/lib/claude/protocol"
+import { buildAgents, buildAnthropicProvider, buildCommands } from "@/lib/claude/catalog"
+import { Binary } from "./binary"
+import type { State } from "./types"
+import { dropSessionCaches } from "./session-cache"
+import { stripSessionDiffSnapshots } from "./sanitize"
+import { syncDebug } from "./debug"
+import { bumpSessionMutationVersion, markSessionDeleted } from "./session-mutation-version"
+
+const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
+const DELTA_OVERLAP_FIELDS = ["text", "output"] as const
+const FINAL_TOOL_STATUSES = new Set(["completed", "error", "aborted", "failed", "timeout", "cancelled"])
+
+type DedupeMetadata = {
+  __dedupeNextDeltaFields?: string[]
+}
+
+function appendNonOverlappingDelta(existingValue: string | undefined, delta: string) {
+  if (!existingValue || delta.length === 0) return (existingValue ?? "") + delta
+  if (existingValue.endsWith(delta)) return existingValue
+
+  const maxOverlap = Math.min(existingValue.length, delta.length)
+  for (let overlap = maxOverlap; overlap > 0; overlap--) {
+    if (existingValue.endsWith(delta.slice(0, overlap))) {
+      return existingValue + delta.slice(overlap)
+    }
+  }
+
+  return existingValue + delta
+}
+
+function getUpdatedDeltaFields(previous: Part, next: Part) {
+  const dedupeFields: string[] = []
+  for (const field of DELTA_OVERLAP_FIELDS) {
+    const previousValue = (previous as Record<string, unknown>)[field]
+    const nextValue = (next as Record<string, unknown>)[field]
+    if (typeof previousValue !== "string" || typeof nextValue !== "string") continue
+    if (previousValue.length === 0 || nextValue.length === 0) continue
+    if (nextValue === previousValue || nextValue.startsWith(previousValue) || previousValue.startsWith(nextValue)) {
+      dedupeFields.push(field)
+    }
+  }
+  return dedupeFields
+}
+
+function getPartEndTime(part: Part): number | undefined {
+  const stateEnd = (part as { state?: { time?: { end?: unknown } } }).state?.time?.end
+  if (typeof stateEnd === "number") {
+    return stateEnd
+  }
+
+  const timeEnd = (part as { time?: { end?: unknown } }).time?.end
+  return typeof timeEnd === "number" ? timeEnd : undefined
+}
+
+function getToolStatus(part: Part): string | undefined {
+  if (part.type !== "tool") {
+    return undefined
+  }
+
+  const status = (part as { state?: { status?: unknown } }).state?.status
+  return typeof status === "string" ? status : undefined
+}
+
+function shouldPreserveExistingPart(previous: Part, next: Part): boolean {
+  if (previous.type !== "tool" || next.type !== "tool") {
+    return false
+  }
+
+  const previousStatus = getToolStatus(previous)
+  const nextStatus = getToolStatus(next)
+  if (previousStatus && FINAL_TOOL_STATUSES.has(previousStatus) && (!nextStatus || !FINAL_TOOL_STATUSES.has(nextStatus))) {
+    return true
+  }
+
+  const previousEnd = getPartEndTime(previous)
+  const nextEnd = getPartEndTime(next)
+  if (typeof previousEnd === "number" && typeof nextEnd !== "number") {
+    return true
+  }
+
+  return false
+}
+
+// ---------------------------------------------------------------------------
+// Directory events — mutates draft in place for batching efficiency.
+// Caller MUST pass a mutable copy of State (e.g. structuredClone or spread).
+// ---------------------------------------------------------------------------
+
+/**
+ * Copy-on-write contract: this reducer never mutates a slice (array or record) that was reachable
+ * from the state it received. Every touched slice is replaced by a new array/object, so selectors
+ * that compare by reference (`useSessionPermissions`, `useSessionParts`, ...) always see the change.
+ * `draft` itself is a shallow copy owned by the caller.
+ */
+const withKey = <T,>(record: Record<string, T>, key: string, value: T): Record<string, T> => ({ ...record, [key]: value })
+
+const withoutKey = <T,>(record: Record<string, T>, key: string): Record<string, T> => {
+  if (!(key in record)) return record
+  const next = { ...record }
+  delete next[key]
+  return next
+}
+
+export function applyDirectoryEvent(
+  draft: State,
+  event: ClaudeEvent,
+  callbacks?: {
+    onSetSessionTodo?: (sessionID: string, todos: Todo[] | undefined) => void
+  },
+): boolean {
+  switch (event.type) {
+    case "session.created": {
+      const info = stripSessionDiffSnapshots((event.properties as { info: Session }).info)
+      bumpSessionMutationVersion(info.id)
+      const sessions = [...draft.session]
+      const result = Binary.search(sessions, info.id, (s) => s.id)
+      if (result.found) {
+        sessions[result.index] = info
+        draft.session = sessions
+      } else {
+        sessions.splice(result.index, 0, info)
+        draft.session = sessions
+        trimSessions(draft)
+        if (!info.parentID) draft.sessionTotal += 1
+      }
+      return true
+    }
+
+    case "session.updated": {
+      const info = stripSessionDiffSnapshots((event.properties as { info: Session }).info)
+      bumpSessionMutationVersion(info.id)
+      const sessions = [...draft.session]
+      const result = Binary.search(sessions, info.id, (s) => s.id)
+
+      if (info.time.archived) {
+        if (result.found) sessions.splice(result.index, 1)
+        draft.session = sessions
+        cleanupSessionCaches(draft, info.id, callbacks?.onSetSessionTodo)
+        if (!info.parentID) draft.sessionTotal = Math.max(0, draft.sessionTotal - 1)
+        return true
+      }
+
+      if (result.found) {
+        sessions[result.index] = info
+        draft.session = sessions
+      } else {
+        sessions.splice(result.index, 0, info)
+        draft.session = sessions
+        trimSessions(draft)
+      }
+      return true
+    }
+
+    case "session.deleted": {
+      const info = (event.properties as { info: Session }).info
+      markSessionDeleted(info.id)
+      const sessions = [...draft.session]
+      const result = Binary.search(sessions, info.id, (s) => s.id)
+      if (result.found) sessions.splice(result.index, 1)
+      draft.session = sessions
+      cleanupSessionCaches(draft, info.id, callbacks?.onSetSessionTodo)
+      if (!info.parentID) draft.sessionTotal = Math.max(0, draft.sessionTotal - 1)
+      return true
+    }
+
+    case "todo.updated": {
+      const props = event.properties as { sessionID: string; todos: Todo[] }
+      draft.todo = withKey(draft.todo, props.sessionID, props.todos)
+      callbacks?.onSetSessionTodo?.(props.sessionID, props.todos)
+      return true
+    }
+
+    case "session.status": {
+      const props = event.properties as { sessionID: string; status: SessionStatus }
+      draft.session_status = withKey(draft.session_status ?? {}, props.sessionID, props.status)
+      return true
+    }
+
+    case "session.error": {
+      const { sessionID } = event.properties
+      if (!sessionID) return false
+      draft.session_status = withKey(draft.session_status ?? {}, sessionID, { type: "idle" })
+      return true
+    }
+
+    case "message.updated": {
+      const info = (event.properties as { info: Message }).info
+      const messages = draft.message[info.sessionID]
+      if (!messages) {
+        draft.message = withKey(draft.message, info.sessionID, [info])
+        return true
+      }
+      const result = Binary.search(messages, info.id, (m) => m.id)
+      if (result.found) {
+        // Skip message replacement if unchanged — preserves reference, avoids re-render
+        const existing = messages[result.index]
+        const unchanged = existing.role === info.role
+          && (existing as { finish?: unknown }).finish === (info as { finish?: unknown }).finish
+          && (existing.time as { completed?: number })?.completed === (info.time as { completed?: number })?.completed
+          && haveSameUsage(existing, info)
+        if (unchanged) {
+          syncDebug.reducer.messageUpdatedUnchanged(info.sessionID, info.id, info.role, (info as { finish?: unknown }).finish, (info.time as { completed?: number })?.completed)
+          return false
+        }
+        const next = [...messages]
+        next[result.index] = info
+        draft.message = withKey(draft.message, info.sessionID, next)
+      } else {
+        const next = [...messages]
+        next.splice(result.index, 0, info)
+        draft.message = withKey(draft.message, info.sessionID, next)
+      }
+      return true
+    }
+
+    case "message.removed": {
+      const props = event.properties as { sessionID: string; messageID: string }
+      const messages = draft.message[props.sessionID]
+      if (messages) {
+        const next = [...messages]
+        const result = Binary.search(next, props.messageID, (m) => m.id)
+        if (result.found) {
+          next.splice(result.index, 1)
+          draft.message = withKey(draft.message, props.sessionID, next)
+        }
+      }
+      draft.part = withoutKey(draft.part, props.messageID)
+      return true
+    }
+
+    case "message.part.updated": {
+      const part = (event.properties as { part: Part }).part
+      if (SKIP_PARTS.has(part.type)) {
+        syncDebug.reducer.partSkipped((part as { messageID: string }).messageID, part.id, part.type)
+        return false
+      }
+      const messageID = (part as { messageID: string }).messageID
+      const parts = draft.part[messageID]
+      if (!parts) {
+        syncDebug.reducer.partUpdatedNoExistingParts(messageID, part.id, part.type)
+        draft.part = withKey(draft.part, messageID, [part])
+        return true
+      }
+      const next = [...parts]
+      const result = Binary.search(next, part.id, (p) => p.id)
+      if (result.found) {
+        const previous = next[result.index]
+        if (shouldPreserveExistingPart(previous, part)) {
+          return false
+        }
+        const dedupeFields = getUpdatedDeltaFields(previous, part)
+        next[result.index] = dedupeFields.length > 0
+          ? { ...part, __dedupeNextDeltaFields: dedupeFields } as unknown as Part
+          : part
+      } else {
+        const insertResult = Binary.search(next, part.id, (p) => p.id)
+        next.splice(insertResult.index, 0, part)
+      }
+      draft.part = withKey(draft.part, messageID, next)
+      return true
+    }
+
+    case "message.part.delta": {
+      const props = event.properties as {
+        messageID: string
+        partID: string
+        field: string
+        delta: string
+      }
+      const parts = draft.part[props.messageID]
+      if (!parts) {
+        syncDebug.reducer.partDeltaNoParts(props.messageID, props.partID)
+        return false
+      }
+      const result = Binary.search(parts, props.partID, (p) => p.id)
+      if (!result.found) {
+        syncDebug.reducer.partDeltaNotFound(props.messageID, props.partID)
+        return false
+      }
+      const existing = parts[result.index] as Record<string, unknown>
+      const existingValue = existing[props.field] as string | undefined
+      const dedupeFields = (existing as DedupeMetadata).__dedupeNextDeltaFields ?? []
+      const shouldDedupe = dedupeFields.includes(props.field)
+      // Create new Part object + new array so React detects the change
+      const next = [...parts]
+      next[result.index] = {
+        ...existing,
+        [props.field]: shouldDedupe ? appendNonOverlappingDelta(existingValue, props.delta) : (existingValue ?? "") + props.delta,
+        __dedupeNextDeltaFields: dedupeFields.filter((field) => field !== props.field),
+      } as unknown as Part
+      draft.part = withKey(draft.part, props.messageID, next)
+      return true
+    }
+
+    case "permission.asked": {
+      const permission = event.properties as PermissionRequest
+      const permissions = [...(draft.permission[permission.sessionID] ?? [])]
+      const result = Binary.search(permissions, permission.id, (p) => p.id)
+      if (result.found) {
+        permissions[result.index] = permission
+      } else {
+        permissions.splice(result.index, 0, permission)
+      }
+      draft.permission = withKey(draft.permission, permission.sessionID, permissions)
+      return true
+    }
+
+    case "permission.replied": {
+      const props = event.properties as { sessionID: string; requestID: string }
+      const permissions = draft.permission[props.sessionID]
+      if (!permissions) return false
+      const result = Binary.search(permissions, props.requestID, (p) => p.id)
+      if (result.found) {
+        const next = [...permissions]
+        next.splice(result.index, 1)
+        draft.permission = withKey(draft.permission, props.sessionID, next)
+        return true
+      }
+      return false
+    }
+
+    case "question.asked": {
+      const question = event.properties as QuestionRequest
+      const questions = [...(draft.question[question.sessionID] ?? [])]
+      const result = Binary.search(questions, question.id, (q) => q.id)
+      if (result.found) {
+        questions[result.index] = question
+      } else {
+        questions.splice(result.index, 0, question)
+      }
+      draft.question = withKey(draft.question, question.sessionID, questions)
+      return true
+    }
+
+    case "question.replied":
+    case "question.rejected": {
+      const props = event.properties as { sessionID: string; requestID: string }
+      const questions = draft.question[props.sessionID]
+      if (!questions) return false
+      const result = Binary.search(questions, props.requestID, (q) => q.id)
+      if (result.found) {
+        const next = [...questions]
+        next.splice(result.index, 1)
+        draft.question = withKey(draft.question, props.sessionID, next)
+        return true
+      }
+      return false
+    }
+
+    case "catalog.updated": {
+      const { catalog } = event.properties
+      draft.agent = buildAgents(catalog)
+      draft.command = buildCommands(catalog)
+      draft.provider = {
+        all: [buildAnthropicProvider(catalog)],
+        connected: ["anthropic"],
+        default: { anthropic: catalog.defaults.model },
+      }
+      return true
+    }
+
+    case "account.updated":
+      // Account state lives outside the directory store; the sync handler forwards it.
+      return false
+
+    default:
+      return false
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Compare the usage-related fields a streaming assistant message updates (tokens, cost, error). */
+function haveSameUsage(existing: Message, next: Message): boolean {
+  if (existing.role !== "assistant" || next.role !== "assistant") return true
+  const a = existing.tokens
+  const b = next.tokens
+  const sameTokens = a === b || (
+    !!a && !!b
+    && a.input === b.input
+    && a.output === b.output
+    && a.reasoning === b.reasoning
+    && a.total === b.total
+    && a.cache?.read === b.cache?.read
+    && a.cache?.write === b.cache?.write
+  )
+  return sameTokens
+    && existing.cost === next.cost
+    && existing.error?.name === next.error?.name
+    && existing.error?.message === next.error?.message
+}
+
+/**
+ * Keep the session list within `draft.limit` by evicting the least recently updated sessions
+ * (`time.updated`). Sessions with a pending permission or question stay visible. The list itself
+ * stays sorted by id so `Binary.search` keeps working.
+ */
+function trimSessions(draft: State) {
+  if (draft.session.length <= draft.limit) return
+  const protectedIds = new Set<string>()
+  for (const [sessionID, perms] of Object.entries(draft.permission ?? {})) {
+    if (perms && perms.length > 0) protectedIds.add(sessionID)
+  }
+  for (const [sessionID, questions] of Object.entries(draft.question ?? {})) {
+    if (questions && questions.length > 0) protectedIds.add(sessionID)
+  }
+
+  const updatedAt = (session: Session) => session.time?.updated ?? session.time?.created ?? 0
+  const excess = draft.session.length - draft.limit
+  const evict = new Set(
+    draft.session
+      .filter((session) => !protectedIds.has(session.id))
+      .sort((left, right) => updatedAt(left) - updatedAt(right))
+      .slice(0, excess)
+      .map((session) => session.id),
+  )
+  if (evict.size > 0) {
+    draft.session = draft.session.filter((session) => !evict.has(session.id))
+  }
+}
+
+function cleanupSessionCaches(
+  draft: State,
+  sessionID: string,
+  setSessionTodo?: (sessionID: string, todos: Todo[] | undefined) => void,
+) {
+  if (!sessionID) return
+  setSessionTodo?.(sessionID, undefined)
+  // dropSessionCaches mutates its argument, so hand it fresh copies of every slice it touches.
+  const caches = {
+    part: { ...draft.part },
+    message: { ...draft.message },
+    session_status: { ...draft.session_status },
+    session_diff: { ...draft.session_diff },
+    todo: { ...draft.todo },
+    permission: { ...draft.permission },
+    question: { ...draft.question },
+  }
+  dropSessionCaches(caches, [sessionID])
+  Object.assign(draft, caches)
+}

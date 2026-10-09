@@ -1,0 +1,230 @@
+[
+  {
+    "type": "user",
+    "uuid": "a5ef33d1-1457-4362-abfe-d5b3f7240914",
+    "session_id": "417f4d27-52c2-401c-a358-caa517c697b2",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Use the Bash tool to run exactly: mkdir -p out && echo hi > out/a.txt && cat out/a.txt. Then reply 'done' only."
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:30.336Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "7cd82897-1a02-4fc0-b101-e6b71a128bf3",
+    "session_id": "417f4d27-52c2-401c-a358-caa517c697b2",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjdJ2dm4LoKZhCST7Yi",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01VRrg55iPuAYzbhqzEMi3M1",
+          "name": "Bash",
+          "input": {
+            "command": "mkdir -p out && echo hi > out/a.txt && cat out/a.txt",
+            "description": "Create out dir, write hi to a.txt, and print it"
+          },
+          "caller": {
+            "type": "direct"
+          }
+        }
+      ],
+      "container": null,
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 18771,
+        "output_tokens": 112,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 112,
+            "cache_read_input_tokens": 18771,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:32.221Z"
+  },
+  {
+    "type": "user",
+    "uuid": "3857b857-63ed-41b3-a609-3b0f5effc52c",
+    "session_id": "417f4d27-52c2-401c-a358-caa517c697b2",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01VRrg55iPuAYzbhqzEMi3M1",
+          "type": "tool_result",
+          "content": "hi",
+          "is_error": false
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:32.811Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "8c0c2529-9c54-4d6a-a22a-de182c73063b",
+    "session_id": "417f4d27-52c2-401c-a358-caa517c697b2",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjdSrxDjyCBTZNYmQSq",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "The task was just to run the command and reply \"done\" — the tool result and subsequent system notices don't change that instruction, so I'll just reply \"done\".\n\n",
+          "signature": "CAQSowYKEAgSGAI4AUIIdGhpbmtpbmcSDNpi2WsFYLm3U9XFyRoMEMIh1CUdbz5UH1z9IjDM+Z3Ewz7l33zIZg2jJt5LCCKc9MaKfZtuFpeGYtzU7jCHccZd3qzY7VjqTLKsEJgqwAWgUdesW/b5nrX6xNhTJuNTFkLpAkJZ/Trktqsbk0mpdNkP/GjpmvPh3c9mxFjxurJnX4WINVJlm7ICLcCbyPQWM0JXpWJ+/+0IFM9ux3ykJMEdMYjoyOWpXinm9FqGoCTYr2avp34kvyWL3M6/bzNoySodmEpoVkOOaa5SgF12zFl2dffVoVm6RVLXYJ2BmDtjJ6Ub9/WTJzytc6YPAqjCy84w9n7KIYJ0VSmyO6ulSXSWKf+De/mKMngviewKyVKYEbq3s//WdrHJwz8v6WOaoQZ1zT+ol+oQ2NupGCdrwyNO1hc47Qkk/ScU/ibmfCR+jLVXR018B3/D72cnMjKIhlbE29yQdvTdLaRsmg+RHsEPYoC+DDlp3GfjeBGdJbWs7qL/4T0MQiYkWShWF+shtgiXimrPy3JiZbroJd/dnYB43Op4BMfq3V9Y15Om5CBSAoR9l5h7f+TLRyDNBqrb9rkENHin5XphJWOgTFPthwdf+ix3tqeCwLaNseWAHiUd/tkSk7VB03ZyAWSJD/LQEkGIVspZaabG5PAK/G9ghYOzstEbN/3JIOCzXzHjuTLiRBGeXMvnHX9RgqdxQnfe0zm9ejtOK5DSWqa1gXd3WVbBS5BFCsSvAncYg2sotFV6O5x0MjSh0fMjS96ndXRKeBMo/WeRKZsgwBbbwhqK8NHnIph8eFpuL3sPXXR5LEOKhUB+RkvYBjzkLqbrkjXT5lDXGPoeIY4AubNk7Uxw/k2wMe1XeXjbgocW5LUwpuYOmAOaBOd6pCmvRCO9fo7+l7zpImhz60Opzu6npPCRXeVF7INCddTrz8hitGH9cTrd40hkLfYfpk8jxeRuskxfPIZq19cY2Vn5lU+Wz/+u6ftYygPmqew0it+pP3chWeJX0I+puZSfvnGVioPfj51AiNlx6cqpAxeKAAgW8vLxDxgB"
+        }
+      ],
+      "container": null,
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 21062,
+        "output_tokens": 81,
+        "output_tokens_details": {
+          "thinking_tokens": 78
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 81,
+            "cache_read_input_tokens": 21062,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:35.148Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "bd9bcd3c-b21b-4efc-8316-e1966e46e265",
+    "session_id": "417f4d27-52c2-401c-a358-caa517c697b2",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjdSrxDjyCBTZNYmQSq",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "done"
+        }
+      ],
+      "container": null,
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 21062,
+        "output_tokens": 81,
+        "output_tokens_details": {
+          "thinking_tokens": 78
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 81,
+            "cache_read_input_tokens": 21062,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:35.151Z"
+  }
+]

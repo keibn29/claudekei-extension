@@ -1,0 +1,320 @@
+[
+  {
+    "type": "user",
+    "uuid": "f243847e-4c42-472e-a1bc-d90bf6abb260",
+    "session_id": "e5c00291-1059-4a6e-8853-595c130023a1",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "In src/util.ts, make two separate Edit tool calls in the same response: change 'a + b' to 'b + a' and change '// TODO: add subtract' to '// TODO: add multiply'. Reply 'done' only."
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:07.220Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "4ecd1b22-c0b8-412b-a12a-68082f1640a0",
+    "session_id": "e5c00291-1059-4a6e-8853-595c130023a1",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011Cfrjbb3XNPuBNmQiNn7jr",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Kza6KRCm2bY8vEvY4F2WCH",
+          "name": "Edit",
+          "input": {
+            "replace_all": false,
+            "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/util.ts",
+            "old_string": "a + b",
+            "new_string": "b + a"
+          },
+          "caller": {
+            "type": "direct"
+          }
+        }
+      ],
+      "container": null,
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 18791,
+        "output_tokens": 367,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 367,
+            "cache_read_input_tokens": 18791,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:09.025Z"
+  },
+  {
+    "type": "user",
+    "uuid": "c1b995a3-c744-4ff2-aaa1-ba7e609ba988",
+    "session_id": "e5c00291-1059-4a6e-8853-595c130023a1",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01Kza6KRCm2bY8vEvY4F2WCH",
+          "type": "tool_result",
+          "content": "The file /private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/util.ts has been updated successfully."
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:09.041Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "29a1d846-32e8-44c4-bdd8-dc670704cf6d",
+    "session_id": "e5c00291-1059-4a6e-8853-595c130023a1",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011Cfrjbb3XNPuBNmQiNn7jr",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_012dmyaniRBCqhrnVn5bwvVc",
+          "name": "Edit",
+          "input": {
+            "replace_all": false,
+            "file_path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/util.ts",
+            "old_string": "// TODO: add subtract",
+            "new_string": "// TODO: add multiply"
+          },
+          "caller": {
+            "type": "direct"
+          }
+        }
+      ],
+      "container": null,
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 18791,
+        "output_tokens": 367,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 367,
+            "cache_read_input_tokens": 18791,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:09.525Z"
+  },
+  {
+    "type": "user",
+    "uuid": "4bbb503d-e5ef-45c0-8b71-a01d580f5401",
+    "session_id": "e5c00291-1059-4a6e-8853-595c130023a1",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_012dmyaniRBCqhrnVn5bwvVc",
+          "type": "tool_result",
+          "content": "The file /private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/util.ts has been updated successfully."
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:09.544Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "1851fbcc-331d-4b97-83b8-0992fe2a30d3",
+    "session_id": "e5c00291-1059-4a6e-8853-595c130023a1",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjbjPKygM3QAMnTb1Ya",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "The edits succeeded, and since the user asked for just a simple reply, I'll output \"done\".\n\n",
+          "signature": "CAQS4gQKEAgSGAI4AUIIdGhpbmtpbmcSDGtucoPj0n0VWLa5xBoMdQdpi0WBjHT6KzAvIjD/4563IwNUml0Ek+eL0cGoRtfWKGAlJIBeGryMwXLNTLbTsprAqr3T9KfPG/gw3jgq/wPhyu/X1bQzmuzb9/9tY1RKK9JNj+ia8VTOQXBTyE37SsSj7YdmwFUyIz163C6P6vrnhJqQLC9czw7XIWk1q2PmWlTfyd/y97biX17gpyrf3+zfIAsCYmihwBH1ucxO01J0iPtOItrBIZsDXUcrQte6hliQTJjSuuh3aawo8+DVuHSdBo065jUHDg4G9JKBAD8+EJq5Gf/VwCjKEAK6oRZF5Yt0HlCiufHCUfEqJIocdyjdwtdn+4RAt8BSyPoqhiaNwpfAljAYwrn9rOj8sFn/vdj0/1ImQRO+hUBxa4fq6HCs2+kQ0KBssXK3N9nz9nXxOTzoYVD3f3RvvquSDYtMb72N1ieR12Dlv2Vq85nE0YOdw8DdlP6FXAVsra3MtvUQG7LCCbSePlXlBYMQKB4Vhf5wiqyyeJJHsg4Wd4+59rsQzdjXqyZvoy/QAYQYuioqL6AjjPbhYg82blMcrYi2QbRm3ui/7NCE8aImWrlF5K0Sqqt0APGyOb6N1cIl5aE7eagSwDnNkiKq5b+bnIK9ZZ+oq6UyPsjLrRS3yVtuONqusrHkmVcUYbP/HvYyyVpT8pPh9LBywM04juiKnhGw+Ob+QmUyX/j8pioePV1Y9UHQVoM9Z1T0m148rf0kn7lNQa4AVJ2h8fzhX36RtOyIJIngfC498idTSu6KzuP3GAE="
+        }
+      ],
+      "container": null,
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 21568,
+        "output_tokens": 31,
+        "output_tokens_details": {
+          "thinking_tokens": 28
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 31,
+            "cache_read_input_tokens": 21568,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:11.451Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "3d3290d1-0b76-4324-83ec-51456b8ca36e",
+    "session_id": "e5c00291-1059-4a6e-8853-595c130023a1",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjbjPKygM3QAMnTb1Ya",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "done"
+        }
+      ],
+      "container": null,
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 21568,
+        "output_tokens": 31,
+        "output_tokens_details": {
+          "thinking_tokens": 28
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 31,
+            "cache_read_input_tokens": 21568,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:11.455Z"
+  }
+]

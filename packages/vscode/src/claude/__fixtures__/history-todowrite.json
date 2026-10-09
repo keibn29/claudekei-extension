@@ -1,0 +1,562 @@
+[
+  {
+    "type": "user",
+    "uuid": "15b0d41d-f803-4f85-acfb-27f3e730d906",
+    "session_id": "28ee118f-c58f-4953-b823-61ddd3579164",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Use the TodoWrite tool to create a todo list with 3 items (a, b, c), then mark the first completed using TodoWrite again. Reply 'done' only."
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:48.072Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "f7520cd9-e141-40ed-912d-e19361be4d2d",
+    "session_id": "28ee118f-c58f-4953-b823-61ddd3579164",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011Cfrjec8LfXhYLkHhcW5E3",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "I need to use TodoWrite, but since it's deferred I should load its schema via ToolSearch first, then create three todo items and mark the first as completed, replying with just \"done\" afterward.\n\n",
+          "signature": "CAQSoQYKEAgSGAI4AUIIdGhpbmtpbmcSDIXKT9o2HvyQ8/EDJBoMtOqAXtFnHnQ+3sf6IjBguQkKZrf52c5O/BbZIIt9JJOFJAtuAkPw6RQZc4oCFW6yddY+JzngfK7cXybJ8pQqvgU2fnOzDMBAEzHgl8RcvKJnlMx5fzKo5uj4HDIy3B7YdKVYKTWePNUNWky7ww4UbuNZpl64LZ6JGl5O1jxW/nr56ZQWJ38XEFuZlxDJpJ4N+TFWf8I+51mUWsNlgOWWKx6WIrKu4IrSYijL2ri6u/2L5ttVSrToce77AEbNNvstN74jQ4OAQ3u+q2nDmcIlo6n9SShzIdDlrLRYUVxTE5dueANYOxnEtWnVagXnZP9jAqHb8hlYMjJwZgdXXSNpDdUwJRoS84lAX+NPRSLhxOz1YoDF94kfNdHGvVlmTepW2TpHPpT2gkMOseRuEFqaFU538WnpkgOeFfcpUbq8g6hJrUMmxqByIqgjt4pfFvBt/mKfaRu4xIhl92hG3DD2Y8WMyiysR1yAyvqoCpw+VvwR29JjrlDaA+Vjh7J5gTfU2bNe5ymGzrtvi2IDraKhtWaygaXWyrgETrMj1oKvJvQr6nWn5dPoLxt9++4WzPNpMBz55rTeYPFqwkfv+a6GGCP8PwMb7giUgoV/L3sgZdGHcEMPUvqou0HQFE2L70gs2AOGaRga+JI0f3mFphE6AxAgceBaaVmBb2RqOMv4xSQte2iWauCtkrLgC9L//y9iEhAUyTOfEUQicoTLAO+410Skm8A4iosUTFV/cb+QKy2BENsH/KHcs8mVaORbH628Lp6JkWNrGMVklBjQtPaz0bP2FOET6TvGjlhlDXsQXBHOqT+HY/U3gAVpUzQwmAx+yMVvFfsAwbM0eqleTga0kd0w5r+Z5Bs6NIIhmvNSXT4VjUB9Fs4l2QNqWcAspaXuK5jQVE4AS6CTiRXyNbTR2kO+xr4OyBon7e/0NQGRhfqV65anc4SABTTL7ya14OHeGxOSQagXPYrO9gg56TGmh3gfXTe4H35p08uNMxZWuoYPOhQXhnXIO+/Kf3vHPQYYAQ=="
+        }
+      ],
+      "container": null,
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 18779,
+        "output_tokens": 152,
+        "output_tokens_details": {
+          "thinking_tokens": 71
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 152,
+            "cache_read_input_tokens": 18779,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:51.165Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "410825b5-6e9e-49a0-aa2c-72dee51e3ec3",
+    "session_id": "28ee118f-c58f-4953-b823-61ddd3579164",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011Cfrjec8LfXhYLkHhcW5E3",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_012eM2X6wjwKVnSj25XeMtAS",
+          "name": "ToolSearch",
+          "input": {
+            "query": "select:TodoWrite",
+            "max_results": 1
+          },
+          "caller": {
+            "type": "direct"
+          }
+        }
+      ],
+      "container": null,
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 18779,
+        "output_tokens": 152,
+        "output_tokens_details": {
+          "thinking_tokens": 71
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 152,
+            "cache_read_input_tokens": 18779,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:51.169Z"
+  },
+  {
+    "type": "user",
+    "uuid": "f7cb63ba-69b5-4313-bc05-08dac19e1e10",
+    "session_id": "28ee118f-c58f-4953-b823-61ddd3579164",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_012eM2X6wjwKVnSj25XeMtAS",
+          "content": [
+            {
+              "type": "tool_reference",
+              "tool_name": "TodoWrite"
+            }
+          ]
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:51.174Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "eec1442b-d9c8-43db-ad2a-1133c0d8c4ef",
+    "session_id": "28ee118f-c58f-4953-b823-61ddd3579164",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjeqQYhGap6RQH1oAcV",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "That message is just an informational note, nothing requiring action on my part. I'll continue with the original task and proceed to call TodoWrite.\n\n",
+          "signature": "CAQS5QgKEAgSGAI4AUIIdGhpbmtpbmcSDBFxdm6vtLWVPvAQ8xoMy8RG+BATQN94oluGIjAGNKna9YLriScCm7JkF0SoCk0DK9SwUTLZLNHyY7MouDjsqDZVOueF8a9X8K/rYGkqggi2+wI0miPcSDom02b3dLPBZQ/43Zo3sCxt+/inGz9JycFB5oBAcHroz+USiFR8SeCMWMIAn3GqCUHQ3mDji5JQil+Qp7FHHseXbCr/MWPW09GR4I7EH1e+NI7xUDqTLrG9K98HnVDZOq9m2Jk5yJqk3ImhYkHTiYTc1HQiTJFM6v8inYg8HxmRE5PoIHVzL9NJLECgFD0rbqfVgCMh23FRIa2jKpEtp8ZhQalN+lkTal7sNifdEa7YqYhgr6pNbcqLwSzBvQ5k5owf/DA/kcFnSry/dEad6dT/Xg9VmuUh4nh55q+tEOxhDyYWlVWbKoH/MhZHnQEXpUuJ/rLqcxPAARc4emftx9matodVztEU4fmhRnHtjfv5K/hA/z+ZsrFuyB3xoEkbRRRkXW7IwtudSzy3S2FANcwOusQ/vki4gApC1g4U3SXjiOarl3UhHrVbPHqQOq70NYJgKJnJ2MgYxiW+/2uhj3eLvgBaUmio4cayUDb7mFrVEHjUOrgW58hKXJo+lEaEx1SaG+3D09KSYrae17iGJ6SHjLKGBrT4siUaOc6Ghbl2lPU5yVfo04AUhTqVRsJEeHQxrc6zmVSNiBjzYhEPh+cGSBECXlzb1rXo45MKaIFr/0uALY/jGTK1x7V9saBnpq1ieF0TZWKItnSZnd+D8vZONYs3hU0QjiqSrr1u8OWIDI6u+bIrT+fVS0YoQDI7tPzVYUx8yEuxvdM+UuuGDO+A60+yJT9eEsvcvHT+ymGp6fxW2i7KYKtNnJHyy4oL1OyOVI1pfzlygnCXO69tFqHUvJLa/nDQjYScX72Ri7MEwfupst/2eAzm15WiHpUOlxNq1tZoPgvx5BlXerC9Yn4zD1sk7Ta6F245RIZZzMGkKeaHQ19EOAcsQWefWZDcERS//XwLLIxzed3VIv20Iuh5n+N/hb55A6Zimfs+pc4zKhjmg3HQn+sH4l3P/0mX5qpEQuiVBlFWF6u1KTCStIvxsqljamUJJ7Jf4/OvXCLzwKRmHHZ2XPRP3aGNuXC5TkqorNLBRfr9Qnm6xq8p5QIVHROyDNsDBQSSsXdoCdTf35gIeSDCazL+gOamZfGb0lwwfwN/e3Bvy3O1zfQEblppgoNxVC3opvDmVVKOu+3OdGzb4E2Hn42Beh/2cbtKA9FN8+5sFdc7rhulmCNSkFGlJ2SwvqxrZSBgo2IYchW177TiSlQvgJ1NC3x4TnuW7yzH5hctKjf6XuyEBdgujwHQWZrNXOGWcK3XdRjj1GbUbMRI3AqLgUP+qQPa3y7e9SFKq7UaRT0ZiFic1/w3x+CUm86lWQ0aSaKRs1vfXiYyKogVQjlywtPGZJv/s/qoE+lQQMsFMkY8QHoYAQ=="
+        }
+      ],
+      "container": null,
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 21498,
+        "output_tokens": 288,
+        "output_tokens_details": {
+          "thinking_tokens": 158
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 288,
+            "cache_read_input_tokens": 21498,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:54.927Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "53b8b703-af21-409a-8858-51ef4cc06c83",
+    "session_id": "28ee118f-c58f-4953-b823-61ddd3579164",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjeqQYhGap6RQH1oAcV",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01MTNwjy9BKduV7gU6B3bVxA",
+          "name": "TodoWrite",
+          "input": {
+            "todos": [
+              {
+                "content": "a",
+                "status": "in_progress",
+                "activeForm": "Working on a"
+              },
+              {
+                "content": "b",
+                "status": "pending",
+                "activeForm": "Working on b"
+              },
+              {
+                "content": "c",
+                "status": "pending",
+                "activeForm": "Working on c"
+              }
+            ]
+          },
+          "caller": {
+            "type": "direct"
+          }
+        }
+      ],
+      "container": null,
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 21498,
+        "output_tokens": 288,
+        "output_tokens_details": {
+          "thinking_tokens": 158
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 288,
+            "cache_read_input_tokens": 21498,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:54.929Z"
+  },
+  {
+    "type": "user",
+    "uuid": "7e15cec1-7303-436d-9c61-e642d04a55ab",
+    "session_id": "28ee118f-c58f-4953-b823-61ddd3579164",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01MTNwjy9BKduV7gU6B3bVxA",
+          "type": "tool_result",
+          "content": "Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:54.932Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "2d7944e8-0693-4b34-b1d5-dbc9c22c707b",
+    "session_id": "28ee118f-c58f-4953-b823-61ddd3579164",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjfApcLhMyVdNZvhKmP",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "I'll mark the first task as completed and leave the rest pending for now.\n\n",
+          "signature": "CAQSqwUKEAgSGAI4AUIIdGhpbmtpbmcSDKVjLnQsJJnrq9VAwxoMPuXMAvBqEwqKm4aQIjC5Okexvzm3zm/j62lO7CmAYe3OpJNX7U+oe4YM1uKthK7Lo5U2HKVZbc/d/uB6ZqkqyAQ5cxTQimIT1nftty99YqBpDJ2zSno6dFA+rCNACGn1lbT9B3CvVIqHS684J8p7aFXIOyUxmI1OrW5MkSmhBE2Vm9N9a1zHZ5xb+nOS8YZdFcpBmsYTNK4oH3s5pFsYRBD98FWiDGkC6aAcRYhX4QDKM84L4nYzTQ3B//A/syvrEadsee+TqtyhGTs5GntPPc+GjyHzYj8vPrsRi3Or7d/pDqH68j0xAMTi6z4Acwh0z6lYHOXgJeyMFL11Wvh0DkEPZvL2Qgd3ic4DtQizLGdkzbrinmOfXFy5LGJtuGndGs0mskfEORBM9uCMp6Bq+1wfoVtdBro4m+2Ty8qaZv+d9Sa/HCsDuhHwcwnE7cDT3gsoowKSeVHhoDJspq1s0kP9rTTnXPBtIPMxjmxxupl9wdi+cGXA1hAgG+39GMFqXtKgogeEhwGNLGdQf/ipWxpERKIMbsFqIZeNyDuIx1ltlWXjJcSHvOcHoiM/ClNFwo/ARkIa+rGsDiRSkLyFTXMm6JLQ+VlF8/F/ma/7UrqZvsrP9U5Lk/YC2uR/Ds4ql6fV3dICZIJvLyZWJ0KhNul/dkIlqhrsIVVxqVzfyEc9LP0YPME9hwMcJzoV7dESVmZMvCpvNS+1SImSrII078AMwbKuT7hLRKcTMQl39b1XvADdngSe9FvPajPhU++PjgiCiiKQlOFXLER/EXeOIZ3n7Pes6WvQUyM4Qe0gAMAckaRY5kSO43wNmQCgfKdJbKvXTXXaDbXwtgQ7k1UaHWwgmjS/9ZpsXhgB"
+        }
+      ],
+      "container": null,
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 371,
+        "cache_read_input_tokens": 21498,
+        "output_tokens": 163,
+        "output_tokens_details": {
+          "thinking_tokens": 27
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 371,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 163,
+            "cache_read_input_tokens": 21498,
+            "cache_creation_input_tokens": 371,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 371
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:58.103Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "2af78b28-ef9e-407c-8e16-128cd97041e1",
+    "session_id": "28ee118f-c58f-4953-b823-61ddd3579164",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjfApcLhMyVdNZvhKmP",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011WCCdNLjLdeihzYYaP1f85",
+          "name": "TodoWrite",
+          "input": {
+            "todos": [
+              {
+                "content": "a",
+                "status": "completed",
+                "activeForm": "Working on a"
+              },
+              {
+                "content": "b",
+                "status": "pending",
+                "activeForm": "Working on b"
+              },
+              {
+                "content": "c",
+                "status": "pending",
+                "activeForm": "Working on c"
+              }
+            ]
+          },
+          "caller": {
+            "type": "direct"
+          }
+        }
+      ],
+      "container": null,
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 371,
+        "cache_read_input_tokens": 21498,
+        "output_tokens": 163,
+        "output_tokens_details": {
+          "thinking_tokens": 27
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 371,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 163,
+            "cache_read_input_tokens": 21498,
+            "cache_creation_input_tokens": 371,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 371
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:58.106Z"
+  },
+  {
+    "type": "user",
+    "uuid": "38c3193b-79d1-42f2-b667-f0e25cc8aff6",
+    "session_id": "28ee118f-c58f-4953-b823-61ddd3579164",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_011WCCdNLjLdeihzYYaP1f85",
+          "type": "tool_result",
+          "content": "Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:58.112Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "5177e9b8-b4ef-4663-9e19-6da7d646f32f",
+    "session_id": "28ee118f-c58f-4953-b823-61ddd3579164",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjfJx1FQRfjsQZGQHHa",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "done"
+        }
+      ],
+      "container": null,
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 238,
+        "cache_read_input_tokens": 21869,
+        "output_tokens": 3,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 238,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 3,
+            "cache_read_input_tokens": 21869,
+            "cache_creation_input_tokens": 238,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 238
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:59.015Z"
+  }
+]

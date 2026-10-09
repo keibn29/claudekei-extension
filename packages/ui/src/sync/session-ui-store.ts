@@ -1,0 +1,1310 @@
+/**
+ * Session UI Store — ephemeral UI state only.
+ *
+ * Domain data (sessions, messages, parts, permissions, questions, status)
+ * lives in sync child stores. This store owns ONLY transient UI concerns:
+ * current selection, draft state, viewport anchors, model/agent preferences,
+ * voice state, abort prompts, attached files, worktree metadata.
+ *
+ * Session↔worktree attachments are the authoritative exception: they live in
+ * session-worktree-store (shared sync), and session-ui-store routes through it.
+ *
+ * SDK-calling actions that need domain data read it from sync-refs.
+ */
+
+import { create } from "zustand"
+import type { Session, Message, PermissionMode, EffortLevel } from "@/lib/claude/types"
+import { useDraftPermissionModeStore } from "@/lib/claude/permissionMode"
+import { resolveDraftEffort, useDraftEffortStore } from "@/lib/claude/effort"
+import { getCatalog } from "@/lib/claude/bootstrapCache"
+import type { AttachedFile, SessionContextUsage, SessionWorktreeAttachment } from "@/stores/types/sessionTypes"
+import type { WorktreeMetadata } from "@/types/worktree"
+import { claudeHost } from "@/lib/claude/host"
+import { sendPrompt } from "@/lib/claude/send"
+import { useConfigStore } from "@/stores/useConfigStore"
+import { useProjectsStore } from "@/stores/useProjectsStore"
+import { useDirectoryStore } from "@/stores/useDirectoryStore"
+import { useSessionFoldersStore } from "@/stores/useSessionFoldersStore"
+import { useCommandsStore } from "@/stores/useCommandsStore"
+import { getSafeStorage } from "@/stores/utils/safeStorage"
+import { markPendingUserSendAnimation } from "@/lib/userSendAnimation"
+import { flattenAssistantTextParts } from "@/lib/messages/messageText"
+import { EXECUTION_FORK_META_TEXT } from "@/lib/messages/executionMeta"
+import { waitForWorktreeBootstrap } from "@/lib/worktrees/worktreeBootstrap"
+import { waitForPendingDraftWorktreeRequest } from "@/lib/worktrees/pendingDraftWorktree"
+import { resolveProjectForSessionDirectory } from "@/lib/projectResolution"
+import {
+  getSyncSessions,
+  getAllSyncSessions,
+  getSyncMessages,
+  getSyncParts,
+  getDirectoryState,
+} from "./sync-refs"
+import { markSessionViewed } from "./notification-store"
+import { setActiveSession } from "./sync-context"
+import {
+  createSession as createSessionAction,
+  deleteSession as deleteSessionAction,
+  deleteSessions as deleteSessionsAction,
+  archiveSession as archiveSessionAction,
+  updateSessionTitle as updateSessionTitleAction,
+  shareSession as shareSessionAction,
+  unshareSession as unshareSessionAction,
+} from "./session-actions"
+import { useInputStore, type SyntheticContextPart } from "./input-store"
+import { useSelectionStore } from "./selection-store"
+import { useViewportStore } from "./viewport-store"
+import { useSessionWorktreeStore } from "./session-worktree-store"
+import { getAttachedSessionDirectory } from "./session-worktree-contract"
+
+export type { AttachedFile }
+
+// ---------------------------------------------------------------------------
+// Send routing — shell mode, slash commands, or normal prompt
+// ---------------------------------------------------------------------------
+
+function routeMessage(params: {
+  sessionId: string
+  content: string
+  providerID: string
+  modelID: string
+  agent?: string
+  mode?: PermissionMode
+  effort?: EffortLevel | null
+  variant?: string
+  inputMode?: "normal" | "shell"
+  files?: Array<{ type: "file"; mime: string; url: string; filename: string }>
+  additionalParts?: Array<{ text: string; synthetic?: boolean; files?: Array<{ type: "file"; mime: string; url: string; filename: string }> }>
+}): Promise<void> {
+  if (params.inputMode === "shell") {
+    // Claude sessions have no shell input mode (Phase 2).
+    void import("sonner").then(({ toast }) => toast.info("Shell mode is not available yet"))
+    return Promise.resolve()
+  }
+
+  // Slash commands — the host sends `/name args` as the prompt.
+  let command: { name: string; args: string } | undefined
+  if (params.content.startsWith("/")) {
+    const [head, ...tail] = params.content.split(" ")
+    const cmdName = head.slice(1)
+
+    const dirState = getDirectoryState()
+    const syncCommands = dirState?.command ?? []
+    const storeCommands = useCommandsStore.getState().commands
+
+    const isCommand = syncCommands.find((c) => c.name === cmdName)
+      || storeCommands.find((c) => c.name === cmdName)
+
+    if (isCommand) {
+      command = { name: cmdName, args: tail.join(" ") }
+    }
+  }
+
+  // No optimistic insert (D9): the host emits the user message right after the send.
+  return sendPrompt({
+    sessionId: params.sessionId,
+    text: command ? "" : params.content,
+    modelID: params.modelID,
+    agent: params.agent,
+    mode: params.mode,
+    effort: params.effort,
+    files: params.files,
+    additionalParts: params.additionalParts,
+    command,
+  }).then(() => {})
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type { SyntheticContextPart } from "./input-store"
+export type { SessionMemoryState } from "./viewport-store"
+export type { VoiceStatus, VoiceMode } from "./voice-store"
+
+export type NewSessionDraftState = {
+  open: boolean
+  selectedProjectId?: string | null
+  directoryOverride: string | null
+  pendingWorktreeRequestId?: string | null
+  bootstrapPendingDirectory?: string | null
+  preserveDirectoryOverride?: boolean
+  parentID: string | null
+  title?: string
+  initialPrompt?: string
+  syntheticParts?: SyntheticContextPart[]
+  targetFolderId?: string
+}
+
+export type ViewportAnchor = {
+  sessionId: string
+  value: number
+}
+
+type ContextUsageFocusState = {
+  toolId: string
+  parentSessionId: string
+  sessionId: string
+}
+
+type SubtaskNavigationHint = {
+  sessionId: string
+  parentSessionId: string
+  parentDirectory: string | null
+}
+
+export type SessionHistoryMeta = {
+  limit: number
+  hasMore: boolean
+  complete: boolean
+  isLoading: boolean
+  loading?: boolean
+  nextCursor?: string
+}
+
+export type SessionUIState = {
+  currentSessionId: string | null
+  contextUsageFocus: ContextUsageFocusState | null
+  subtaskNavigationHint: SubtaskNavigationHint | null
+  newSessionDraft: NewSessionDraftState
+  abortPromptSessionId: string | null
+  abortPromptExpiresAt: number | null
+  error: string | null
+  worktreeMetadata: Map<string, WorktreeMetadata>
+  availableWorktrees: WorktreeMetadata[]
+  availableWorktreesByProject: Map<string, WorktreeMetadata[]>
+  webUICreatedSessions: Set<string>
+  sessionAbortFlags: Map<string, { timestamp: number; acknowledged: boolean }>
+  abortControllers: Map<string, AbortController>
+  isLoading: boolean
+  lastLoadedDirectory: string | null
+  // Plan mode - per-session plan file availability (set when plan_enter tool creates a plan)
+  sessionPlanAvailable: Map<string, boolean>
+  markSessionPlanAvailable: (sessionId: string) => void
+  isSessionPlanAvailable: (sessionId: string) => boolean
+
+  // Non-Git mode: dismissed signature hash per session, hides bar until new turn arrives
+  pendingChangesBarDismissed: Map<string, string>
+  dismissPendingChangesBar: (sessionId: string, signature: string | null) => void
+
+  // Actions — UI state management
+  setCurrentSession: (id: string | null, directoryHint?: string | null) => void
+  setSubtaskNavigationHint: (hint: SubtaskNavigationHint | null) => void
+  openSubtaskSession: (sessionId: string, parentSessionId: string, parentDirectory?: string | null) => void
+  openNewSessionDraft: (options?: Partial<NewSessionDraftState>) => void
+  closeNewSessionDraft: () => void
+  setNewSessionDraftTarget: (target: { projectId?: string | null; selectedProjectId?: string | null; directoryOverride?: string | null }, options?: { force?: boolean }) => void
+  setDraftPreserveDirectoryOverride: (value: boolean) => void
+  acknowledgeSessionAbort: (sessionId: string) => void
+  clearAbortPrompt: () => void
+  armAbortPrompt: (durationMs?: number) => number | null
+  clearError: () => void
+  markSessionAsOpenChamberCreated: (sessionId: string) => void
+  isOpenChamberCreatedSession: (sessionId: string) => boolean
+  setContextUsageFocus: (focus: ContextUsageFocusState) => void
+  clearContextUsageFocus: (toolId: string) => void
+  getContextUsage: (contextLimit: number, outputLimit: number, sessionIdOverride?: string) => SessionContextUsage | null
+  initializeNewOpenChamberSession: (sessionId: string, agents: unknown[]) => void
+  setWorktreeMetadata: (sessionId: string, metadata: WorktreeMetadata | null) => void
+  overrideNewSessionDraftTarget: (options: Record<string, unknown>) => void
+  resolvePendingDraftWorktreeTarget: (requestId: string, directory: string | null, options?: Record<string, unknown>) => void
+  setDraftBootstrapPendingDirectory: (directory: string | null) => void
+  setPendingDraftWorktreeRequest: (requestId: string | null) => void
+  getWorktreeMetadata: (sessionId: string) => WorktreeMetadata | undefined
+
+  // Actions — SDK-calling operations (read domain data from sync-refs)
+  sendMessage: (
+    content: string,
+    providerID: string,
+    modelID: string,
+    agent?: string,
+    attachments?: AttachedFile[],
+    agentMentionName?: string,
+    additionalParts?: Array<{ text: string; attachments?: AttachedFile[]; synthetic?: boolean }>,
+    variant?: string,
+    inputMode?: "normal" | "shell",
+  ) => Promise<void>
+
+  createSession: (title?: string, directoryOverride?: string | null, parentID?: string | null) => Promise<Session | null>
+  deleteSession: (id: string, options?: Record<string, unknown>) => Promise<boolean>
+  deleteSessions: (ids: string[], options?: Record<string, unknown>) => Promise<{ deletedIds: string[]; failedIds: string[] }>
+  archiveSession: (id: string) => Promise<boolean>
+  archiveSessions: (ids: string[], options?: Record<string, unknown>) => Promise<{ archivedIds: string[]; failedIds: string[] }>
+  updateSessionTitle: (sessionId: string, title: string) => Promise<void>
+  shareSession: (sessionId: string) => Promise<Session | null>
+  unshareSession: (sessionId: string) => Promise<Session | null>
+  revertToMessage: (sessionId: string, messageId: string) => Promise<void>
+  forkFromMessage: (sessionId: string, messageId: string) => Promise<void>
+  handleSlashUndo: (sessionId: string) => Promise<void>
+  handleSlashRedo: (sessionId: string) => Promise<void>
+  createSessionFromAssistantMessage: (sourceMessageId: string) => Promise<void>
+
+  // Data access helpers (read from sync)
+  getSessionsByDirectory: (directory: string) => Session[]
+  getDirectoryForSession: (sessionId: string) => string | null
+  getLastUserChoice: (sessionId: string) => { agent?: string; providerID?: string; modelID?: string; variant?: string } | null
+  getCurrentAgent: (sessionId: string) => string | undefined
+  debugSessionMessages: (sessionId: string) => Promise<void>
+  pollForTokenUpdates: () => void
+  setSessionDirectory: (sessionId: string, directory: string | null) => void
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Compute target message to revert to for slash undo, guarding against -1 index fallback */
+export function computeSlashUndoTarget<T extends { id: string }>(
+  userMessages: T[],
+  revertToId: string | undefined,
+): T | undefined {
+  if (userMessages.length === 0) return undefined
+  if (revertToId) {
+    const revertIndex = userMessages.findIndex((m) => m.id === revertToId)
+    // Guard against -1 destructive fallback: if not found, do not fall back to 0 (-1 + 1)
+    if (revertIndex > 0) {
+      return userMessages[revertIndex - 1]
+    }
+    return undefined // Already at earliest user message or invalid revertToId
+  }
+  return userMessages[userMessages.length - 1]
+}
+
+/** Compute action for slash redo: step forward to next reverted user message or full unrevert */
+export function computeSlashRedoAction<T extends { id: string }>(
+  userMessages: T[],
+  revertToId: string | undefined,
+): { type: "revert"; target: T } | { type: "unrevert" } | undefined {
+  if (!revertToId) return undefined
+  const revertIndex = userMessages.findIndex((m) => m.id === revertToId)
+  // Guard against unknown revert marker: if not found in user messages, do not guess
+  if (revertIndex === -1) return undefined
+
+  if (revertIndex + 1 < userMessages.length) {
+    return { type: "revert", target: userMessages[revertIndex + 1] }
+  }
+  return { type: "unrevert" }
+}
+
+const normalizePath = (value?: string | null): string | null => {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const replaced = trimmed.replace(/\\/g, "/")
+  if (replaced === "/") return "/"
+  return replaced.length > 1 ? replaced.replace(/\/+$/, "") : replaced
+}
+
+const resolveDirectoryKey = (session: Session): string | null => {
+  const sessionRecord = session as Session & {
+    directory?: string | null
+    project?: { worktree?: string | null } | null
+  }
+  return normalizePath(sessionRecord.directory ?? null)
+    ?? normalizePath(sessionRecord.project?.worktree ?? null)
+}
+
+const safeStorage = getSafeStorage()
+const DRAFT_TARGET_STORAGE_KEY = "oc.chatInput.lastDraftTarget"
+
+type PersistedDraftTarget = { projectId: string | null; directory: string | null }
+
+type TokenBreakdown = {
+  input?: number
+  output?: number
+  reasoning?: number
+  cache?: {
+    read?: number
+    write?: number
+  }
+}
+
+const sumTokenBreakdown = (breakdown: TokenBreakdown | null | undefined): number => {
+  if (!breakdown || typeof breakdown !== "object") return 0
+  const input = typeof breakdown.input === "number" ? breakdown.input : 0
+  const output = typeof breakdown.output === "number" ? breakdown.output : 0
+  const reasoning = typeof breakdown.reasoning === "number" ? breakdown.reasoning : 0
+  const cacheRead = typeof breakdown.cache?.read === "number" ? breakdown.cache.read : 0
+  const cacheWrite = typeof breakdown.cache?.write === "number" ? breakdown.cache.write : 0
+  return input + output + reasoning + cacheRead + cacheWrite
+}
+
+const getMessageTokenUsage = (message: Message, directory?: string): { totalTokens: number; outputTokens: number } => {
+  const messageTokens = (message as { tokens?: unknown }).tokens
+  const partTokens = messageTokens === undefined
+    ? (getSyncParts(message.id, directory).find((part) => typeof (part as { tokens?: unknown }).tokens !== "undefined") as { tokens?: unknown } | undefined)?.tokens
+    : undefined
+  const tokenSource = messageTokens ?? partTokens
+
+  if (typeof tokenSource === "number") {
+    const totalTokens = Number.isFinite(tokenSource) && tokenSource > 0 ? tokenSource : 0
+    return { totalTokens, outputTokens: 0 }
+  }
+
+  if (!tokenSource || typeof tokenSource !== "object") {
+    return { totalTokens: 0, outputTokens: 0 }
+  }
+
+  const breakdown = tokenSource as TokenBreakdown
+  const outputTokens = typeof breakdown.output === "number" && breakdown.output > 0 ? breakdown.output : 0
+  return {
+    totalTokens: sumTokenBreakdown(breakdown),
+    outputTokens,
+  }
+}
+
+const getMessageCost = (message: Message): number => {
+  if (message.role !== "assistant") return 0
+  const cost = (message as { cost?: unknown }).cost
+  return typeof cost === "number" && Number.isFinite(cost) && cost > 0 ? cost : 0
+}
+
+const readPersistedDraftTarget = (): PersistedDraftTarget | null => {
+  try {
+    const raw = safeStorage.getItem(DRAFT_TARGET_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { projectId?: unknown; directory?: unknown }
+    return {
+      projectId: typeof parsed?.projectId === "string" ? parsed.projectId : null,
+      directory: normalizePath(typeof parsed?.directory === "string" ? parsed.directory : null),
+    }
+  } catch {
+    return null
+  }
+}
+
+const persistDraftTarget = (target: PersistedDraftTarget): void => {
+  try {
+    safeStorage.setItem(DRAFT_TARGET_STORAGE_KEY, JSON.stringify(target))
+  } catch { /* ignored */ }
+}
+
+const resolveDraftProjectForDirectory = resolveProjectForSessionDirectory
+
+const getAttachmentForSession = (sessionId: string | null | undefined): SessionWorktreeAttachment | undefined => {
+  if (!sessionId) return undefined
+  return useSessionWorktreeStore.getState().getAttachment(sessionId)
+}
+
+const resolveSessionDirectory = (
+  sessionId: string | null | undefined,
+  getWtMeta: (id: string) => WorktreeMetadata | undefined,
+): string | null => {
+  if (!sessionId) return null
+  const attachmentDirectory = getAttachedSessionDirectory(getAttachmentForSession(sessionId))
+  if (attachmentDirectory) return attachmentDirectory
+  const metaPath = getWtMeta(sessionId)?.path
+  if (typeof metaPath === "string" && metaPath.trim().length > 0) return normalizePath(metaPath)
+  const sessions = getAllSyncSessions()
+  const target = sessions.find((s) => s.id === sessionId)
+  if (!target) return null
+  return resolveDirectoryKey(target)
+}
+
+const isSubtaskSession = (sessionId: string | null | undefined): boolean => {
+  if (!sessionId) return false
+  const hint = useSessionUIStore.getState().subtaskNavigationHint
+  if (hint?.sessionId === sessionId) return true
+  return Boolean(getAllSyncSessions().find((session) => session.id === sessionId)?.parentID)
+}
+
+const normalizeSubtaskNavigationHint = (hint: SubtaskNavigationHint | null | undefined): SubtaskNavigationHint | null => {
+  if (!hint) return null
+  const sessionId = typeof hint.sessionId === "string" ? hint.sessionId.trim() : ""
+  const parentSessionId = typeof hint.parentSessionId === "string" ? hint.parentSessionId.trim() : ""
+  if (!sessionId || !parentSessionId) return null
+  return {
+    sessionId,
+    parentSessionId,
+    parentDirectory: normalizePath(hint.parentDirectory),
+  }
+}
+
+const areSubtaskNavigationHintsEqual = (
+  left: SubtaskNavigationHint | null,
+  right: SubtaskNavigationHint | null,
+): boolean => {
+  return left?.sessionId === right?.sessionId
+    && left?.parentSessionId === right?.parentSessionId
+    && left?.parentDirectory === right?.parentDirectory
+}
+
+const activateConfigForDirectory = async (directory: string | null | undefined): Promise<void> => {
+  await useConfigStore.getState().activateDirectory(normalizePath(directory))
+}
+
+const DEFAULT_DRAFT: NewSessionDraftState = {
+  open: false,
+  directoryOverride: null,
+  parentID: null,
+}
+
+// ---------------------------------------------------------------------------
+// Store
+// ---------------------------------------------------------------------------
+
+export const useSessionUIStore = create<SessionUIState>()((set, get) => ({
+  currentSessionId: null,
+  contextUsageFocus: null,
+  subtaskNavigationHint: null,
+  newSessionDraft: { ...DEFAULT_DRAFT },
+  abortPromptSessionId: null,
+  abortPromptExpiresAt: null,
+  error: null,
+  worktreeMetadata: new Map(),
+  availableWorktrees: [],
+  availableWorktreesByProject: new Map(),
+  webUICreatedSessions: new Set(),
+  sessionAbortFlags: new Map(),
+  abortControllers: new Map(),
+  isLoading: false,
+  lastLoadedDirectory: null,
+  sessionPlanAvailable: new Map(),
+  pendingChangesBarDismissed: new Map(),
+
+  // ---------------------------------------------------------------------------
+  // setCurrentSession
+  // ---------------------------------------------------------------------------
+  setCurrentSession: (id, directoryHint?: string | null) => {
+    if (id) {
+      get().closeNewSessionDraft()
+    }
+
+    const previousSessionId = get().currentSessionId
+    const activeSubtaskNavigationHint = get().subtaskNavigationHint
+    const nextSubtaskNavigationHint = activeSubtaskNavigationHint && id && activeSubtaskNavigationHint.sessionId === id
+      ? activeSubtaskNavigationHint
+      : null
+
+    // Set currentSessionId immediately so the skeleton renders without delay.
+    set({
+      currentSessionId: id,
+      contextUsageFocus: null,
+      subtaskNavigationHint: nextSubtaskNavigationHint,
+    })
+
+    const directoryState = useDirectoryStore.getState()
+
+    const sessionDir = resolveSessionDirectory(
+      id,
+      (sid) => get().worktreeMetadata.get(sid),
+    )
+    const fallbackDir = claudeHost.getDirectory() ?? directoryState.currentDirectory ?? null
+    const resolvedDir = (directoryHint ? normalizePath(directoryHint) : null) ?? sessionDir ?? fallbackDir
+
+    try {
+      if (resolvedDir && directoryState.currentDirectory !== resolvedDir) {
+        directoryState.setDirectory(resolvedDir, { showOverlay: false })
+      }
+      claudeHost.setDirectory(resolvedDir ?? undefined)
+    } catch (e) {
+      console.warn("Failed to set OpenCode directory for session switch:", e)
+    }
+
+    // Defer viewport anchor save for previous session — not needed for the
+    // skeleton to render and reads messages which can be expensive.
+    if (previousSessionId && previousSessionId !== id) {
+      const prevId = previousSessionId
+      setTimeout(() => {
+        const memState = useViewportStore.getState().sessionMemoryState.get(prevId)
+        if (!memState?.isStreaming) {
+          const prevMessages = getSyncMessages(prevId)
+          if (prevMessages.length > 0) {
+            useViewportStore.getState().updateViewportAnchor(prevId, prevMessages.length - 1)
+          }
+        }
+      }, 0)
+    }
+
+    // Mark session viewed in notification store + update active session ref
+    if (id) {
+      markSessionViewed(id)
+      setActiveSession(resolvedDir ?? "", id)
+    }
+  },
+
+  setSubtaskNavigationHint: (hint) => set((state) => {
+    const nextHint = normalizeSubtaskNavigationHint(hint)
+    if (areSubtaskNavigationHintsEqual(state.subtaskNavigationHint, nextHint)) {
+      return state
+    }
+    return { subtaskNavigationHint: nextHint }
+  }),
+
+  openSubtaskSession: (sessionId, parentSessionId, parentDirectory) => {
+    const hint = normalizeSubtaskNavigationHint({
+      sessionId,
+      parentSessionId,
+      parentDirectory: parentDirectory ?? null,
+    })
+
+    if (!hint) {
+      get().setCurrentSession(sessionId, parentDirectory ?? null)
+      return
+    }
+
+    set({ subtaskNavigationHint: hint })
+    get().setCurrentSession(hint.sessionId, hint.parentDirectory)
+  },
+
+  // ---------------------------------------------------------------------------
+  // openNewSessionDraft
+  // ---------------------------------------------------------------------------
+  openNewSessionDraft: (options) => {
+    const projectsState = useProjectsStore.getState()
+    const projects = projectsState.projects
+    const availableWorktreesByProject = get().availableWorktreesByProject
+    const activeProject = projectsState.getActiveProject()
+    const currentDirectory = normalizePath(useDirectoryStore.getState().currentDirectory ?? null)
+    const persistedTarget = readPersistedDraftTarget()
+
+    const explicitDirectory = options?.directoryOverride !== undefined
+      ? normalizePath(options.directoryOverride)
+      : null
+    const explicitProject = options?.selectedProjectId
+      ? projects.find((p) => p.id === options.selectedProjectId) ?? null
+      : null
+
+    const inferredProjectFromDir = resolveDraftProjectForDirectory(projects, availableWorktreesByProject, explicitDirectory)
+    const fallbackProject = (() => {
+      if (activeProject) return activeProject
+      if (projectsState.activeProjectId) return projects.find((p) => p.id === projectsState.activeProjectId) ?? null
+      return projects[0] ?? null
+    })()
+
+    const persistedProjectById = persistedTarget?.projectId
+      ? projects.find((p) => p.id === persistedTarget.projectId) ?? null
+      : null
+    const persistedProjectByDir = resolveDraftProjectForDirectory(projects, availableWorktreesByProject, persistedTarget?.directory ?? null)
+    const currentDirProject = resolveDraftProjectForDirectory(projects, availableWorktreesByProject, currentDirectory)
+
+    const selectedProject = (() => {
+      if (explicitProject || explicitDirectory !== null) {
+        return explicitProject ?? inferredProjectFromDir ?? fallbackProject
+      }
+      if (currentDirectory) return currentDirProject ?? fallbackProject
+      return persistedProjectByDir ?? persistedProjectById ?? fallbackProject
+    })()
+
+    const directory = (() => {
+      if (explicitDirectory !== null) return explicitDirectory
+      if (explicitProject) return normalizePath(explicitProject.path ?? null)
+      if (currentDirectory) return currentDirectory
+      if (persistedTarget?.directory) return persistedTarget.directory
+      return normalizePath(selectedProject?.path ?? null)
+    })()
+
+    persistDraftTarget({ projectId: selectedProject?.id ?? null, directory })
+
+    set({
+      newSessionDraft: {
+        open: true,
+        selectedProjectId: selectedProject?.id ?? null,
+        directoryOverride: directory,
+        pendingWorktreeRequestId: options?.pendingWorktreeRequestId ?? null,
+        bootstrapPendingDirectory: normalizePath(options?.bootstrapPendingDirectory ?? null),
+        preserveDirectoryOverride: options?.preserveDirectoryOverride === true,
+        parentID: options?.parentID ?? null,
+        title: options?.title,
+        initialPrompt: options?.initialPrompt,
+        syntheticParts: options?.syntheticParts,
+        targetFolderId: options?.targetFolderId,
+      },
+      currentSessionId: null,
+      contextUsageFocus: null,
+      error: null,
+    })
+
+    if (options?.initialPrompt) {
+      useInputStore.getState().setPendingInputText(options.initialPrompt)
+    }
+
+    // A new session starts at the catalog default agent and permission mode.
+    useDraftPermissionModeStore.getState().setDraftMode(null)
+    useDraftEffortStore.getState().setDraftEffort(undefined)
+    const configState = useConfigStore.getState()
+    const defaultAgentName = getCatalog()?.defaults.agent
+    if (
+      defaultAgentName
+      && configState.currentAgentName !== defaultAgentName
+      && configState.agents.some((agent) => agent.name === defaultAgentName && agent.mode === "primary")
+    ) {
+      configState.setAgent(defaultAgentName)
+    }
+
+    void activateConfigForDirectory(directory)
+  },
+
+  // ---------------------------------------------------------------------------
+  // closeNewSessionDraft
+  // ---------------------------------------------------------------------------
+  closeNewSessionDraft: () => {
+    set({
+      newSessionDraft: {
+        open: false,
+        selectedProjectId: null,
+        directoryOverride: null,
+        pendingWorktreeRequestId: null,
+        bootstrapPendingDirectory: null,
+        preserveDirectoryOverride: false,
+        parentID: null,
+        title: undefined,
+        initialPrompt: undefined,
+        syntheticParts: undefined,
+        targetFolderId: undefined,
+      },
+    })
+  },
+
+  setNewSessionDraftTarget: (target) => {
+    let nextDirectory: string | null = null
+    set((s) => {
+      nextDirectory = normalizePath(target.directoryOverride ?? s.newSessionDraft.directoryOverride)
+      return {
+        newSessionDraft: {
+          ...s.newSessionDraft,
+          selectedProjectId: target.projectId ?? target.selectedProjectId ?? s.newSessionDraft.selectedProjectId,
+          directoryOverride: target.directoryOverride ?? s.newSessionDraft.directoryOverride,
+        },
+      }
+    })
+    void activateConfigForDirectory(nextDirectory)
+  },
+
+  setDraftPreserveDirectoryOverride: (value) =>
+    set((s) => {
+      if (!s.newSessionDraft?.open) return s
+      return { newSessionDraft: { ...s.newSessionDraft, preserveDirectoryOverride: value } }
+    }),
+
+  acknowledgeSessionAbort: (sessionId) =>
+    set((s) => {
+      const flags = new Map(s.sessionAbortFlags)
+      const existing = flags.get(sessionId)
+      if (existing) flags.set(sessionId, { ...existing, acknowledged: true })
+      return { sessionAbortFlags: flags }
+    }),
+
+  clearAbortPrompt: () => set({ abortPromptSessionId: null, abortPromptExpiresAt: null }),
+
+  armAbortPrompt: (durationMs = 5000) => {
+    const { currentSessionId } = get()
+    if (!currentSessionId) return null
+    const expiresAt = Date.now() + durationMs
+    set({ abortPromptSessionId: currentSessionId, abortPromptExpiresAt: expiresAt })
+    return expiresAt
+  },
+
+  clearError: () => set({ error: null }),
+
+  markSessionAsOpenChamberCreated: (sessionId) =>
+    set((s) => {
+      const next = new Set(s.webUICreatedSessions)
+      next.add(sessionId)
+      return { webUICreatedSessions: next }
+    }),
+
+  isOpenChamberCreatedSession: (sessionId) => get().webUICreatedSessions.has(sessionId),
+
+  setContextUsageFocus: (focus) => {
+    set((state) => {
+      const currentFocus = state.contextUsageFocus
+      if (
+        currentFocus
+        && currentFocus.toolId === focus.toolId
+        && currentFocus.parentSessionId === focus.parentSessionId
+        && currentFocus.sessionId === focus.sessionId
+      ) {
+        return state
+      }
+      return { contextUsageFocus: focus }
+    })
+  },
+
+  clearContextUsageFocus: (toolId) => {
+    set((state) => {
+      if (state.contextUsageFocus?.toolId !== toolId) {
+        return state
+      }
+      return { contextUsageFocus: null }
+    })
+  },
+
+  getContextUsage: (contextLimit: number, outputLimit: number, sessionIdOverride?: string) => {
+    if (get().newSessionDraft?.open) return null
+    const sessionId = sessionIdOverride ?? get().currentSessionId
+    if (!sessionId) return null
+
+    const directory = get().getDirectoryForSession(sessionId) ?? undefined
+    const messages = getSyncMessages(sessionId, directory)
+    if (messages.length === 0) return null
+
+    let lastTotalTokens = 0
+    let lastOutputTokens = 0
+    let totalCost = 0
+    let lastMessageId: string | undefined
+    for (const message of messages) {
+      totalCost += getMessageCost(message)
+    }
+
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i]
+      const { totalTokens, outputTokens } = getMessageTokenUsage(message, directory)
+      if (totalTokens > 0) {
+        lastTotalTokens = totalTokens
+        lastOutputTokens = outputTokens
+        lastMessageId = message.id
+        break
+      }
+    }
+
+    if (lastTotalTokens <= 0) return null
+
+    const thresholdLimit = contextLimit > 0 ? contextLimit : 200000
+    const percentage = contextLimit > 0 ? Math.round((lastTotalTokens / contextLimit) * 100) : 0
+    const normalizedOutput = outputLimit > 0 ? Math.round((lastOutputTokens / outputLimit) * 100) : undefined
+
+    return {
+      totalTokens: lastTotalTokens,
+      totalCost,
+      percentage,
+      contextLimit: contextLimit || 0,
+      outputLimit: outputLimit || undefined,
+      normalizedOutput,
+      thresholdLimit,
+      lastMessageId,
+    }
+  },
+
+  initializeNewOpenChamberSession: () => {
+    // Stub — was a no-op in old store
+  },
+
+  setWorktreeMetadata: (sessionId, metadata) => {
+    // Write to authoritative session-worktree-store
+    if (metadata) {
+      useSessionWorktreeStore.getState().setAttachment(sessionId, {
+        worktreeRoot: metadata.worktreeRoot ?? metadata.path ?? null,
+        cwd: metadata.path ?? null,
+        branch: metadata.branch ?? null,
+        headState: metadata.headState ?? (metadata.branch ? 'branch' : 'detached'),
+        worktreeStatus: metadata.worktreeStatus ?? 'ready',
+        worktreeSource: metadata.worktreeSource ?? null,
+        legacy: false,
+        degraded: false,
+      })
+    } else {
+      useSessionWorktreeStore.getState().clearAttachment(sessionId)
+    }
+    // Also keep local map for backward compatibility
+    set((s) => {
+      const map = new Map(s.worktreeMetadata)
+      if (metadata) map.set(sessionId, metadata)
+      else map.delete(sessionId)
+      return { worktreeMetadata: map }
+    })
+  },
+
+  overrideNewSessionDraftTarget: (options) => {
+    let nextDirectory: string | null = null
+    set((s) => {
+      const nextDraft = { ...s.newSessionDraft, ...options }
+      nextDirectory = normalizePath(
+        typeof nextDraft.directoryOverride === "string" ? nextDraft.directoryOverride : null,
+      )
+      return { newSessionDraft: nextDraft }
+    })
+    void activateConfigForDirectory(nextDirectory)
+  },
+
+  resolvePendingDraftWorktreeTarget: (requestId, directory, options) =>
+    set((s) => {
+      if (!s.newSessionDraft?.open || s.newSessionDraft.pendingWorktreeRequestId !== requestId) return s
+      return {
+        newSessionDraft: {
+          ...s.newSessionDraft,
+          selectedProjectId: (options as Record<string, unknown> | undefined)?.projectId as string ?? s.newSessionDraft.selectedProjectId ?? null,
+          directoryOverride: normalizePath(directory),
+          pendingWorktreeRequestId: null,
+          bootstrapPendingDirectory: normalizePath((options as Record<string, unknown> | undefined)?.bootstrapPendingDirectory as string ?? s.newSessionDraft.bootstrapPendingDirectory ?? null),
+          preserveDirectoryOverride: ((options as Record<string, unknown> | undefined)?.preserveDirectoryOverride ?? true) as boolean,
+        },
+      }
+    }),
+
+  setDraftBootstrapPendingDirectory: (directory) =>
+    set((s) => {
+      if (!s.newSessionDraft?.open) return s
+      return { newSessionDraft: { ...s.newSessionDraft, bootstrapPendingDirectory: normalizePath(directory) } }
+    }),
+
+  setPendingDraftWorktreeRequest: (requestId) =>
+    set((s) => {
+      if (!s.newSessionDraft?.open) return s
+      return { newSessionDraft: { ...s.newSessionDraft, pendingWorktreeRequestId: requestId } }
+    }),
+
+  getWorktreeMetadata: (sessionId) => get().worktreeMetadata.get(sessionId),
+
+  dismissPendingChangesBar: (sessionId, signature) => {
+    const map = new Map(get().pendingChangesBarDismissed);
+    if (signature === null) {
+      map.delete(sessionId);
+    } else {
+      map.set(sessionId, signature);
+    }
+    set({ pendingChangesBarDismissed: map });
+  },
+
+  // ---------------------------------------------------------------------------
+  // sendMessage — calls SDK, reads domain data from sync
+  // ---------------------------------------------------------------------------
+  sendMessage: async (
+    content: string,
+    providerID: string,
+    modelID: string,
+    agent?: string,
+    attachments?: AttachedFile[],
+    agentMentionName?: string,
+    additionalParts?: Array<{ text: string; attachments?: AttachedFile[]; synthetic?: boolean }>,
+    variant?: string,
+    inputMode?: "normal" | "shell",
+  ) => {
+    // Clear non-Git changed-files bar on new user message for current session
+    const sid = get().currentSessionId;
+    if (sid) {
+      const map = new Map(get().pendingChangesBarDismissed);
+      map.delete(sid);
+      set({ pendingChangesBarDismissed: map, contextUsageFocus: null });
+    } else {
+      set({ contextUsageFocus: null });
+    }
+
+    const draft = get().newSessionDraft
+    const trimmedAgent = typeof agent === "string" && agent.trim().length > 0 ? agent.trim() : undefined
+
+    // ---- New session from draft ----
+    if (draft?.open) {
+      // Read the draft's effort before any async step: creating/activating the session resets draft state.
+      const draftEffort = resolveDraftEffort(trimmedAgent ?? useConfigStore.getState().currentAgentName)
+      const draftTargetFolderId = draft.targetFolderId
+      let draftDirectoryOverride = draft.bootstrapPendingDirectory ?? draft.directoryOverride ?? null
+      const draftProjectId = draft.selectedProjectId ?? null
+
+      if (draft.pendingWorktreeRequestId) {
+        draftDirectoryOverride = await waitForPendingDraftWorktreeRequest(draft.pendingWorktreeRequestId)
+        get().resolvePendingDraftWorktreeTarget(draft.pendingWorktreeRequestId, draftDirectoryOverride)
+      }
+
+      const created = await get().createSession(draft.title, draftDirectoryOverride, draft.parentID ?? null)
+      if (!created?.id) throw new Error("Failed to create session")
+
+      persistDraftTarget({
+        projectId: draftProjectId,
+        directory: normalizePath(draftDirectoryOverride ?? created.directory ?? null),
+      })
+
+      const draftSyntheticParts = draft.syntheticParts
+      await activateConfigForDirectory(draftDirectoryOverride ?? created.directory ?? null)
+
+      const configState = useConfigStore.getState()
+      const draftAgentName = configState.currentAgentName
+      const effectiveDraftAgent = trimmedAgent ?? draftAgentName
+
+      if (configState.currentProviderId && configState.currentModelId) {
+        useSelectionStore.getState().saveSessionModelSelection(created.id, configState.currentProviderId, configState.currentModelId)
+      }
+
+      if (effectiveDraftAgent) {
+        useSelectionStore.getState().saveSessionAgentSelection(created.id, effectiveDraftAgent)
+        if (configState.currentProviderId && configState.currentModelId) {
+          useSelectionStore.getState().saveAgentModelForSession(created.id, effectiveDraftAgent, configState.currentProviderId, configState.currentModelId)
+          useSelectionStore.getState().saveAgentModelVariantForSession(created.id, effectiveDraftAgent, configState.currentProviderId, configState.currentModelId, variant)
+        }
+      }
+
+      get().initializeNewOpenChamberSession(created.id, configState.agents ?? [])
+
+      const createdDirectory = normalizePath(draftDirectoryOverride ?? created.directory ?? null)
+
+      get().closeNewSessionDraft()
+      get().setCurrentSession(created.id, createdDirectory)
+
+      if (draftTargetFolderId) {
+        const scopeKey = draftDirectoryOverride || created.directory || null
+        if (scopeKey) {
+          useSessionFoldersStore.getState().addSessionToFolder(scopeKey, draftTargetFolderId, created.id)
+        }
+      }
+
+      const mergedAdditionalParts = draftSyntheticParts?.length
+        ? [...(additionalParts || []), ...draftSyntheticParts]
+        : additionalParts
+
+      if (createdDirectory) {
+        await waitForWorktreeBootstrap(createdDirectory)
+      }
+
+      markPendingUserSendAnimation(created.id)
+
+      const files = attachments?.map((a) => ({
+        type: "file" as const,
+        mime: a.mimeType,
+        url: a.dataUrl,
+        filename: a.filename,
+        ...(a.filePartSource ? { source: a.filePartSource } : {}),
+      }))
+
+      await routeMessage({
+        sessionId: created.id,
+        content,
+        providerID,
+        modelID,
+        agent: effectiveDraftAgent,
+        mode: useDraftPermissionModeStore.getState().draftMode ?? undefined,
+        effort: draftEffort,
+        variant,
+        inputMode,
+        files,
+        additionalParts: mergedAdditionalParts?.map((p) => ({
+          text: p.text,
+          synthetic: p.synthetic,
+          files: p.attachments?.map((a: AttachedFile) => ({
+            type: "file" as const,
+            mime: a.mimeType,
+            url: a.dataUrl,
+            filename: a.filename,
+            ...(a.filePartSource ? { source: a.filePartSource } : {}),
+          })),
+        })),
+      })
+      return
+    }
+
+    // ---- Existing session ----
+    const currentSessionId = get().currentSessionId
+    if (isSubtaskSession(currentSessionId)) {
+      return
+    }
+
+    const sessionAgentSelection = currentSessionId
+      ? useSelectionStore.getState().getSessionAgentSelection(currentSessionId)
+      : null
+    const configAgentName = useConfigStore.getState().currentAgentName
+    const effectiveAgent = trimmedAgent || sessionAgentSelection || configAgentName || undefined
+
+    if (currentSessionId && effectiveAgent) {
+      useSelectionStore.getState().saveSessionAgentSelection(currentSessionId, effectiveAgent)
+      useSelectionStore.getState().saveAgentModelVariantForSession(currentSessionId, effectiveAgent, providerID, modelID, variant)
+    }
+
+    if (currentSessionId) {
+      const viewportState = useViewportStore.getState()
+      const memState = viewportState.sessionMemoryState.get(currentSessionId)
+      if (!memState || !memState.lastUserMessageAt) {
+        const newMemState = new Map(viewportState.sessionMemoryState)
+        newMemState.set(currentSessionId, {
+          viewportAnchor: memState?.viewportAnchor ?? 0,
+          isStreaming: memState?.isStreaming ?? false,
+          lastAccessedAt: Date.now(),
+          backgroundMessageCount: memState?.backgroundMessageCount ?? 0,
+          lastUserMessageAt: Date.now(),
+        })
+        useViewportStore.setState({ sessionMemoryState: newMemState })
+      }
+    }
+
+    const currentSessionDirectory = currentSessionId
+      ? normalizePath(get().getDirectoryForSession(currentSessionId))
+      : null
+    if (currentSessionDirectory) {
+      await waitForWorktreeBootstrap(currentSessionDirectory)
+    }
+
+
+    if (currentSessionId) {
+      markPendingUserSendAnimation(currentSessionId)
+    }
+
+    const files = attachments?.map((a) => ({
+      type: "file" as const,
+      mime: a.mimeType,
+      url: a.dataUrl,
+      filename: a.filename,
+      ...(a.filePartSource ? { source: a.filePartSource } : {}),
+    }))
+
+    await routeMessage({
+      sessionId: currentSessionId || "",
+      content,
+      providerID,
+      modelID,
+      agent: effectiveAgent,
+      mode: currentSessionId ? getSyncSessions().find((s) => s.id === currentSessionId)?.mode : undefined,
+      variant,
+      inputMode,
+      files,
+      additionalParts: additionalParts?.map((p) => ({
+        text: p.text,
+        synthetic: p.synthetic,
+        files: p.attachments?.map((a) => ({
+          type: "file" as const,
+          mime: a.mimeType,
+          url: a.dataUrl,
+          filename: a.filename,
+          ...(a.filePartSource ? { source: a.filePartSource } : {}),
+        })),
+      })),
+    })
+  },
+
+  // ---------------------------------------------------------------------------
+  // createSession
+  // ---------------------------------------------------------------------------
+  createSession: async (title, directoryOverride, parentID) => {
+    const draft = get().newSessionDraft
+    const targetFolderId = draft.targetFolderId
+    get().closeNewSessionDraft()
+
+    try {
+      const dir = directoryOverride ?? claudeHost.getDirectory()
+      const session = await createSessionAction(title, dir, parentID ?? null)
+      if (!session) return null
+
+      if (targetFolderId) {
+        const scopeKey = directoryOverride || get().lastLoadedDirectory || session.directory
+        if (scopeKey) {
+          useSessionFoldersStore.getState().addSessionToFolder(scopeKey, targetFolderId, session.id)
+        }
+      }
+
+      return session
+    } catch (e) {
+      console.error("[session-ui-store] createSession failed", e)
+      return null
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // deleteSession — calls SDK, SSE event updates child store
+  // ---------------------------------------------------------------------------
+  deleteSession: (id, options) => deleteSessionAction(id, options),
+
+  deleteSessions: (ids, options) => deleteSessionsAction(ids, options),
+
+  archiveSession: (id) => archiveSessionAction(id),
+
+  archiveSessions: async (ids) => {
+    const archivedIds: string[] = []
+    const failedIds: string[] = []
+    for (const id of ids) {
+      const ok = await archiveSessionAction(id)
+      if (ok) archivedIds.push(id)
+      else failedIds.push(id)
+    }
+    return { archivedIds, failedIds }
+  },
+
+  // ---------------------------------------------------------------------------
+  // updateSessionTitle — calls SDK, SSE event updates child store
+  // ---------------------------------------------------------------------------
+  updateSessionTitle: async (sessionId, title) => {
+    await updateSessionTitleAction(sessionId, title)
+  },
+
+  shareSession: async (sessionId) => {
+    return shareSessionAction(sessionId)
+  },
+
+  unshareSession: async (sessionId) => {
+    return unshareSessionAction(sessionId)
+  },
+
+  // ---------------------------------------------------------------------------
+  // revertToMessage — delegates to session-actions (single implementation)
+  // ---------------------------------------------------------------------------
+  revertToMessage: async (sessionId, messageId) => {
+    const { revertToMessage: revert } = await import("./session-actions")
+    await revert(sessionId, messageId)
+  },
+
+  // ---------------------------------------------------------------------------
+  // handleSlashUndo / handleSlashRedo — Phase 2 (undo/redo needs file checkpoint rewind)
+  // ---------------------------------------------------------------------------
+  handleSlashUndo: async (sessionId) => {
+    const { revertToMessage: revert } = await import("./session-actions")
+    await revert(sessionId, "")
+  },
+
+  handleSlashRedo: async (sessionId) => {
+    const { unrevertSession } = await import("./session-actions")
+    await unrevertSession(sessionId)
+  },
+
+  // ---------------------------------------------------------------------------
+  // forkFromMessage — delegates to session-actions (handles text + sidebar)
+  // ---------------------------------------------------------------------------
+  forkFromMessage: async (sessionId, messageId) => {
+    const sessions = getSyncSessions()
+    const existingSession = sessions.find((s) => s.id === sessionId)
+    if (!existingSession) return
+
+    try {
+      const { forkFromMessage: fork } = await import("./session-actions")
+      await fork(sessionId, messageId)
+
+      const { toast } = await import("sonner")
+      toast.success(`Forked from ${existingSession.title}`)
+    } catch (error) {
+      console.error("Failed to fork session:", error)
+      const { toast } = await import("sonner")
+      toast.error("Failed to fork session")
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // createSessionFromAssistantMessage — reads from sync
+  // ---------------------------------------------------------------------------
+  createSessionFromAssistantMessage: async (sourceMessageId) => {
+    if (!sourceMessageId) return
+
+    // Find which session this message belongs to by scanning sync state
+    const state = getDirectoryState()
+    if (!state) return
+
+    let sourceSessionId: string | undefined
+    let sourceMessage: Message | undefined
+
+    for (const [sid, msgs] of Object.entries(state.message ?? {})) {
+      const found = msgs.find((m) => m.id === sourceMessageId)
+      if (found) {
+        sourceSessionId = sid
+        sourceMessage = found
+        break
+      }
+    }
+
+    if (!sourceMessage || sourceMessage.role !== "assistant") return
+
+    const sourceParts = getSyncParts(sourceMessageId)
+    const assistantPlanText = flattenAssistantTextParts(sourceParts)
+    if (!assistantPlanText.trim()) return
+
+    const directory = resolveSessionDirectory(
+      sourceSessionId ?? null,
+      (sid) => get().worktreeMetadata.get(sid),
+    )
+
+    const session = await get().createSession(undefined, directory ?? null, null)
+    if (!session) return
+
+    const { currentProviderId, currentModelId, currentAgentName } = useConfigStore.getState()
+    const pID = currentProviderId || useSelectionStore.getState().lastUsedProvider?.providerID
+    const mID = currentModelId || useSelectionStore.getState().lastUsedProvider?.modelID
+
+    if (!pID || !mID) return
+
+    await claudeHost.sendMessage({
+      id: session.id,
+      providerID: pID,
+      modelID: mID,
+      text: assistantPlanText,
+      prefaceText: EXECUTION_FORK_META_TEXT,
+      agent: currentAgentName ?? undefined,
+    })
+  },
+
+  // ---------------------------------------------------------------------------
+  // Data access helpers — read from sync
+  // ---------------------------------------------------------------------------
+  getSessionsByDirectory: (directory) => {
+    const nd = normalizePath(directory)
+    if (!nd) return []
+    const sessions = getAllSyncSessions()
+    return sessions.filter((s) => resolveDirectoryKey(s) === nd)
+  },
+
+  getDirectoryForSession: (sessionId) => {
+    const attachmentDirectory = getAttachedSessionDirectory(getAttachmentForSession(sessionId))
+    if (attachmentDirectory) return attachmentDirectory
+    const sessions = getAllSyncSessions()
+    const session = sessions.find((s) => s.id === sessionId)
+    if (!session) return null
+    return resolveDirectoryKey(session)
+  },
+
+  getLastUserChoice: (sessionId) => {
+    const directory = get().getDirectoryForSession(sessionId) ?? undefined
+    const messages = getSyncMessages(sessionId, directory)
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const message = messages[i] as Message & {
+        model?: { providerID?: string; modelID?: string; variant?: string }
+        variant?: string
+        mode?: string
+      }
+      if (message.role !== "user") {
+        continue
+      }
+
+      const providerID = typeof message.model?.providerID === "string" && message.model.providerID.trim().length > 0
+        ? message.model.providerID
+        : undefined
+      const modelID = typeof message.model?.modelID === "string" && message.model.modelID.trim().length > 0
+        ? message.model.modelID
+        : undefined
+      const agent = typeof message.agent === "string" && message.agent.trim().length > 0
+        ? message.agent
+        : (typeof message.mode === "string" && message.mode.trim().length > 0 ? message.mode : undefined)
+      const variantCandidate = message.model?.variant ?? message.variant
+      const variant = typeof variantCandidate === "string" && variantCandidate.trim().length > 0
+        ? variantCandidate
+        : undefined
+
+      return { agent, providerID, modelID, variant }
+    }
+    return null
+  },
+
+  getCurrentAgent: (sessionId) => {
+    return useSelectionStore.getState().sessionAgentSelections.get(sessionId) ?? undefined
+  },
+
+  debugSessionMessages: async (sessionId) => {
+    const msgs = getSyncMessages(sessionId)
+    const sessions = getSyncSessions()
+    const session = sessions.find((s) => s.id === sessionId)
+    console.log(`Debug session ${sessionId}:`, {
+      session,
+      messageCount: msgs.length,
+      messages: msgs.map((m) => ({
+        id: m.id,
+        role: m.role,
+        tokens: m.role === "assistant" ? m.tokens : undefined,
+      })),
+    })
+  },
+
+  pollForTokenUpdates: () => {
+    // Handled by sync system's SSE stream
+  },
+
+  setSessionDirectory: () => {
+    // Session directory is owned by sync child stores via SSE events.
+    // This is now a no-op — kept for interface compatibility during migration.
+  },
+
+  // ---------------------------------------------------------------------------
+  // Plan mode availability tracking
+  // ---------------------------------------------------------------------------
+  markSessionPlanAvailable: (sessionId) => {
+    set((state) => {
+      const next = new Map(state.sessionPlanAvailable)
+      next.set(sessionId, true)
+      return { sessionPlanAvailable: next }
+    })
+  },
+
+  isSessionPlanAvailable: (sessionId) => {
+    return get().sessionPlanAvailable.get(sessionId) ?? false
+  },
+}))

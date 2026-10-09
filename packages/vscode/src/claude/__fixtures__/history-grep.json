@@ -1,0 +1,316 @@
+[
+  {
+    "type": "user",
+    "uuid": "7648197c-265b-414c-9cf3-7badc5012482",
+    "session_id": "b120b9e8-c724-493c-afe1-704cbb72dc87",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Use the Grep tool to search for 'greet' in the current directory, then use the Glob tool to list *.ts files. Reply 'done' only."
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:17.351Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "cb6dff5c-dc62-4a57-82c5-bca425702bd6",
+    "session_id": "b120b9e8-c724-493c-afe1-704cbb72dc87",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjcMpZQAN4MChx48i4x",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01XiTttH5wCej89kCjZ8gNSA",
+          "name": "Grep",
+          "input": {
+            "pattern": "greet",
+            "path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+          },
+          "caller": {
+            "type": "direct"
+          }
+        }
+      ],
+      "container": null,
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 20327,
+        "output_tokens": 287,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 287,
+            "cache_read_input_tokens": 20327,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:19.242Z"
+  },
+  {
+    "type": "user",
+    "uuid": "ed2cf1d7-103c-4603-b039-dbb7589855d8",
+    "session_id": "b120b9e8-c724-493c-afe1-704cbb72dc87",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01XiTttH5wCej89kCjZ8gNSA",
+          "type": "tool_result",
+          "content": "Found 1 file\nsrc/app.ts"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:19.276Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "94907777-a928-4939-a06b-4bfd7f2d6e21",
+    "session_id": "b120b9e8-c724-493c-afe1-704cbb72dc87",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjcMpZQAN4MChx48i4x",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01ACDLqz6C1KhJCqj7UsA1bg",
+          "name": "Glob",
+          "input": {
+            "pattern": "*.ts",
+            "path": "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox"
+          },
+          "caller": {
+            "type": "direct"
+          }
+        }
+      ],
+      "container": null,
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 20327,
+        "output_tokens": 287,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 287,
+            "cache_read_input_tokens": 20327,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:19.625Z"
+  },
+  {
+    "type": "user",
+    "uuid": "81b76a20-5724-4a30-bc84-1db028a32644",
+    "session_id": "b120b9e8-c724-493c-afe1-704cbb72dc87",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01ACDLqz6C1KhJCqj7UsA1bg",
+          "type": "tool_result",
+          "content": "src/app.ts\nsrc/util.ts"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:19.635Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "6692a56f-429f-4bcc-ada3-96fa27271cfc",
+    "session_id": "b120b9e8-c724-493c-afe1-704cbb72dc87",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjcUYPB6s3pRXtw7Hpr",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "The system messages about Docs tools aren't relevant here, so I'll just reply \"done\" as requested.\n\n",
+          "signature": "CAQSzgUKEAgSGAI4AUIIdGhpbmtpbmcSDHFvdCHPf5kLTvhw7xoMEAg7/azMe0sQglf3IjBT9Qfm/9+TGUGvEcbflEd7IXIwb4SiqCAYoocBTdJDxmHFr2Vj1KVfkRvEt6A1uHkq6wRgKxcgo3AbRJlLFQ3JjLFEHB1Ys+BkoQ84f7nRT1a+ZLAWTxyfoEnCWjffxvaSE8Iq9nyGNJ0pXxnP+y0IY9FGgFEsNvzeqjnN8EUPZXgVGwbGxeTx4iz72MBO2vfeMBMkIgIpbtkIpzPIJtqpnCqfJWsTrMkzS+aqr6+j4fEuRwZnHwJsuZ6SHtvqw8pB4zgq2wYEQKmD60xytUTcsVWnxHyD8vUKXzx8FL7JrCTc/Ip6Q0RrKg9sd0oErbJfffyLlwkw6PADD462Ij4Uv7qz62ol/m8/dbNEj+1cqaxCYV8SB6aPmtrFPKwDB0beb8B7nwMYoFcZ0vZa7wQqsoYhO0gbygVm9vwbDQRL9h/VMRZBe4plOjN07XASe0myfhW1HynfSm1VMfHmqZmxB0LRhX7syH+H61eLLN+46lvzkGldOyaaFiYoHcKP7nEH5R8Vk9Eju+JOZEfZrp60j/vLgBbk2QnzT9ps0gf6ZPGbrILuWmXC3bOcSNrsG2pW64BWhQCxkMrsjx7/kV5DZ4EFeCjLM/70mIu7v3EU27KKCnqCLt/QiblNX9P9tB7RNQ8yfbaOvyvx0qrWGEe3IAe1sgHSOk0NA/0SQjk4hM2NoaBvFqejuS1r5aOEKexg5TycZmhm931NTMUnrWsOPPcHcH3yAVlSqS/C+OsbEdSyIlAoOn94j+McbAqEhkac93J6H4jHAMxoKBtMbG0WyYTOlGae8w7nOD4rniPQZ+a0ygZGawQD3tv5ni2G5r3H1Vyhf98/X+QUzTUwhi9pLv5DKOX5eUTp6MRJk+vjgLFO5Jz+fhEs3CHUm4xxGAE="
+        }
+      ],
+      "container": null,
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 22868,
+        "output_tokens": 60,
+        "output_tokens_details": {
+          "thinking_tokens": 57
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 60,
+            "cache_read_input_tokens": 22868,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:21.686Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "6b8c964d-f1ac-490e-9e5e-b7962da188dd",
+    "session_id": "b120b9e8-c724-493c-afe1-704cbb72dc87",
+    "message": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CfrjcUYPB6s3pRXtw7Hpr",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "done"
+        }
+      ],
+      "container": null,
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 22868,
+        "output_tokens": 60,
+        "output_tokens_details": {
+          "thinking_tokens": 57
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 60,
+            "cache_read_input_tokens": 22868,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "input_transformations": [],
+      "diagnostics": null,
+      "context_management": null
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-10-09T13:23:21.691Z"
+  }
+]
