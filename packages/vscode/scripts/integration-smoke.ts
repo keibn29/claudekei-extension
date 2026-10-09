@@ -165,6 +165,14 @@ try {
   check('catalog models/commands present', boot.catalog.models.length > 3 && boot.catalog.commands.length > 10, `${boot.catalog.models.length} models, ${boot.catalog.commands.length} commands`);
   console.log(`  default agent: ${boot.catalog.defaults.agent}`);
 
+  // per-model context windows: measured on a background no-turn probe (setModel + getContextUsage) ---------------
+  await waitFor('model context windows', () => manager.catalog().models.filter((m) => (m.contextWindow ?? 0) > 0).length >= manager.catalog().models.length, 120_000).catch(() => undefined);
+  // One snapshot: the catalog's model list can still change while later probes/inits refresh it (a model that only
+  // appears in a later list is measured by the next refresh), so only require the measured ones to be sane.
+  const windowModels = manager.catalog().models;
+  const measured = windowModels.filter((m) => (m.contextWindow ?? 0) > 0);
+  check('model windows measured for the catalog models (at least two, all > 0, more than one distinct value)', measured.length >= 2 && measured.length >= windowModels.length - 1 && new Set(measured.map((m) => m.contextWindow)).size >= 2, measured.map((m) => `${m.value}=${m.contextWindow}`).join(', '));
+
   // 3. create + send ---------------------------------------------------------------------------
   const s1 = manager.create();
   created.push(s1.id);

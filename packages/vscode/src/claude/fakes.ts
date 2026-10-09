@@ -145,13 +145,21 @@ export class FakeQuery implements ClaudeQuery {
   }
   /** Responses of `getContextUsage` / the usage endpoint; unset = the method fails like an unsupported CLI. */
   contextRaw: unknown;
+  /** Probe-style measurement: window per model value (the last `setModel` selects it; none = `default`). */
+  windowsByModel?: Record<string, number>;
   usageRaw: unknown;
   contextCalls: Array<{ detail?: string }> = [];
   usageCalls = 0;
   async getContextUsage(options?: { detail?: 'summary' | 'full' }): Promise<unknown> {
     this.contextCalls.push({ detail: options?.detail });
-    if (this.contextRaw === undefined) throw new Error('unsupported');
-    return this.contextRaw;
+    if (this.contextRaw !== undefined) return this.contextRaw;
+    if (this.windowsByModel) {
+      const model = this.models.at(-1) ?? 'default';
+      const w = this.windowsByModel[model];
+      if (w === undefined) throw new Error(`unknown model ${model}`);
+      return { totalTokens: 0, maxTokens: w, rawMaxTokens: w, categories: [], model };
+    }
+    throw new Error('unsupported');
   }
   async usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET(): Promise<unknown> {
     this.usageCalls++;
@@ -238,7 +246,7 @@ export function createHarness(
   overrides: Partial<ManagerConfig> = {},
   init: InitializationResult = STUB_INIT,
   /** `shared` simulates a window reload: a new manager over the same workspaceState and transcripts. */
-  extra: { home?: string; cwd?: string; shared?: { store: Map<string, unknown>; api: FakeSessionApi }; contextRaw?: unknown; usageRaw?: unknown } = {},
+  extra: { home?: string; cwd?: string; shared?: { store: Map<string, unknown>; api: FakeSessionApi }; contextRaw?: unknown; usageRaw?: unknown; windows?: Record<string, number>; distDir?: string; measureWindows?: boolean } = {},
 ): Harness {
   const timers = new ManualTimers();
   const broadcaster = new Broadcaster({ setTimer: timers.setTimeout, clearTimer: timers.clearTimeout });
@@ -255,8 +263,10 @@ export function createHarness(
     // "name#2" starts the recording at its third input segment (a respawned process continuing a conversation).
     const [base, skip] = name.split('#');
     const q = new FakeQuery(params, isProbe ? [] : segmentsOf(base!).slice(Number(skip ?? 0)), init);
-    q.contextRaw = extra.contextRaw;
+    // The catalog probe has no conversation: only live sessions answer with a recorded breakdown.
+    q.contextRaw = isProbe ? undefined : extra.contextRaw;
     q.usageRaw = extra.usageRaw;
+    q.windowsByModel = extra.windows;
     queries.push(q);
     return q;
   };
@@ -270,6 +280,9 @@ export function createHarness(
     getConfig: () => config,
     runtime: async () => runtime,
     home: extra.home ?? '/nonexistent-home',
+    // The extra measuring probe would shift every test's query indices: only tests that give windows enable it.
+    measureModelWindows: extra.measureWindows ?? extra.windows !== undefined,
+    distDir: extra.distDir,
     baseEnv: { PATH: '/usr/bin', ANTHROPIC_API_KEY: 'sk-test', HOME: '/home/x' },
     loginPath: async () => '/opt/login/bin',
     log: (level, message) => logs.push({ level, message }),

@@ -537,6 +537,8 @@ export type ModelInfo = {
   description: string;
   supportsEffort?: boolean;
   supportedEffortLevels?: EffortLevel[];
+  /** Context window in tokens for this model, measured by the host (SDK getContextUsage maxTokens); undefined = unknown. */
+  contextWindow?: number;
   supportsAdaptiveThinking?: boolean;
   supportsFastMode?: boolean;
   supportsAutoMode?: boolean;

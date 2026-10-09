@@ -33,6 +33,25 @@ describe('resolveModelLimit', () => {
   });
 });
 
+describe('resolveModelLimit with a measured contextWindow', () => {
+  test('the host-measured window wins over the static table', () => {
+    expect(resolveModelLimit({ value: 'opus', contextWindow: 1_000_000 }).context).toBe(1_000_000);
+    expect(resolveModelLimit({ value: 'sonnet', contextWindow: 500_000 })).toEqual({ context: 500_000, output: 64_000 });
+    expect(resolveModelLimit({ value: 'opus[1m]', contextWindow: 200_000 }).context).toBe(200_000);
+  });
+
+  test('without it (or with a bogus value) the table applies', () => {
+    expect(resolveModelLimit({ value: 'opus' }).context).toBe(200_000);
+    expect(resolveModelLimit({ value: 'opus', contextWindow: 0 }).context).toBe(200_000);
+  });
+
+  test('providers built from the catalog carry the measured window', () => {
+    const provider = buildAnthropicProvider({ models: [{ value: 'opus', displayName: 'Opus', description: '', contextWindow: 1_000_000 }, { value: 'haiku', displayName: 'Haiku', description: '' }] });
+    expect(provider.models.opus.limit.context).toBe(1_000_000);
+    expect(provider.models.haiku.limit.context).toBe(200_000);
+  });
+});
+
 describe('buildAnthropicProvider', () => {
   test('builds one provider keyed by model value', () => {
     const provider = buildAnthropicProvider(catalog);

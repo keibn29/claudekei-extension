@@ -43,7 +43,7 @@ export function createClaudeHost(context: vscode.ExtensionContext, output: vscod
     getConfig: readManagerConfig,
     clientApp: `claudekei/${String(context.extension?.packageJSON?.version ?? '0')}`,
     log: (level, message, data) => {
-      if (level === 'debug') return;
+      if (level === 'debug') return; // model-window measurement problems are logged at warn/info on purpose
       output.appendLine(`[ClaudeKei] ${level} ${message}${data === undefined ? '' : ` ${safeJson(data)}`}`);
     },
     stderr: (data) => output.appendLine(`[claude stderr] ${data.trimEnd()}`),

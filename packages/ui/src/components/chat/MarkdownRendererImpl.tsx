@@ -11,10 +11,13 @@ import remend from 'remend';
 import { FadeInOnReveal } from './message/FadeInOnReveal';
 import type { Part } from '@/lib/claude/types';
 import { cn } from '@/lib/utils';
-import { RiFileCopyLine, RiCheckLine, RiDownloadLine } from '@remixicon/react';
+import { RiFileCopyLine, RiCheckLine, RiDownloadLine, RiPlayLine } from '@remixicon/react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { toast } from '@/components/ui';
 import { copyTextToClipboard } from '@/lib/clipboard';
+import { claudeClient } from '@/lib/claude/client';
+import { isRunnableShellLanguage, toTerminalCommand } from '@/lib/claude/shellBlock';
+import { isVSCodeRuntime } from '@/lib/desktop';
 import { useI18n } from '@/lib/i18n';
 
 import { isExternalHttpUrl, openExternalUrl } from '@/lib/url';
@@ -23,7 +26,6 @@ import { getDefaultTheme } from '@/lib/theme/themes';
 import { generateSyntaxTheme } from '@/lib/theme/syntaxThemeGenerator';
 import type { ToolPopupContent } from './message/types';
 import { useUIStore } from '@/stores/useUIStore';
-import { useDeviceInfo } from '@/lib/device';
 import { useEffectiveDirectory } from '@/hooks/useEffectiveDirectory';
 import { useRuntimeAPIs } from '@/hooks/useRuntimeAPIs';
 import type { EditorAPI } from '@/lib/api/types';
@@ -314,7 +316,7 @@ const TableWrapper: React.FC<{ children?: React.ReactNode; className?: string }>
 
   return (
     <div className="group my-4 flex flex-col space-y-2" data-markdown="table-wrapper" ref={tableRef}>
-      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center justify-end gap-1">
         <TableCopyButton tableRef={tableRef} />
         <TableDownloadButton tableRef={tableRef} />
       </div>
@@ -330,7 +332,6 @@ const TableWrapper: React.FC<{ children?: React.ReactNode; className?: string }>
 const MermaidBlock: React.FC<{ source: string; mode: 'svg' | 'ascii' }> = ({ source, mode }) => {
   const { t } = useI18n();
   const currentTheme = useCurrentMermaidTheme();
-  const { isMobile } = useDeviceInfo();
   const [copied, setCopied] = React.useState(false);
   const [downloaded, setDownloaded] = React.useState(false);
 
@@ -362,7 +363,8 @@ const MermaidBlock: React.FC<{ source: string; mode: 'svg' | 'ascii' }> = ({ sou
     }
   }, [mode, source]);
 
-  const copyVisibilityClass = isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100';
+  // Actions are always visible; the strip above the diagram is reserved (`pt-7`) so they never cover its text.
+  const copyVisibilityClass = 'opacity-100';
 
   const handleCopyAscii = async (asciiText: string) => {
     if (!asciiText) return;
@@ -405,7 +407,7 @@ const MermaidBlock: React.FC<{ source: string; mode: 'svg' | 'ascii' }> = ({ sou
     const asciiText = ascii || source;
 
     return (
-      <div data-markdown="mermaid-block" className="group">
+      <div data-markdown="mermaid-block" className="group pt-7">
         <div data-markdown="mermaid-scroll">
           <pre data-markdown="mermaid-ascii">{asciiText}</pre>
         </div>
@@ -429,7 +431,7 @@ const MermaidBlock: React.FC<{ source: string; mode: 'svg' | 'ascii' }> = ({ sou
 
   if (!svg) {
     return (
-      <div data-markdown="mermaid-block" className="group">
+      <div data-markdown="mermaid-block" className="group pt-7">
         <div data-markdown="mermaid-scroll">
           <pre data-markdown="mermaid-ascii">{source}</pre>
         </div>
@@ -452,7 +454,7 @@ const MermaidBlock: React.FC<{ source: string; mode: 'svg' | 'ascii' }> = ({ sou
   }
 
   return (
-    <div data-markdown="mermaid-block" className="group">
+    <div data-markdown="mermaid-block" className="group pt-7">
       <div data-markdown="mermaid-scroll">
         <div data-markdown="mermaid" dangerouslySetInnerHTML={{ __html: svg }} />
       </div>
@@ -698,8 +700,12 @@ const MarkdownCodeBlock: React.FC<{
   code: string;
   language: string;
   syntaxTheme: { [key: string]: React.CSSProperties };
-}> = ({ code, language, syntaxTheme }) => {
+  /** Offer "Run in terminal" for shell blocks (assistant markdown only, never tool output). */
+  allowRun?: boolean;
+}> = ({ code, language, syntaxTheme, allowRun = false }) => {
   const [copied, setCopied] = React.useState(false);
+  const [ran, setRan] = React.useState(false);
+  const canRun = allowRun && isRunnableShellLanguage(language) && isVSCodeRuntime();
   const [highlight, setHighlight] = React.useState(true);
   const prevCodeRef = React.useRef<string>(code);
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -732,16 +738,42 @@ const MarkdownCodeBlock: React.FC<{
     window.setTimeout(() => setCopied(false), 2000);
   }, [code]);
 
+  const handleRun = React.useCallback(async () => {
+    const command = toTerminalCommand(code, language);
+    if (!command) return;
+    try {
+      await claudeClient.runInTerminal(command);
+      setRan(true);
+      window.setTimeout(() => setRan(false), 1500);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not run the command in the terminal');
+    }
+  }, [code, language]);
+
   return (
     <div data-component="markdown-code" className="my-4 group overflow-hidden rounded-2xl border border-border/80 bg-[var(--surface-elevated)]">
       <div className="flex items-center justify-between border-b border-border/70 px-3 py-1.5">
         <span className="font-mono text-[13px] text-muted-foreground">{language}</span>
-        <div className="opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="flex flex-shrink-0 items-center gap-0.5">
+          {canRun ? (
+            <button
+              type="button"
+              onClick={() => { void handleRun(); }}
+              className="p-1 rounded hover:bg-interactive-hover/60 text-muted-foreground hover:text-foreground transition-colors"
+              title={ran ? 'Sent to terminal' : 'Run in terminal'}
+              aria-label="Run in terminal"
+              data-code-action="run"
+            >
+              {ran ? <RiCheckLine className="size-3.5" /> : <RiPlayLine className="size-3.5" />}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => { void handleCopy(); }}
             className="p-1 rounded hover:bg-interactive-hover/60 text-muted-foreground hover:text-foreground transition-colors"
             title={copied ? 'Copied' : 'Copy code'}
+            aria-label="Copy code"
+            data-code-action="copy"
           >
             {copied ? <RiCheckLine className="size-3.5" /> : <RiFileCopyLine className="size-3.5" />}
           </button>
@@ -770,8 +802,10 @@ const MarkdownCodeBlock: React.FC<{
 
 const buildMarkdownComponents = ({
   syntaxTheme,
+  allowRun = false,
 }: {
   syntaxTheme: { [key: string]: React.CSSProperties };
+  allowRun?: boolean;
 }): Components => ({
   table({ children, ...props }) {
     return <TableWrapper className={props.className}>{children}</TableWrapper>;
@@ -832,7 +866,7 @@ const buildMarkdownComponents = ({
     if (language === 'mermaid') {
       return <MermaidBlock source={code} mode={useUIStore.getState().mermaidRenderingMode} />;
     }
-    return <MarkdownCodeBlock code={code} language={language} syntaxTheme={syntaxTheme} {...props} />;
+    return <MarkdownCodeBlock code={code} language={language} syntaxTheme={syntaxTheme} allowRun={allowRun} {...props} />;
   },
   code({ className, children, ...props }) {
     return (
@@ -1437,7 +1471,7 @@ const MarkdownRendererImpl: React.FC<MarkdownRendererProps> = ({
   });
   useExternalLinkInteractions({ containerRef });
   const syntaxTheme = React.useMemo(() => generateSyntaxTheme(currentTheme), [currentTheme]);
-  const markdownComponents = React.useMemo(() => buildMarkdownComponents({ syntaxTheme }), [syntaxTheme]);
+  const markdownComponents = React.useMemo(() => buildMarkdownComponents({ syntaxTheme, allowRun: variant === 'assistant' }), [syntaxTheme, variant]);
   const componentKey = `markdown-${part?.id ? `part-${part.id}` : `message-${messageId}`}`;
   const markdownBlocks = useStableMarkdownBlocks(content, isStreaming && !disableStreamAnimation, componentKey);
 
@@ -1522,7 +1556,7 @@ const SimpleMarkdownRendererImpl: React.FC<{
   });
   useExternalLinkInteractions({ containerRef, enabled: !disableLinkSafety });
   const syntaxTheme = React.useMemo(() => generateSyntaxTheme(currentTheme), [currentTheme]);
-  const markdownComponents = React.useMemo(() => buildMarkdownComponents({ syntaxTheme }), [syntaxTheme]);
+  const markdownComponents = React.useMemo(() => buildMarkdownComponents({ syntaxTheme, allowRun: variant === 'assistant' }), [syntaxTheme, variant]);
   const markdownBlocks = useStableMarkdownBlocks(renderedContent, false, `simple:${variant}`);
 
   const markdownClassName = variant === 'tool'

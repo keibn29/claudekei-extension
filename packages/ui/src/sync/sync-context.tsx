@@ -148,7 +148,7 @@ function isViewedInCurrentSession(directory: string, sessionId?: string): boolea
 // ---------------------------------------------------------------------------
 
 /** Toasts, notifications and cross-store side effects that run before the reducer. */
-function runEventSideEffects(event: ClaudeEvent, directory: string, store: StoreApi<DirectoryStore>): boolean {
+export function runEventSideEffects(event: ClaudeEvent, directory: string, store: StoreApi<DirectoryStore>): boolean {
   switch (event.type) {
     case "permission.asked": {
       const permission: PermissionRequest = event.properties
@@ -259,6 +259,9 @@ function runEventSideEffects(event: ClaudeEvent, directory: string, store: Store
 
     case "catalog.updated":
       setCatalog(event.properties.catalog)
+      // The config store's providers (model limits, names) are built from the catalog once at init; refresh them so a
+      // late `contextWindow` / model list change reaches the pickers (loadProviders dedups in-flight calls).
+      void useConfigStore.getState().loadProviders()
       return true
 
     case "usage.updated":

@@ -3,8 +3,8 @@
  * (live cap with LRU idle eviction, idle timeout). Vscode-free; persistence goes through a Memento-like store.
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { delimiter, join } from 'node:path';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { delimiter, dirname, join } from 'node:path';
 import type { BootstrapResponse, ClaudeEvent, LiveSessionState, SessionSnapshot } from '@openchamber/ui/src/lib/claude/protocol';
 import { EFFORT_LEVELS, PERMISSION_MODES, type AccountInfo, type Catalog, type ContextUsage, type EffortLevel, type PermissionMode, type PermissionResponse, type QuestionAnswer, type Session, type SlashCommand, type UsageLimits } from '@openchamber/ui/src/lib/claude/types';
 import { AgentLog } from './agentLog';
@@ -50,6 +50,10 @@ export type ClaudeSessionManagerOptions = {
   runtime?: () => Promise<SdkRuntime>;
   /** Where plan usage limits are kept so they show at startup (VS Code `globalState`); defaults to `store`. */
   globalStore?: KeyValueStore;
+  /** File existence check (tests); defaults to `existsSync`. */
+  exists?: (path: string) => boolean;
+  /** Measure per-model context windows on a background probe after the catalog is published (default true). */
+  measureModelWindows?: boolean;
   /** Home directory for `~/.claude/claudekei.jsonc` (tests). */
   home?: string;
   baseEnv?: NodeJS.ProcessEnv;
@@ -65,6 +69,7 @@ const AUTH_MESSAGE = 'Not logged in. Run `claude login` in a terminal (command: 
 const CATALOG_KEY = 'claudekei.catalogCache';
 const PREFS_KEY = 'claudekei.sessionPrefs';
 const USAGE_KEY = 'claudekei.usageLimits';
+const WINDOWS_KEY = 'claudekei.modelWindows';
 /** A rate_limit_event triggers a full usage refresh at most this often. */
 const USAGE_REFRESH_MIN_MS = 60_000;
 /** Bootstrap re-probes the catalog at most this often (the probe spawns a process). */
@@ -100,6 +105,11 @@ export class ClaudeSessionManager {
   private readonly statusListeners = new Set<(status: ConnectionStatus, error?: string) => void>();
   private readonly deps: ClaudeSessionDeps;
   private readonly agentLog: AgentLog;
+  private modelWindows: Record<string, number> = {};
+  private modelWindowsKey = '';
+  /** True while the values come from another Claude Code build: shown, but every model is measured again. */
+  private windowsStale = false;
+  private windowsMeasuring: Promise<void> | undefined;
   private usage: UsageLimits | undefined;
   private usageRefreshing: Promise<UsageLimits> | undefined;
   private lastUsageFetchAt = 0;
@@ -124,6 +134,14 @@ export class ClaudeSessionManager {
     this.now = options.now ?? Date.now;
     this.timers = options.timers ?? { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) };
     this.runtimeLoader = options.runtime ?? loadSdkRuntime;
+    const storedWindows = (options.globalStore ?? options.store).get<{ key: string; windows: Record<string, number>; stale?: boolean } | undefined>(WINDOWS_KEY, undefined);
+    // Always adopt the current key, so a lazy `recordModelWindow` before the first measurement persists under it.
+    this.modelWindowsKey = this.cliKey();
+    if (storedWindows?.windows) {
+      this.modelWindows = storedWindows.windows;
+      // Another Claude Code build: keep the old values as provisional (better than a wrong static 200K) and re-measure all.
+      this.windowsStale = storedWindows.stale === true || storedWindows.key !== this.modelWindowsKey;
+    }
     const cached = options.store.get<CatalogCache | undefined>(CATALOG_KEY, undefined);
     if (cached?.probe) {
       this.probe = cached.probe;
@@ -148,6 +166,7 @@ export class ClaudeSessionManager {
       onActivity: (session, state) => this.onSessionActivity(session, state),
       onCommandsChanged: (commands) => this.applyCommands(commands),
       onRateLimit: (info) => this.onRateLimit(info),
+      onModelWindow: (value, max) => this.recordModelWindow(value, max),
       isModeAllowed: (mode) => mode !== 'bypassPermissions' || this.config.allowBypassPermissions,
       log: this.log,
       now: this.now,
@@ -163,7 +182,7 @@ export class ClaudeSessionManager {
   }
 
   executable(): ExecutableResolution {
-    return resolveClaudeExecutable({ override: this.config.claudeExecutablePath, distDir: this.options.distDir });
+    return resolveClaudeExecutable({ override: this.config.claudeExecutablePath, distDir: this.options.distDir, exists: this.options.exists });
   }
 
   private async buildEnv(): Promise<Record<string, string | undefined>> {
@@ -212,7 +231,8 @@ export class ClaudeSessionManager {
     const agent = wanted && draft.primaryAgents.some((p) => p.name === wanted) ? wanted : (draft.primaryAgents[0]?.name ?? wanted ?? '');
     // A new session starts with the default agent's preset (model / effort), like a later agent switch applies it.
     const preset = draft.primaryAgents.find((p) => p.name === agent);
-    const value: Catalog = { ...draft, defaults: { ...draft.defaults, agent, ...(preset?.defaultModel ? { model: preset.defaultModel } : {}), ...(preset?.defaultEffort ? { effort: preset.defaultEffort } : {}) } };
+    const models = draft.models.map((m) => (this.modelWindows[m.value] ? { ...m, contextWindow: this.modelWindows[m.value] } : m));
+    const value: Catalog = { ...draft, models, defaults: { ...draft.defaults, agent, ...(preset?.defaultModel ? { model: preset.defaultModel } : {}), ...(preset?.defaultEffort ? { effort: preset.defaultEffort } : {}) } };
     this.catalogCache = { value, at: this.now(), key };
     return value;
   }
@@ -238,6 +258,7 @@ export class ClaudeSessionManager {
           afterInit: async (q) => void this.applyUsageRaw(await q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET?.({ skipBehaviors: true })),
         });
         this.applyProbe(result);
+        if (this.options.measureModelWindows !== false) void this.measureModelWindows();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         this.log('warn', 'catalog probe failed', message);
@@ -295,6 +316,130 @@ export class ClaudeSessionManager {
     } catch (error) {
       this.log('debug', 'initializationResult after init failed', error);
     }
+  }
+
+  /** Audit trail for commands the user ran from a code block (ClaudeKei output channel). */
+  logCommand(command: string): void {
+    this.log('info', 'terminal.run', { command: command.length > 500 ? `${command.slice(0, 500)}...` : command });
+  }
+
+  // --- model context windows ---------------------------------------------------
+
+  /**
+   * Cache key of the Claude Code build: a new CLI can change model windows. The bundled binary is identified by its
+   * platform package name and version (stable across a reinstall of the extension, which re-extracts the file and
+   * changes its path/mtime), plus the CLI version the SDK declares. Only a user-configured executable falls back to
+   * path + size + mtime.
+   */
+  private cliKey(): string {
+    const resolution = this.executable();
+    const path = resolution.path;
+    if (!path) return 'sdk-default';
+    if (resolution.source === 'bundled') {
+      try {
+        const pkg = JSON.parse(readFileSync(join(dirname(path), 'package.json'), 'utf8')) as { name?: string; version?: string };
+        if (pkg.name && pkg.version) {
+          let cli = '';
+          try {
+            const sdk = JSON.parse(readFileSync(join(dirname(dirname(path)), 'claude-agent-sdk', 'package.json'), 'utf8')) as { claudeCodeVersion?: string };
+            if (sdk.claudeCodeVersion) cli = `+cli${sdk.claudeCodeVersion}`;
+          } catch {
+            /* optional */
+          }
+          return `bundled:${pkg.name.replace(/^@anthropic-ai\//, '')}@${pkg.version}${cli}`;
+        }
+      } catch {
+        /* no package.json next to the binary: fall through to the file identity */
+      }
+    }
+    try {
+      const st = statSync(path);
+      return `${path}:${st.size}:${Math.round(st.mtimeMs)}`;
+    } catch {
+      return path;
+    }
+  }
+
+  private persistModelWindows(): void {
+    void (this.options.globalStore ?? this.options.store).update(WINDOWS_KEY, { key: this.modelWindowsKey, windows: this.modelWindows, ...(this.windowsStale ? { stale: true } : {}) });
+  }
+
+  /** Pushes `catalog.updated` when the catalog (now including new windows) changed. */
+  private announceCatalogIfChanged(): void {
+    this.catalogCache = undefined;
+    const catalog = this.catalog();
+    const json = JSON.stringify(catalog);
+    if (json === this.lastCatalogJson) return;
+    this.lastCatalogJson = json;
+    this.options.broadcaster.emit([{ type: 'catalog.updated', properties: { catalog } }]);
+  }
+
+  /** Lazy fallback: a live session measured the window of its selected model. */
+  private recordModelWindow(modelValue: string, maxTokens: number): void {
+    if (!(maxTokens > 0) || this.modelWindows[modelValue] === maxTokens) return;
+    this.modelWindows = { ...this.modelWindows, [modelValue]: maxTokens };
+    this.persistModelWindows();
+    this.announceCatalogIfChanged();
+  }
+
+  /**
+   * Measures `ModelInfo.contextWindow` for every catalog model whose window is not cached: on a no-turn probe,
+   * `setModel(value)` then `getContextUsage({detail:'summary'})` (`rawMaxTokens`, the window before any adjustment;
+   * `maxTokens` is identical for every model seen). Needs ~0.65 s per model (the model switch dominates), so it runs in
+   * the background after the catalog is published and only for models missing from the cache (keyed by CLI binary).
+   */
+  measureModelWindows(): Promise<void> {
+    this.windowsMeasuring ??= (async () => {
+      try {
+        const key = this.cliKey();
+        if (this.modelWindowsKey !== key) {
+          // The binary changed while running (e.g. the executable setting): everything measured so far is provisional.
+          this.modelWindowsKey = key;
+          this.windowsStale = true;
+        }
+        const missing = (this.probe?.models ?? []).map((m) => m.value).filter((v) => this.windowsStale || this.modelWindows[v] === undefined);
+        if (missing.length === 0 || this.status === 'error') return;
+        const startedAt = this.now();
+        const runtime = await this.runtimeLoader();
+        const found: Record<string, number> = {};
+        await probeCatalog({
+          queryFactory: runtime.queryFactory,
+          cwd: this.options.cwd,
+          env: await this.buildEnv(),
+          executablePath: this.executable().path,
+          stderr: (d) => this.log('debug', `[probe stderr] ${d.trim()}`),
+          afterInitTimeoutMs: 60_000,
+          afterInit: async (q) => {
+            if (!q.getContextUsage) return;
+            for (const value of missing) {
+              try {
+                await q.setModel(value === 'default' ? undefined : value);
+                const raw = (await q.getContextUsage({ detail: 'summary' })) as { rawMaxTokens?: number; maxTokens?: number } | undefined;
+                const window = raw?.rawMaxTokens ?? raw?.maxTokens;
+                if (typeof window === 'number' && window > 0) found[value] = window;
+              } catch (error) {
+                this.log('warn', 'model window measurement failed', { value, error: error instanceof Error ? error.message : String(error) });
+                // setModel may be refused on this query: the lazy path (live sessions) fills in later
+                if (Object.keys(found).length === 0) return;
+              }
+            }
+            await q.setModel(undefined).catch(() => undefined);
+          },
+        });
+        this.windowsStale = false;
+        this.log('info', 'model context windows measured', { key, requested: missing.length, measured: Object.keys(found).length, ms: this.now() - startedAt });
+        if (Object.keys(found).length > 0) {
+          this.modelWindows = { ...this.modelWindows, ...found };
+        }
+        this.persistModelWindows();
+        this.announceCatalogIfChanged();
+      } catch (error) {
+        this.log('warn', 'model window measurement failed', error instanceof Error ? error.message : String(error));
+      } finally {
+        this.windowsMeasuring = undefined;
+      }
+    })();
+    return this.windowsMeasuring;
   }
 
   // --- usage limits ------------------------------------------------------------

@@ -26,10 +26,12 @@ const CONTEXT_LIMIT_BY_FAMILY: Array<{ match: RegExp; limit: ContextLimit }> = [
 const EXTENDED_CONTEXT_LIMIT = 1_000_000;
 
 /** Resolve the `limit` block for a model alias or id (`sonnet`, `opus[1m]`, `claude-haiku-4-5`, ...). */
-export const resolveModelLimit = (info: Pick<ModelInfo, 'value' | 'resolvedModel'>): ContextLimit => {
+export const resolveModelLimit = (info: Pick<ModelInfo, 'value' | 'resolvedModel'> & { contextWindow?: number }): ContextLimit => {
   const haystack = `${info.value} ${info.resolvedModel ?? ''}`;
   const family = CONTEXT_LIMIT_BY_FAMILY.find((entry) => entry.match.test(haystack));
   const base = family?.limit ?? DEFAULT_CONTEXT_LIMIT;
+  // The host measures the real window per model (`ModelInfo.contextWindow`); the static table is only the fallback.
+  if (typeof info.contextWindow === 'number' && info.contextWindow > 0) return { ...base, context: info.contextWindow };
   return /\[1m\]/i.test(haystack) ? { ...base, context: EXTENDED_CONTEXT_LIMIT } : base;
 };
 

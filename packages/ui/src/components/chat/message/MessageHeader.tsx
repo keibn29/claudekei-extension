@@ -87,7 +87,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({ isUser, providerID, agent
                                 }
                             >
                                 <RiBrainAi3Line className="h-3 w-3 flex-shrink-0" />
-                                <span className="font-medium">{variant.length > 0 ? variant[0].toLowerCase() + variant.slice(1) : variant}</span>
+                                <span className="font-medium">{variant}</span>
                             </div>
                         )}
                     </div>

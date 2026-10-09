@@ -125,6 +125,8 @@ export type ProbeOptions = {
   stderr?: (data: string) => void;
   /** Runs on the probe's query after `initializationResult()` (e.g. the usage-limits fetch); failures are ignored. */
   afterInit?: (query: ClaudeQuery) => Promise<void>;
+  /** Upper bound for `afterInit` (default 8 s). */
+  afterInitTimeoutMs?: number;
 };
 
 /**
@@ -166,7 +168,7 @@ export async function probeCatalog(options: ProbeOptions): Promise<ProbeResult> 
     if (options.afterInit) {
       let guard: ReturnType<typeof setTimeout> | undefined;
       try {
-        await Promise.race([options.afterInit(q), new Promise<void>((resolve) => (guard = setTimeout(resolve, 8000)))]);
+        await Promise.race([options.afterInit(q), new Promise<void>((resolve) => (guard = setTimeout(resolve, options.afterInitTimeoutMs ?? 8000)))]);
       } catch {
         /* optional extra data */
       } finally {

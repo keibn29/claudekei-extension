@@ -50,6 +50,8 @@ export type ClaudeSessionDeps = {
   onCommandsChanged?: (commands: SlashCommand[]) => void;
   /** `rate_limit_event` seen on a live process (raw `rate_limit_info`). */
   onRateLimit?: (info: Record<string, unknown>) => void;
+  /** A live `getContextUsage` measured the window of the selected model value (lazy fallback for model windows). */
+  onModelWindow?: (modelValue: string, maxTokens: number) => void;
   /** `bypassPermissions` is only honoured when the user enabled `claudekei.allowBypassPermissions`. */
   isModeAllowed?: (mode: PermissionMode) => boolean;
   log: (level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: unknown) => void;
@@ -629,6 +631,7 @@ export class ClaudeSession {
         const usage = toContextUsage(await query.getContextUsage!({ detail: 'full' }), this.deps.now());
         if (usage && !this.disposed) {
           this.contextUsage = usage;
+          this.deps.onModelWindow?.(this.prefs.model, usage.maxTokens);
           this.contextMeasuredAt = this.deps.now();
           this.info = { ...this.info, contextUsage: usage };
           this.publish([{ type: 'session.updated', properties: { sessionID: this.id, info: this.info } }]);

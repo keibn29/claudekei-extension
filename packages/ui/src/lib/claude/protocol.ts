@@ -134,6 +134,11 @@ export type ClaudeRequestMap = {
   'claude:session.contextUsage': { payload: { sessionId: string }; response: ContextUsage };
   /** Re-reads the plan usage limits (no model turn). Resolves `windows: []` for API-key / third-party providers. */
   'claude:usage.refresh': { payload: Record<string, never>; response: UsageLimits };
+  /**
+   * Run a shell command the user explicitly clicked "Run" on (e.g. a ```bash block in a message) in a VS Code
+   * terminal named "ClaudeKei" (reused if open), cwd = workspace folder, executed immediately (newline appended).
+   */
+  'claude:terminal.run': { payload: { command: string }; response: void };
   'claude:catalog.refresh': { payload: Record<string, never>; response: Catalog };
 };
 

@@ -58,7 +58,7 @@ import type { MobileControlsPanel } from './mobileControlsUtils';
 import { agentLabel, formatAgentName, getDefaultAgent, isPrimaryMode } from './mobileControlsUtils';
 import { useAgentSwitchState } from './hooks/useAgentSwitchState';
 import { shortAgentDescription } from '@/lib/claude/catalog';
-import { useComposerModel } from './hooks/useComposerModel';
+import { useCatalog, useComposerModel } from './hooks/useComposerModel';
 import { useEffortControl } from './hooks/useEffortControl';
 import { CYCLE_EFFORT_EVENT } from '@/lib/claude/effort';
 import { effortLabel, supportedEffortLevels } from '@/lib/claude/modelNames';
@@ -321,7 +321,7 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
     const getCurrentModelVariants = useConfigStore((state) => state.getCurrentModelVariants);
     const setAgent = useConfigStore((state) => state.setAgent);
     const getCurrentProvider = useConfigStore((state) => state.getCurrentProvider);
-    const getModelMetadata = useConfigStore((state) => state.getModelMetadata);
+    const getStoreModelMetadata = useConfigStore((state) => state.getModelMetadata);
     const getCurrentAgent = useConfigStore((state) => state.getCurrentAgent);
     const getVisibleAgents = useConfigStore((state) => state.getVisibleAgents);
 
@@ -370,6 +370,22 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
     const composerModel = useComposerModel();
     const effortControl = useEffortControl();
     const hostSession = useSession(currentSessionId);
+    // The window the running session model was actually measured with (`Session.contextUsage.maxTokens`) beats the
+    // catalog value, which can lag behind (e.g. a 1M model listed with the static 200K).
+    const runningModelId = hostSession?.model;
+    const runningWindow = hostSession?.contextUsage?.maxTokens;
+    const catalogForLimits = useCatalog();
+    const getModelMetadata = React.useCallback((providerId: string, modelId: string) => {
+        const metadata = getStoreModelMetadata(providerId, modelId);
+        if (!metadata) return metadata;
+        // Order: the running session's measured window, then the live catalog's `contextWindow` (reactive, so it cannot
+        // go stale like the config-store providers), then whatever the store holds.
+        const catalogWindow = catalogForLimits?.models.find((model) => model.value === modelId)?.contextWindow;
+        const window = modelId === runningModelId && runningWindow && runningWindow > 0
+            ? runningWindow
+            : (catalogWindow && catalogWindow > 0 ? catalogWindow : undefined);
+        return window ? { ...metadata, limit: { ...metadata.limit, context: window } } : metadata;
+    }, [catalogForLimits, getStoreModelMetadata, runningModelId, runningWindow]);
 
     const toggleFavoriteModel = useUIStore((state) => state.toggleFavoriteModel);
     const isFavoriteModel = useUIStore((state) => state.isFavoriteModel);
@@ -1682,7 +1698,8 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
                                                             'focus:outline-none focus-visible:ring-1 focus-visible:ring-primary'
                                                         )}
                                                     >
-                                                        <div className="flex min-w-0 flex-col">
+                                                        <div className="flex min-w-0 items-center gap-2">
+                                                            <ProviderLogo providerId={provider.id as string} className="h-3.5 w-3.5 flex-shrink-0" />
                                                             <span className="typography-meta font-medium text-foreground">
                                                                 {getModelDisplayName(model)}
                                                             </span>
@@ -1963,7 +1980,8 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
         const isSelected = currentProviderId === providerID && currentModelId === modelID;
         const isFavorite = isFavoriteModel(providerID, modelID);
 
-        const showProviderLogo = keyPrefix === 'fav' || keyPrefix === 'recent';
+        // The provider mark precedes every model name (favorites, recents and the main list alike).
+        const showProviderLogo = true;
 
         // Check if model supports thinking variants - variants are on the model object, not metadata
         const modelVariants = (model as { variants?: Record<string, unknown> } | undefined)?.variants;

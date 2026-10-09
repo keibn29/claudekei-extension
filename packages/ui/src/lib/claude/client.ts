@@ -83,6 +83,9 @@ export const claudeClient = {
 
   contextUsage: (sessionId: string): Promise<ContextUsage> => request('claude:session.contextUsage', { sessionId }),
 
+  /** Runs a command in the host's "ClaudeKei" terminal right away. */
+  runInTerminal: (command: string): Promise<void> => request('claude:terminal.run', { command }),
+
   refreshUsage: (): Promise<UsageLimits> => request('claude:usage.refresh', {}),
 
   refreshCatalog: (): Promise<Catalog> => request('claude:catalog.refresh', {}),

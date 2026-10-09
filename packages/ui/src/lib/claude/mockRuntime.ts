@@ -54,10 +54,10 @@ const STREAM_STEP_MS = 35;
 
 const MOCK_CATALOG: Catalog = {
   models: [
-    { value: 'default', displayName: 'Default (recommended)', description: 'Use the default model (currently Opus 5.5)', supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'] },
-    { value: 'opus', displayName: 'Opus', description: 'Mock most capable model', resolvedModel: 'claude-opus-5-5', supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'] },
-    { value: 'sonnet', displayName: 'Sonnet', description: 'Mock balanced model', resolvedModel: 'claude-sonnet-4-5-20250929', supportedEffortLevels: ['low', 'medium', 'high'] },
-    { value: 'haiku', displayName: 'Haiku', description: 'Mock fastest model', resolvedModel: 'claude-haiku-4-5', supportsEffort: false },
+    { value: 'default', displayName: 'Default (recommended)', description: 'Use the default model (currently Opus 5.5)', contextWindow: 1_000_000, supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'] },
+    { value: 'opus', displayName: 'Opus', description: 'Mock most capable model', resolvedModel: 'claude-opus-5-5', contextWindow: 1_000_000, supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'] },
+    { value: 'sonnet', displayName: 'Sonnet', description: 'Mock balanced model', resolvedModel: 'claude-sonnet-4-5-20250929', contextWindow: 500_000, supportedEffortLevels: ['low', 'medium', 'high'] },
+    { value: 'haiku', displayName: 'Haiku', description: 'Mock fastest model', resolvedModel: 'claude-haiku-4-5', contextWindow: 200_000, supportsEffort: false },
   ],
   commands: [
     { name: 'compact', description: 'Compact the conversation', argumentHint: '', builtin: true },
@@ -455,6 +455,14 @@ export function createMockClaudeRuntime(): ClaudeRuntimeAPI {
     finishAssistant(entry, assistant);
   };
 
+  /** `[mock:code]`: markdown with shell and non-shell fenced blocks (the Run button shows on the shell ones). */
+  const playCodeTurn = async (entry: MockSession, userMessage: UserMessage, signal: AbortSignal) => {
+    const assistant = newAssistant(entry, userMessage);
+    const text = 'Run the tests, then check the types:\n\n```bash\n$ bun test packages/ui/src\n```\n\nA multi-line script:\n\n```sh\ncd packages/ui\nbun run type-check\n```\n\nAnd some TypeScript (no Run button):\n\n```ts\nexport const answer = 42;\n```\n\nUntagged blocks never get a Run button:\n\n```\nnpm test\n```\n';
+    await streamText(entry, textPartFor(entry, assistant), text, signal);
+    finishAssistant(entry, assistant);
+  };
+
   /** `[mock:auth]`: the host reports that Claude is not signed in. */
   const playAuthError = async (entry: MockSession) => {
     emit([
@@ -782,6 +790,7 @@ export function createMockClaudeRuntime(): ClaudeRuntimeAPI {
   const playTurn = async (entry: MockSession, userMessage: UserMessage, signal: AbortSignal, prompt: string) => {
     if (prompt.includes('[mock:plan]')) return playPlanTurn(entry, userMessage, signal);
     if (prompt.includes('[mock:bash]')) return playBashTurn(entry, userMessage, signal);
+    if (prompt.includes('[mock:code]')) return playCodeTurn(entry, userMessage, signal);
     if (prompt.includes('[mock:auth]')) return playAuthError(entry);
     if (prompt.includes('[mock:hook]')) return playHookBlock(entry);
     if (prompt.includes('[mock:subagents]')) return playSubagentsTurn(entry, userMessage, signal);
@@ -1082,6 +1091,10 @@ export function createMockClaudeRuntime(): ClaudeRuntimeAPI {
       usageLimits = buildMockUsageLimits();
       emit([{ type: 'usage.updated', properties: { usage: usageLimits } }]);
       return usageLimits;
+    },
+    'claude:terminal.run': (payload) => {
+      // No terminal in the mock: log what the host would run.
+      console.info('[mock-claude] terminal.run', payload.command);
     },
     'claude:catalog.refresh': () => MOCK_CATALOG,
   };

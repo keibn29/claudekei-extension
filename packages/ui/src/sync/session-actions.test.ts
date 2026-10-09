@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test'
 
 // ---------------------------------------------------------------------------
 // Mocks — session-actions only talks to claudeClient and a few stores.
@@ -14,6 +14,11 @@ const record = (fn: string, result?: unknown) => (...args: unknown[]) => {
 let failDeleteFor = new Set<string>()
 const toasts: string[] = []
 
+// Real modules are restored in `afterAll` (mock.module is process-wide in bun).
+const realClientModule = { ...(await import('@/lib/claude/client')) }
+afterAll(() => {
+  mock.module('@/lib/claude/client', () => realClientModule)
+})
 mock.module('@/lib/claude/client', () => ({
   claudeClient: {
     createSession: record('createSession', {
@@ -54,6 +59,11 @@ mock.module('@/stores/useGlobalSessionsStore', () => ({
     }),
   },
 }))
+// Keep the real module around: mock.module is process-wide, so other test files get it back in `afterAll`.
+const realConfigStoreModule = { ...(await import('@/stores/useConfigStore')) }
+afterAll(() => {
+  mock.module('@/stores/useConfigStore', () => realConfigStoreModule)
+})
 mock.module('@/stores/useConfigStore', () => ({
   useConfigStore: {
     getState: () => ({

@@ -1,5 +1,6 @@
 import type { ClaudeRequestMap, ClaudeRequestType } from '@openchamber/ui/src/lib/claude/protocol';
 import { isAnswerList } from './claude/permissions';
+import { validateTerminalCommand } from './claude/terminalCommand';
 import type { BridgeContext, BridgeResponse } from './bridge';
 
 type BridgeMessageInput = { id: string; type: string; payload?: unknown };
@@ -28,6 +29,7 @@ const CLAUDE_REQUEST_TYPES: ReadonlySet<string> = new Set<ClaudeRequestType>([
   'claude:session.setEffort',
   'claude:session.contextUsage',
   'claude:usage.refresh',
+  'claude:terminal.run',
   'claude:permission.respond',
   'claude:question.respond',
   'claude:catalog.refresh',
@@ -65,6 +67,7 @@ export async function handleClaudeBridgeMessage(message: BridgeMessageInput, ctx
           command: send.command,
           model: send.model,
           mode: send.mode,
+          effort: send.effort,
           agent: send.agent,
         });
         return ok(result);
@@ -88,6 +91,12 @@ export async function handleClaudeBridgeMessage(message: BridgeMessageInput, ctx
         return ok();
       case 'claude:session.contextUsage':
         return ok(await manager.contextUsage(requireString(payload, 'sessionId')));
+      case 'claude:terminal.run': {
+        // Validate first; the vscode-dependent glue is loaded only for a valid command (keeps this module testable).
+        const command = validateTerminalCommand(payload.command);
+        await (await import('./claude/terminalRun')).runInClaudeKeiTerminal(manager, command);
+        return ok();
+      }
       case 'claude:usage.refresh':
         return ok(await manager.refreshUsage());
       case 'claude:session.setEffort': {
