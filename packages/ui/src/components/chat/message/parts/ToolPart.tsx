@@ -1753,11 +1753,8 @@ const ToolPartRouter: React.FC<ToolPartProps> = (props) => {
         return (
             <SubagentCard
                 part={props.part}
-                isExpanded={props.isExpanded}
-                onToggle={props.onToggle}
                 onContentChange={props.onContentChange}
                 onShowPopup={props.onShowPopup}
-                animateTailText={props.animateTailText}
             />
         );
     }

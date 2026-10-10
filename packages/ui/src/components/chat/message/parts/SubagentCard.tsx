@@ -1,5 +1,4 @@
 import React from 'react';
-import { RiArrowDownSLine, RiArrowRightSLine } from '@remixicon/react';
 import type { ToolPart } from '@/lib/claude/types';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
@@ -13,21 +12,17 @@ import {
     SubagentInstructionBlock,
     SubagentKindIcon,
     SubagentOpenButton,
-    SubagentOpenIconButton,
     SubagentStatusGlyph,
     SubagentToolCount,
     SubagentTypeChip,
 } from './SubagentParts';
-import { subagentTitle, useSubagentAriaLabel, useSubagentEffects, useSubagentTitle } from './useSubagentUi';
+import { subagentTitle, useSubagentEffects, useSubagentTitle } from './useSubagentUi';
 import { useSubagentInfo, type SubagentInfo } from './useSubagentInfo';
 
 export interface SubagentCardProps {
     part: ToolPart;
-    isExpanded: boolean;
-    onToggle: (toolId: string) => void;
     onContentChange?: (reason?: ContentChangeReason) => void;
     onShowPopup?: (content: ToolPopupContent) => void;
-    animateTailText?: boolean;
 }
 
 /**
@@ -112,6 +107,7 @@ export const SubagentBody: React.FC<{
                     {showOutput ? (
                         <SubagentInstructionBlock
                             id={outputId}
+                            scrollable
                             className="mt-1"
                             text={replyText}
                             popupTitle={popupTitle}
@@ -167,52 +163,25 @@ const SubagentLines: React.FC<{ info: SubagentInfo }> = ({ info }) => {
 };
 
 /**
- * Flat tool-row card for `Agent` (`task`) and `SendMessage` (`sendmessage`) parts
+ * Standalone tool-row card for `Agent` (`task`) and `SendMessage` (`sendmessage`) parts
  * (docs/PHASE1_1_UI_SPEC.md 1.2): identity first (type chip + alias), description second, status at the right edge,
- * current step while running, expandable body.
+ * body always shown (last actions, open-session link, output toggle). Not collapsible; parallel calls render as
+ * collapsible rows inside `SubagentGroup` instead.
  */
-const SubagentCard: React.FC<SubagentCardProps> = ({ part, isExpanded, onToggle, onContentChange, onShowPopup, animateTailText = true }) => {
+const SubagentCard: React.FC<SubagentCardProps> = ({ part, onContentChange, onShowPopup }) => {
     const info = useSubagentInfo(part);
     const title = useSubagentTitle(info.kind);
-    const ariaLabel = useSubagentAriaLabel(info);
     const bodyId = `subagent-body-${part.id}`;
-    useSubagentEffects(info, isExpanded, onContentChange);
-    void animateTailText;
+    useSubagentEffects(info, true, onContentChange);
 
     const active = isActiveSubagentStatus(info.status);
-    const toggle = () => onToggle(part.id);
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        toggle();
-    };
 
     return (
         <div className="@container" data-subagent-call={info.callId} data-subagent-kind={info.kind}>
-            <div
-                className="group/tool flex cursor-pointer flex-col gap-0.5 rounded-xl py-2 pl-px pr-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                role="button"
-                tabIndex={0}
-                aria-expanded={isExpanded}
-                aria-controls={bodyId}
-                aria-label={ariaLabel}
-                onClick={toggle}
-                onKeyDown={handleKeyDown}
-            >
+            <div className="flex flex-col gap-0.5 rounded-xl py-2 pl-px pr-2">
                 <div className="flex min-w-0 items-center gap-1.5">
-                    <div className="relative h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--tools-icon)' }}>
-                        <div className={cn('absolute inset-0 transition-opacity', isExpanded && 'opacity-0', !isExpanded && 'group-hover/tool:opacity-0')}>
-                            <SubagentKindIcon kind={info.kind} className="h-3.5 w-3.5" />
-                        </div>
-                        <div
-                            aria-hidden="true"
-                            className={cn(
-                                'absolute inset-0 flex items-center justify-center transition-opacity',
-                                isExpanded ? 'opacity-100' : 'opacity-0 group-hover/tool:opacity-100',
-                            )}
-                        >
-                            {isExpanded ? <RiArrowDownSLine className="h-3.5 w-3.5" /> : <RiArrowRightSLine className="h-3.5 w-3.5" />}
-                        </div>
+                    <div className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--tools-icon)' }}>
+                        <SubagentKindIcon kind={info.kind} className="h-3.5 w-3.5" />
                     </div>
                     <MinDurationShineText
                         active={active}
@@ -228,19 +197,10 @@ const SubagentCard: React.FC<SubagentCardProps> = ({ part, isExpanded, onToggle,
                         <SubagentAlias alias={info.alias} />
                     </div>
                     <SubagentStatusGlyph info={info} />
-                    {info.sessionId ? <SubagentOpenIconButton info={info} /> : null}
                 </div>
                 <SubagentLines info={info} />
             </div>
-
-            {isExpanded ? (
-                <SubagentBody id={bodyId} info={info} onShowPopup={onShowPopup} onContentChange={onContentChange} />
-            ) : (
-                // Last 5 actions stay visible under the collapsed card, live while the child streams.
-                <div id={bodyId} className="pb-1 pl-5 pr-2">
-                    <SubagentActivityList info={info} />
-                </div>
-            )}
+            <SubagentBody id={bodyId} info={info} onShowPopup={onShowPopup} onContentChange={onContentChange} />
             <SubagentLiveRegion info={info} />
         </div>
     );

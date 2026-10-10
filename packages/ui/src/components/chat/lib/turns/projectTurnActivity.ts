@@ -1,3 +1,4 @@
+import { isTurnEndFinish } from '@/lib/messageCompletion';
 import { isHiddenToolPart } from '@/lib/claude/subagents';
 import { ACTIVITY_STANDALONE_TOOL_NAMES } from './constants';
 import type {
@@ -124,7 +125,7 @@ export const projectTurnActivity = (input: ProjectActivityInput): ProjectActivit
 
             const isConfirmedSummaryText = part.type === 'text'
                 && typeof text === 'string'
-                && finish === 'stop'
+                && isTurnEndFinish(finish)
                 && input.summarySourceMessageId === message.info.id
                 && input.summarySourcePartId === partId;
 
@@ -140,7 +141,7 @@ export const projectTurnActivity = (input: ProjectActivityInput): ProjectActivit
                 && part.type === 'text'
                 && text
                 && !isConfirmedSummaryText
-                && (messageHasTool || (typeof finish === 'string' && finish !== 'stop'))
+                && (messageHasTool || (typeof finish === 'string' && !isTurnEndFinish(finish)))
             ) {
                 kind = 'justification';
             }

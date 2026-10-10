@@ -8,6 +8,7 @@ import { streamDebugEnabled } from '@/stores/utils/streamDebug';
 import { copyTextToClipboard as copyPlainTextToClipboard } from '@/lib/clipboard';
 import { getSyncSessions, getSyncMessages, getSyncParts } from '@/sync/sync-refs';
 import { useStreamingStore } from '@/sync/streaming';
+import { isTurnEndFinish } from '@/lib/messageCompletion';
 
 export interface DebugMessageInfo {
   messageId: string;
@@ -636,7 +637,7 @@ export const debugUtils = {
     const lastMessage = assistantMessages[assistantMessages.length - 1];
     const lastParts = getSyncParts(lastMessage.id) || [];
     const stepFinishParts = lastParts.filter((p: any) => p.type === 'step-finish');
-    const hasStopReason = (lastMessage as any).finish === 'stop';
+    const hasStopReason = isTurnEndFinish((lastMessage as any).finish);
 
     const timeInfo = (lastMessage as any).time;
     const completedAt = timeInfo?.completed;

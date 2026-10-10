@@ -79,17 +79,7 @@ export const useSubagentAriaLabel = (info: SubagentInfo): string => {
 /** Side effects shared by the card and the compact group rows. */
 export const useSubagentEffects = (info: SubagentInfo, isExpanded: boolean, onContentChange?: (reason?: ContentChangeReason) => void) => {
     const currentDirectory = useDirectoryStore((state) => state.currentDirectory);
-    const currentSessionId = useSessionUIStore((state) => state.currentSessionId);
-    const setContextUsageFocus = useSessionUIStore((state) => state.setContextUsageFocus);
-    const clearContextUsageFocus = useSessionUIStore((state) => state.clearContextUsageFocus);
-    const { callId, sessionId, status } = info;
-
-    // Context usage follows the expanded subagent session (existing behavior for `task` parts).
-    React.useEffect(() => {
-        if (!isExpanded || !currentSessionId || !sessionId) return;
-        setContextUsageFocus({ toolId: callId, parentSessionId: currentSessionId, sessionId });
-        return () => clearContextUsageFocus(callId);
-    }, [callId, clearContextUsageFocus, currentSessionId, isExpanded, sessionId, setContextUsageFocus]);
+    const { status } = info;
 
     // Files may have changed once a run finishes.
     const previousStatusRef = React.useRef(status);

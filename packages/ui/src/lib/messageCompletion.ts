@@ -19,6 +19,22 @@ export interface MessageRecord {
     parts: Part[];
 }
 
+// Finish reasons that mean the assistant message ended and will not be continued within the turn.
+// 'stop' is the legacy value; the Claude host reports Anthropic stop_reason values. 'tool_use' and
+// 'pause_turn' mean more assistant output follows, so they are intentionally excluded.
+// 'max_tokens' and 'refusal' end the turn as well (nothing continues after them).
+const TURN_END_FINISH_REASONS: ReadonlySet<string> = new Set([
+    'stop',
+    'end_turn',
+    'stop_sequence',
+    'max_tokens',
+    'refusal',
+]);
+
+export function isTurnEndFinish(finish: string | null | undefined): boolean {
+    return typeof finish === 'string' && TURN_END_FINISH_REASONS.has(finish);
+}
+
 export function isMessageComplete(messageInfo: MessageInfo, parts: Part[] = []): boolean {
     if (isFullySyntheticMessage(parts)) {
         return true;
@@ -28,7 +44,7 @@ export function isMessageComplete(messageInfo: MessageInfo, parts: Part[] = []):
     const completedAt = typeof timeInfo?.completed === 'number' ? timeInfo.completed : undefined;
     const messageStatus = messageInfo?.status;
 
-    const hasStopFinish = messageInfo.finish === 'stop';
+    const hasStopFinish = isTurnEndFinish(messageInfo.finish);
 
     const hasCompletedFlag = (typeof completedAt === 'number' && completedAt > 0) || messageStatus === 'completed';
     if (!hasCompletedFlag || !hasStopFinish) {

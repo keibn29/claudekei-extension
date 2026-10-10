@@ -196,6 +196,11 @@ export const SubagentOpenIconButton: React.FC<{ info: SubagentInfo }> = ({ info 
  */
 export const SubagentInstructionBlock: React.FC<{
     id?: string;
+    /**
+     * Shows the full text inside a fixed-height box that scrolls vertically: no fade, no Show more / Show less.
+     * The copy button sits on a wrapper outside the scroll container, so it stays pinned while scrolling.
+     */
+    scrollable?: boolean;
     /** Optional eyebrow row (child session: `FROM ORCHESTRATOR · #2`). Without it the copy button floats top right. */
     label?: React.ReactNode;
     text: string;
@@ -207,9 +212,9 @@ export const SubagentInstructionBlock: React.FC<{
     className?: string;
     /** Tailwind `from-*` class matching the surface behind the collapsed fade. */
     fadeClass?: string;
-}> = ({ id, label, text, popupTitle, onShowPopup, onContentChange, footerAction, className, fadeClass = 'from-background' }) => {
+}> = ({ id, scrollable = false, label, text, popupTitle, onShowPopup, onContentChange, footerAction, className, fadeClass = 'from-background' }) => {
     const { t } = useI18n();
-    const collapsible = shouldCollapseInstruction(text);
+    const collapsible = !scrollable && shouldCollapseInstruction(text);
     const [expanded, setExpanded] = React.useState(false);
     const [copied, setCopied] = React.useState(false);
     const copiedTimer = React.useRef<number | null>(null);
@@ -247,7 +252,7 @@ export const SubagentInstructionBlock: React.FC<{
                     </button>
                 </div>
             ) : null}
-            <div className="relative">
+            <div className={cn('relative', !label && 'pr-7')}>
                 {!label ? <div className="absolute right-0 top-0 z-10">
                 <button
                     type="button"
@@ -265,7 +270,7 @@ export const SubagentInstructionBlock: React.FC<{
                 <div
                     className={cn(
                         'relative typography-meta text-foreground/90',
-                        !label && 'pr-7',
+                        scrollable && 'max-h-[5.5rem] overflow-y-auto overscroll-contain',
                         isCollapsed && 'max-h-[5.5rem] overflow-hidden',
                         collapsible && expanded && 'max-h-[40vh] overflow-y-auto',
                     )}

@@ -30,6 +30,7 @@ import { isVSCodeRuntime } from '@/lib/desktop';
 import { toPng } from 'html-to-image';
 import { toast } from '@/components/ui';
 import { formatTimestampForDisplay } from './timeFormat';
+import { isTurnEndFinish } from '@/lib/messageCompletion';
 import { ToolRevealOnMount } from './parts/ToolRevealOnMount';
 import { StaticToolRow } from './parts/ProgressiveGroup';
 import { isExpandableTool, isStandaloneTool } from './parts/toolRenderUtils';
@@ -754,7 +755,7 @@ const AssistantMessageBody = React.memo(({
     const isSortedRenderMode = chatRenderMode === 'sorted';
     const collapsedPreviewCount = 7;
     const isLastAssistantInTurn = turnGroupingContext?.isLastAssistantInTurn ?? false;
-    const hasStopFinish = messageFinish === 'stop';
+    const hasStopFinish = isTurnEndFinish(messageFinish);
 
     const currentSession = React.useMemo(() => {
         if (!currentSessionId) {
@@ -1421,7 +1422,8 @@ const AssistantMessageBody = React.memo(({
 
     const showErrorMessage = Boolean(errorMessage);
 
-    const shouldShowFooter = isLastAssistantInTurn && hasTextContent && (hasStopFinish || Boolean(errorMessage));
+    // A completed turn always gets the summary, even when it ended on a tool call without text.
+    const shouldShowFooter = isLastAssistantInTurn && (hasStopFinish || (hasTextContent && Boolean(errorMessage)));
 
     const turnDurationText = React.useMemo(() => {
         if (!isLastAssistantInTurn || !hasStopFinish) return undefined;
@@ -1589,7 +1591,7 @@ const AssistantMessageBody = React.memo(({
                         style={MESSAGE_FOOTER_CONTAINER_STYLE}
                     >
                         <div className="flex items-center gap-1.5">
-                            {footerButtons}
+                            {hasTextContent ? footerButtons : null}
                             {onFork && isLastAssistantInTurn && hasStopFinish ? (
                                 <Tooltip delayDuration={1000}>
                                     <TooltipTrigger asChild>

@@ -100,12 +100,12 @@ export const SubagentHeader: React.FC<SubagentHeaderProps> = ({ onJumpToMessage 
                 </span>
                 <SubagentTypeChip info={{ typeLabel, colorKey }} />
                 {modelInfo.model ? (
-                    <span className="typography-micro flex-shrink-0 text-muted-foreground" data-subagent-model>
+                    <span className="typography-meta flex-shrink-0 text-foreground/80" data-subagent-model>
                         {modelInfo.model}
                     </span>
                 ) : null}
                 {modelInfo.effort ? (
-                    <span className="typography-micro flex-shrink-0 rounded border border-border/60 px-1 leading-4 text-muted-foreground" data-subagent-effort>
+                    <span className="typography-micro flex-shrink-0 rounded border border-border bg-muted px-1.5 leading-4 text-foreground/80" data-subagent-effort>
                         {effortLabel(modelInfo.effort).toLowerCase()}
                     </span>
                 ) : null}
