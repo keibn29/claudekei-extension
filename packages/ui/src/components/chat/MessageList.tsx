@@ -1462,14 +1462,16 @@ const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(({
         }
 
         const containerRect = container.getBoundingClientRect();
-        const messageRect = messageElement.getBoundingClientRect();
+        // Measure the turn section when present: the message wrapper may be sticky (stickyUserHeader).
+        const measureElement = messageElement.closest<HTMLElement>('[data-turn-id]') ?? messageElement;
+        const messageRect = measureElement.getBoundingClientRect();
         const offset = 50;
         const top = messageRect.top - containerRect.top + container.scrollTop - offset;
         container.scrollTo({ top, behavior });
         return true;
     }, [findMessageElement, resolveScrollContainer]);
 
-    React.useEffect(() => {
+    React.useLayoutEffect(() => {
         if (!ref) {
             return;
         }
@@ -1506,11 +1508,7 @@ const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(({
                     return false;
                 }
 
-                const targetIsTail = trailingStreamingEntry !== undefined && index >= historyEntries.length;
-                if (targetIsTail) {
-                    return false;
-                }
-
+                // Tail entries are rendered non-virtualized, so element-based scrolling works for them too.
                 return scrollMessageElementIntoView(messageId, behavior)
                     || scrollHistoryIndexIntoView(index, behavior);
             },

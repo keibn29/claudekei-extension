@@ -491,6 +491,7 @@ export const ChatContainer: React.FC = () => {
         isPinned,
         isOverflowing,
         isProgrammaticFollowActive,
+        releasePinnedScroll,
     } = useChatScrollManager({
         currentSessionId,
         sessionMessageCount,
@@ -537,6 +538,7 @@ export const ChatContainer: React.FC = () => {
         loadMoreMessages,
         prepareForBottomResume,
         scrollToBottom,
+        releasePinnedScroll,
         isPinned,
         isOverflowing,
     });
@@ -695,6 +697,12 @@ export const ChatContainer: React.FC = () => {
 
         if (lastScrolledSessionRef.current === currentSessionId) {
             return;
+        }
+
+        // A hash left over from the previous session (e.g. #message-<id>) must not suppress
+        // the initial scroll-to-latest of the newly selected session.
+        if (lastScrolledSessionRef.current !== null && typeof window !== 'undefined' && window.location.hash.length > 0) {
+            window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`);
         }
 
         const hasHashTarget = typeof window !== 'undefined' && window.location.hash.length > 0;

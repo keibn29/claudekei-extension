@@ -377,6 +377,7 @@ export const useChatScrollManager = ({
 
         if (event?.isTrusted && !isProgrammatic) {
             if (scrollingUp && isPinnedRef.current) {
+                scrollEngine.cancelFollow();
                 setFollowMode('none');
                 updatePinnedState(false);
             }

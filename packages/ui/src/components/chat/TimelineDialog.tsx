@@ -71,11 +71,18 @@ export const TimelineDialog: React.FC<TimelineDialogProps> = ({
         return new Date(timestamp).toLocaleDateString();
     }, [t]);
 
-    // Filter user messages (reversed for newest first)
-    const userMessages = React.useMemo(() => {
-        const filtered = messages.filter(m => m.info.role === 'user');
-        return filtered.reverse();
-    }, [messages]);
+    // User messages in chronological order (oldest first, newest at the bottom)
+    const userMessages = React.useMemo(
+        () => messages.filter(m => m.info.role === 'user'),
+        [messages],
+    );
+
+    // Stable 1-based numbering (oldest = 1), independent of the search filter
+    const messageNumbers = React.useMemo(() => {
+        const numbers = new Map<string, number>();
+        userMessages.forEach((m, index) => numbers.set(m.info.id, index + 1));
+        return numbers;
+    }, [userMessages]);
 
     // Filter by search query
     const filteredMessages = React.useMemo(() => {
@@ -87,6 +94,23 @@ export const TimelineDialog: React.FC<TimelineDialogProps> = ({
             return preview.includes(query);
         });
     }, [userMessages, searchQuery]);
+
+    const listRef = React.useRef<HTMLDivElement | null>(null);
+    const scrollListToBottom = React.useCallback(() => {
+        const el = listRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+    }, []);
+
+    // Content mounts only while the dialog is open, so scroll to the bottom on mount
+    const setListElement = React.useCallback((el: HTMLDivElement | null) => {
+        listRef.current = el;
+        if (el) el.scrollTop = el.scrollHeight;
+    }, []);
+
+    // Keep the newest matches in view when the search query changes
+    React.useLayoutEffect(() => {
+        scrollListToBottom();
+    }, [searchQuery, scrollListToBottom]);
 
     // Handle fork with loading state and session refresh
     const handleFork = async (messageId: string) => {
@@ -126,7 +150,7 @@ export const TimelineDialog: React.FC<TimelineDialogProps> = ({
                     />
                 </div>
 
-                <div className="flex-1 overflow-y-auto">
+                <div ref={setListElement} className="flex-1 min-h-0 overflow-y-auto">
                     {filteredMessages.length === 0 ? (
                         <div className="text-center text-muted-foreground py-8">
                             {searchQuery ? t('chat.timeline.empty.search') : t('chat.timeline.empty.session')}
@@ -136,7 +160,7 @@ export const TimelineDialog: React.FC<TimelineDialogProps> = ({
                             const preview = getMessagePreview(message.parts);
                             const timestamp = message.info.time.created;
                             const relativeTime = formatRelativeTime(timestamp);
-                            const messageNumber = userMessages.length - userMessages.indexOf(message);
+                            const messageNumber = messageNumbers.get(message.info.id) ?? 0;
 
                             return (
                                 <div

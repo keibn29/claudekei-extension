@@ -22,8 +22,11 @@ type PendingScrollRequest = {
     id: string;
     behavior: ScrollBehavior;
     turnId: string | null;
+    attempts: number;
     resolve: (value: boolean) => void;
 };
+
+const MAX_PENDING_SCROLL_ATTEMPTS = 8;
 
 interface UseChatTimelineControllerOptions {
     sessionId: string | null;
@@ -34,6 +37,7 @@ interface UseChatTimelineControllerOptions {
     loadMoreMessages: (sessionId: string, direction: 'up' | 'down') => Promise<void>;
     prepareForBottomResume: (options?: { instant?: boolean; force?: boolean }) => void;
     scrollToBottom: (options?: { instant?: boolean; force?: boolean; followBottom?: boolean }) => void;
+    releasePinnedScroll: () => void;
     isPinned: boolean;
     isOverflowing: boolean;
 }
@@ -68,6 +72,7 @@ export const useChatTimelineController = ({
     loadMoreMessages,
     prepareForBottomResume,
     scrollToBottom,
+    releasePinnedScroll,
     isPinned,
     isOverflowing,
 }: UseChatTimelineControllerOptions): UseChatTimelineControllerResult => {
@@ -217,7 +222,17 @@ export const useChatTimelineController = ({
             : turnModelRef.current.messageToTurnIndex.get(pending.id);
 
         if (typeof targetIndex === 'number' && targetIndex >= turnStartRef.current) {
-            resolvePendingScrollRequest(false);
+            // Target is inside the window but not mounted yet; retry a few frames before giving up.
+            pending.attempts += 1;
+            if (pending.attempts > MAX_PENDING_SCROLL_ATTEMPTS || typeof window === 'undefined') {
+                resolvePendingScrollRequest(false);
+                return;
+            }
+            window.requestAnimationFrame(() => {
+                if (pendingScrollRequestRef.current === pending) {
+                    attemptPendingScrollRequest();
+                }
+            });
         }
     }, [messageListRef, resolvePendingScrollRequest]);
 
@@ -375,6 +390,7 @@ export const useChatTimelineController = ({
         }
 
         setPendingRevealWork(true);
+        releasePinnedScroll();
 
         try {
             if (sessionIdRef.current !== sessionId) {
@@ -397,6 +413,7 @@ export const useChatTimelineController = ({
                     id: turnId,
                     behavior: options?.behavior ?? 'auto',
                     turnId,
+                    attempts: 0,
                     resolve,
                 };
                 attemptPendingScrollRequest();
@@ -410,7 +427,7 @@ export const useChatTimelineController = ({
         } finally {
             setPendingRevealWork(false);
         }
-    }, [attemptPendingScrollRequest, sessionId]);
+    }, [attemptPendingScrollRequest, releasePinnedScroll, sessionId]);
 
     const scrollToMessage = React.useCallback(async (
         messageId: string,
@@ -421,6 +438,7 @@ export const useChatTimelineController = ({
         }
 
         setPendingRevealWork(true);
+        releasePinnedScroll();
 
         try {
             if (sessionIdRef.current !== sessionId) {
@@ -445,6 +463,7 @@ export const useChatTimelineController = ({
                     id: messageId,
                     behavior: options?.behavior ?? 'auto',
                     turnId: turnId ?? null,
+                    attempts: 0,
                     resolve,
                 };
                 attemptPendingScrollRequest();
@@ -458,7 +477,7 @@ export const useChatTimelineController = ({
         } finally {
             setPendingRevealWork(false);
         }
-    }, [attemptPendingScrollRequest, sessionId]);
+    }, [attemptPendingScrollRequest, releasePinnedScroll, sessionId]);
 
     const resumeToBottom = React.useCallback(async () => {
         const nextStart = getInitialTurnStart(turnModelRef.current.turnCount);
