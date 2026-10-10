@@ -2,12 +2,8 @@ import React from 'react';
 import { cn, getModifierLabel } from '@/lib/utils';
 import { useUIStore } from '@/stores/useUIStore';
 import { useProjectsStore } from '@/stores/useProjectsStore';
-import { useAgentsStore } from '@/stores/useAgentsStore';
-import { useCommandsStore } from '@/stores/useCommandsStore';
-import { useMcpConfigStore } from '@/stores/useMcpConfigStore';
+import { useClaudeConfigStore } from '@/stores/useClaudeConfigStore';
 import { useMcpStore } from '@/stores/useMcpStore';
-import { useSkillsStore } from '@/stores/useSkillsStore';
-import { useSkillsCatalogStore } from '@/stores/useSkillsCatalogStore';
 import {
   RiAiAgentLine,
   RiAiGenerate2,
@@ -23,7 +19,6 @@ import {
   RiFoldersLine,
   RiGitBranchLine,
   RiGlobalLine,
-  RiMicLine,
   RiListUnordered,
   RiNotification3Line,
   RiPaletteLine,
@@ -34,21 +29,17 @@ import {
 } from '@remixicon/react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import { AgentsSidebar } from '@/components/sections/agents/AgentsSidebar';
-import { AgentsPage } from '@/components/sections/agents/AgentsPage';
-import { CommandsSidebar } from '@/components/sections/commands/CommandsSidebar';
-import { CommandsPage } from '@/components/sections/commands/CommandsPage';
+import { ConfigItemsSidebar } from '@/components/sections/claude-config/ConfigItemsSidebar';
+import { ConfigItemEditor } from '@/components/sections/claude-config/ConfigItemEditor';
 import { McpSidebar } from '@/components/sections/mcp/McpSidebar';
 import { McpPage } from '@/components/sections/mcp/McpPage';
-import { SkillsSidebar } from '@/components/sections/skills/SkillsSidebar';
-import { SkillsPage } from '@/components/sections/skills/SkillsPage';
+import { SkillsCatalogPage } from '@/components/sections/skills/catalog/SkillsCatalogPage';
 import { ProjectsSidebar } from '@/components/sections/projects/ProjectsSidebar';
 import { ProjectsPage } from '@/components/sections/projects/ProjectsPage';
 import { RemoteInstancesSidebar } from '@/components/sections/remote-instances/RemoteInstancesSidebar';
 import { RemoteInstancesPage } from '@/components/sections/remote-instances/RemoteInstancesPage';
 import { ProvidersSidebar } from '@/components/sections/providers/ProvidersSidebar';
 import { ProvidersPage } from '@/components/sections/providers/ProvidersPage';
-import { UsageSidebar } from '@/components/sections/usage/UsageSidebar';
 import { UsagePage } from '@/components/sections/usage/UsagePage';
 import { MagicPromptsSidebar } from '@/components/sections/magic-prompts/MagicPromptsSidebar';
 import { MagicPromptsPage } from '@/components/sections/magic-prompts/MagicPromptsPage';
@@ -102,7 +93,6 @@ const pageOrder: SettingsPageSlug[] = [
   'skills.installed',
   'skills.catalog',
   'plugins',
-  'voice',
   'tunnel',
 ];
 
@@ -158,8 +148,6 @@ export function getSettingsNavIcon(slug: SettingsPageSlug): React.ComponentType<
 
     case 'usage':
       return RiBarChart2Line;
-    case 'voice':
-      return RiMicLine;
     case 'tunnel':
       return RiGlobalLine;
     case 'plugins':
@@ -340,22 +328,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
       return;
     }
 
-    if (settingsSlug === 'agents') {
-      void useAgentsStore.getState().loadAgents();
-      return;
-    }
-    if (settingsSlug === 'commands') {
-      void useCommandsStore.getState().loadCommands();
+    if (
+      settingsSlug === 'agents' ||
+      settingsSlug === 'commands' ||
+      settingsSlug === 'skills.installed' ||
+      settingsSlug === 'plugins'
+    ) {
+      void useClaudeConfigStore.getState().load();
       return;
     }
     if (settingsSlug === 'mcp') {
-      void useMcpConfigStore.getState().loadMcpConfigs();
-      void useMcpStore.getState().refresh({ silent: true });
-      return;
-    }
-    if (settingsSlug === 'skills.installed' || settingsSlug === 'skills.catalog') {
-      void useSkillsStore.getState().loadSkills();
-      void useSkillsCatalogStore.getState().loadCatalog();
+      void useMcpStore.getState().refresh(false);
     }
   }, [activeProjectId, isSettingsDialogOpen, runtimeCtx.isVSCode, settingsSlug]);
 
@@ -386,7 +369,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
     shortcuts: 'shortcuts',
     sessions: 'sessions',
     notifications: 'notifications',
-    voice: 'voice',
     tunnel: 'tunnel',
   }), []);
 
@@ -424,8 +406,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
         return t('settings.page.magicPrompts.title');
       case 'notifications':
         return t('settings.page.notifications.title');
-      case 'voice':
-        return t('settings.page.voice.title');
       case 'tunnel':
         return t('settings.page.tunnel.title');
       case 'plugins':
@@ -454,17 +434,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
       case 'remote-instances':
         return <RemoteInstancesSidebar onItemSelect={opts.onItemSelect} />;
       case 'agents':
-        return <AgentsSidebar onItemSelect={opts.onItemSelect} />;
+        return <ConfigItemsSidebar kind="agent" onItemSelect={opts.onItemSelect} />;
       case 'commands':
-        return <CommandsSidebar onItemSelect={opts.onItemSelect} />;
+        return <ConfigItemsSidebar kind="command" onItemSelect={opts.onItemSelect} />;
       case 'mcp':
         return <McpSidebar onItemSelect={opts.onItemSelect} />;
       case 'skills.installed':
-        return <SkillsSidebar onItemSelect={opts.onItemSelect} />;
+        return <ConfigItemsSidebar kind="skill" onItemSelect={opts.onItemSelect} />;
       case 'providers':
         return <ProvidersSidebar onItemSelect={opts.onItemSelect} />;
-      case 'usage':
-        return <UsageSidebar onItemSelect={opts.onItemSelect} />;
       case 'magic-prompts':
         return <MagicPromptsSidebar onItemSelect={opts.onItemSelect} />;
       default:
@@ -486,15 +464,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
       case 'remote-instances':
         return <RemoteInstancesPage />;
       case 'agents':
-        return <AgentsPage />;
+        return <ConfigItemEditor kind="agent" />;
       case 'commands':
-        return <CommandsPage />;
+        return <ConfigItemEditor kind="command" />;
       case 'mcp':
         return <McpPage />;
       case 'skills.installed':
-        return <SkillsSidebar />;
+        return <ConfigItemEditor kind="skill" />;
       case 'skills.catalog':
-        return <SkillsPage view="catalog" />;
+        return <SkillsCatalogPage />;
       case 'providers':
         return <ProvidersPage />;
       case 'usage':
@@ -510,7 +488,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
       case 'shortcuts':
       case 'sessions':
       case 'notifications':
-      case 'voice':
       case 'tunnel': {
         const section = openChamberSectionBySlug[slug] ?? 'visual';
         return <OpenChamberPage section={section} />;
@@ -585,7 +562,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
                         )}
                       >
                         <span className="typography-ui-label font-normal truncate">{getPageTitle(page.slug)}</span>
-                        {(page.slug === 'voice' || page.slug === 'tunnel') && (
+                        {page.slug === 'tunnel' && (
                           <span className="shrink-0 typography-micro px-1 rounded leading-none pb-px text-[var(--status-warning)] bg-[var(--status-warning)]/10">
                             {t('settings.view.badge.beta')}
                           </span>

@@ -1,26 +1,16 @@
 import React from 'react';
 import type { Session } from '@/lib/claude/types';
-import {
-  RiAddLine,
-  RiArchiveLine,
-  RiArrowDownSLine,
-  RiArrowLeftLongLine,
-  RiArrowRightSLine,
-  RiDeleteBinLine,
-  RiGitBranchLine,
-} from '@remixicon/react';
+import { RiAddLine } from '@remixicon/react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { sessionEvents } from '@/lib/sessionEvents';
 import type { MainTab } from '@/stores/useUIStore';
 import { SessionFolderItem } from '../SessionFolderItem';
 import { DroppableFolderWrapper, SessionFolderDndScope } from './sessionFolderDnd';
 import type { SortableDragHandleProps } from './sortableItems';
 import type { GroupSearchData, SessionGroup, SessionNode } from './types';
-import { compareSessionsByPinnedAndTime, isBranchDifferentFromLabel, normalizePath, renderHighlightedText } from './utils';
+import { compareSessionsByPinnedAndTime, normalizePath, renderHighlightedText } from './utils';
 import type { SessionFolder } from '@/stores/useSessionFoldersStore';
 import { useSessionDisplayStore } from '@/stores/useSessionDisplayStore';
-import { openExternalUrl } from '@/lib/url';
 import { useI18n } from '@/lib/i18n';
 
 type DeleteFolderConfirm = {
@@ -49,10 +39,8 @@ type Props = {
   deleteFolder: (scopeKey: string, folderId: string) => void;
   showDeletionDialog: boolean;
   setDeleteFolderConfirm: React.Dispatch<React.SetStateAction<DeleteFolderConfirm>>;
-  renderSessionNode: (node: SessionNode, depth?: number, groupDirectory?: string | null, projectId?: string | null, archivedBucket?: boolean, secondaryMeta?: { projectLabel?: string | null; branchLabel?: string | null } | null) => React.ReactNode;
+  renderSessionNode: (node: SessionNode, depth?: number, groupDirectory?: string | null, projectId?: string | null, secondaryMeta?: { projectLabel?: string | null; branchLabel?: string | null } | null) => React.ReactNode;
   currentSessionDirectory: string | null;
-  projectRepoStatus: Map<string, boolean | null>;
-  lastRepoStatus: boolean;
   toggleGroupSessionLimit: (groupKey: string) => void;
   mobileVariant: boolean;
   activeProjectId: string | null;
@@ -68,29 +56,6 @@ type Props = {
   setRenamingFolderId: React.Dispatch<React.SetStateAction<string | null>>;
   pinnedSessionIds: Set<string>;
   sessionOrderIndex: Map<string, number>;
-  prVisualStateByDirectoryBranch: Map<string, {
-    visualState: 'draft' | 'open' | 'blocked' | 'merged' | 'closed';
-    number: number;
-    url: string | null;
-    state: 'open' | 'closed' | 'merged';
-    draft: boolean;
-    title: string | null;
-    base: string | null;
-    head: string | null;
-    checks: {
-      state: 'success' | 'failure' | 'pending' | 'unknown';
-      total: number;
-      success: number;
-      failure: number;
-      pending: number;
-    } | null;
-    canMerge: boolean | null;
-    mergeableState: string | null;
-    repo: {
-      owner: string;
-      repo: string;
-    } | null;
-  }>;
   onToggleCollapsedGroup: (groupKey: string) => void;
   dragHandleProps?: SortableDragHandleProps | null;
   compactBodyPadding?: boolean;
@@ -117,8 +82,6 @@ export function SessionGroupSection(props: Props): React.ReactNode {
     showDeletionDialog,
     setDeleteFolderConfirm,
     renderSessionNode,
-    projectRepoStatus,
-    lastRepoStatus,
     toggleGroupSessionLimit,
     mobileVariant,
     activeProjectId,
@@ -134,7 +97,6 @@ export function SessionGroupSection(props: Props): React.ReactNode {
     setRenamingFolderId,
     pinnedSessionIds,
     sessionOrderIndex,
-    prVisualStateByDirectoryBranch,
     onToggleCollapsedGroup,
     dragHandleProps,
     compactBodyPadding = false,
@@ -222,13 +184,6 @@ export function SessionGroupSection(props: Props): React.ReactNode {
 
       const childFolderIds = childFolderIdsByParentId.get(folderId) ?? [];
 
-      // For archived buckets, hide folders with no sessions unless descendants have content.
-      if (group.isArchivedBucket && entry.nodes.length === 0) {
-        const hasContentInChildren = childFolderIds.some((childId) => shouldKeepFolder(childId));
-        keepByFolderId.set(folderId, hasContentInChildren);
-        return hasContentInChildren;
-      }
-
       if (!hasSessionSearchQuery) {
         keepByFolderId.set(folderId, true);
         return true;
@@ -246,7 +201,7 @@ export function SessionGroupSection(props: Props): React.ReactNode {
     };
 
     return allFoldersForGroupBase.filter(({ folder }) => shouldKeepFolder(folder.id));
-  }, [allFoldersForGroupBase, group.isArchivedBucket, hasSessionSearchQuery, normalizedSessionSearchQuery]);
+  }, [allFoldersForGroupBase, hasSessionSearchQuery, normalizedSessionSearchQuery]);
 
   const sessionIdsInFolders = React.useMemo(() => new Set(allFoldersForGroup.flatMap((f) => f.folder.sessionIds)), [allFoldersForGroup]);
   const ungroupedSessions = React.useMemo(() => sourceGroupNodes.filter((node) => !sessionIdsInFolders.has(node.session.id)), [sourceGroupNodes, sessionIdsInFolders]);
@@ -257,116 +212,16 @@ export function SessionGroupSection(props: Props): React.ReactNode {
   }
 
   const totalSessions = ungroupedSessions.length;
-  const visibleSessions = group.isArchivedBucket
+  const visibleSessions = hasSessionSearchQuery
     ? ungroupedSessions
-    : hasSessionSearchQuery
-      ? ungroupedSessions
-      : (isExpanded ? ungroupedSessions : ungroupedSessions.slice(0, maxVisible));
+    : (isExpanded ? ungroupedSessions : ungroupedSessions.slice(0, maxVisible));
   const remainingCount = totalSessions - visibleSessions.length;
-
-  const collectGroupSessions = (nodes: SessionNode[]): Session[] => {
-    const collected: Session[] = [];
-    const visit = (list: SessionNode[]) => {
-      list.forEach((node) => {
-        collected.push(node.session);
-        if (node.children.length > 0) visit(node.children);
-      });
-    };
-    visit(nodes);
-    return collected;
-  };
-
-  const allGroupSessions = collectGroupSessions(sourceGroupNodes);
-  const isGitProject = projectId && projectRepoStatus.has(projectId)
-    ? Boolean(projectRepoStatus.get(projectId))
-    : lastRepoStatus;
-  const groupDirectoryKey = normalizePath(group.directory ?? null);
-  const groupBranchKey = group.branch?.trim() ?? null;
-  const prIndicator = groupDirectoryKey && groupBranchKey
-    ? (prVisualStateByDirectoryBranch.get(`${groupDirectoryKey}::${groupBranchKey}`) ?? null)
-    : null;
-  const showInlinePrTitle = Boolean(prIndicator && group.branch);
-  const showBranchSubtitle = !prIndicator && !group.isMain && Boolean(group.branch);
-  const prVisualState = prIndicator?.visualState ?? null;
-  const checksSummary = prIndicator && prIndicator.state === 'open' && prIndicator.checks
-    ? t('sessions.sidebar.group.pr.checksPassed', {
-      success: prIndicator.checks.success,
-      total: prIndicator.checks.total,
-    })
-    : null;
-  const checksTail = prIndicator && prIndicator.state === 'open' && prIndicator.checks
-    ? [
-      prIndicator.checks.failure > 0
-        ? t('sessions.sidebar.group.pr.failingCount', { count: prIndicator.checks.failure })
-        : null,
-      prIndicator.checks.pending > 0
-        ? t('sessions.sidebar.group.pr.pendingCount', { count: prIndicator.checks.pending })
-        : null,
-    ].filter((item): item is string => Boolean(item)).join(', ')
-    : null;
-  const mergeabilityLabel = prIndicator && prIndicator.state === 'open'
-    ? (prIndicator.mergeableState === 'blocked' || prIndicator.mergeableState === 'dirty'
-        ? t('sessions.sidebar.group.pr.conflictsOrBlocked')
-        : (prIndicator.mergeableState === 'clean' || prIndicator.canMerge === true ? t('sessions.sidebar.group.pr.mergeable') : null))
-    : null;
-  const mergeStateLabel = prIndicator && prIndicator.state === 'open' && prIndicator.mergeableState
-    ? t('sessions.sidebar.group.pr.mergeState', { state: prIndicator.mergeableState })
-    : null;
-  const baseBranchLabel = prIndicator?.base ?? null;
-  const headBranchLabel = prIndicator?.head ?? null;
-  const statusLine = (() => {
-    if (!prIndicator) {
-      return group.branch && isBranchDifferentFromLabel(group.branch, group.label)
-        ? { label: group.branch, color: null as string | null }
-        : null;
-    }
-    switch (prIndicator.visualState) {
-      case 'merged':
-        return { label: t('sessions.sidebar.group.pr.status.merged'), color: 'var(--pr-merged)' };
-      case 'open':
-        return (prIndicator.canMerge === true || prIndicator.mergeableState === 'clean' || prIndicator.checks?.state === 'success')
-          ? { label: t('sessions.sidebar.group.pr.status.readyToMerge'), color: 'var(--pr-open)' }
-          : { label: t('sessions.sidebar.group.pr.status.open'), color: 'var(--pr-open)' };
-      case 'blocked':
-        return {
-          label: prIndicator.mergeableState === 'dirty'
-            ? t('sessions.sidebar.group.pr.status.mergeConflicts')
-            : t('sessions.sidebar.group.pr.status.mergeBlocked'),
-          color: 'var(--pr-blocked)',
-        };
-      case 'draft':
-        return { label: t('sessions.sidebar.group.pr.status.draft'), color: 'var(--pr-draft)' };
-      case 'closed':
-        return { label: t('sessions.sidebar.group.pr.status.closed'), color: 'var(--pr-closed)' };
-      default:
-        return null;
-    }
-  })();
-  const branchIconColor = statusLine?.color ?? (prVisualState ? `var(--pr-${prVisualState})` : undefined);
-  const handlePrLinkClick = (event: React.MouseEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const url = prIndicator?.url;
-    if (!url) {
-      return;
-    }
-    void openExternalUrl(url);
-  };
 
   const renderOneFolderItem = (folder: SessionFolder, nodes: SessionNode[], depth: number): React.ReactNode => {
     const directSubFolders = allFoldersForGroup.filter(({ folder: f }) => f.parentId === folder.id);
     const subFolderItems = directSubFolders.length > 0
       ? <>{directSubFolders.map(({ folder: sf, nodes: sn }) => renderOneFolderItem(sf, sn, depth + 1))}</>
       : undefined;
-    const collectFolderSessions = (targetFolderId: string): Session[] => {
-      const directNodes = allFoldersForGroup.find(({ folder: candidate }) => candidate.id === targetFolderId)?.nodes ?? [];
-      const childFolders = allFoldersForGroup.filter(({ folder: candidate }) => candidate.parentId === targetFolderId);
-      return [
-        ...collectGroupSessions(directNodes),
-        ...childFolders.flatMap(({ folder: child }) => collectFolderSessions(child.id)),
-      ];
-    };
-    const folderSessionsForDelete = group.isArchivedBucket ? collectFolderSessions(folder.id) : [];
 
     return (
       <DroppableFolderWrapper key={folder.id} folderId={folder.id}>
@@ -381,15 +236,6 @@ export function SessionGroupSection(props: Props): React.ReactNode {
               if (folderScopeKey) renameFolder(folderScopeKey, folder.id, name);
             }}
             onDelete={() => {
-              if (group.isArchivedBucket) {
-                // Delete sessions in the folder
-                // Empty folders are auto-hidden by useArchivedAutoFolders
-                sessionEvents.requestDelete({
-                  sessions: folderSessionsForDelete,
-                  mode: 'session',
-                });
-                return;
-              }
               if (!folderScopeKey) return;
               if (!showDeletionDialog) {
                 deleteFolder(folderScopeKey, folder.id);
@@ -438,7 +284,6 @@ export function SessionGroupSection(props: Props): React.ReactNode {
               createFolderAndStartRename(folderScopeKey, folder.id);
             } : undefined}
             hideActions={false}
-            archivedBucket={group.isArchivedBucket === true}
           />
         )}
       </DroppableFolderWrapper>
@@ -446,16 +291,11 @@ export function SessionGroupSection(props: Props): React.ReactNode {
   };
 
   const renderFolderItems = () => rootFolders.map(({ folder, nodes }) => renderOneFolderItem(folder, nodes, 0));
-  const hasWorktreeDeleteAction = Boolean(!group.isMain && group.worktree);
   const groupHeaderRightPadding = mobileVariant
-    ? (hasWorktreeDeleteAction ? 'pr-14' : 'pr-7')
+    ? 'pr-7'
     : isMinimalMode
-      ? (hasWorktreeDeleteAction
-          ? 'pr-2 group-hover/gh:pr-14 group-focus-within/gh:pr-14'
-          : 'pr-2')
-      : (hasWorktreeDeleteAction
-          ? 'pr-5 group-hover/gh:pr-14 group-focus-within/gh:pr-14'
-          : 'pr-5');
+      ? 'pr-2'
+      : 'pr-5';
 
   const body = (
     <SessionFolderDndScope
@@ -466,12 +306,10 @@ export function SessionGroupSection(props: Props): React.ReactNode {
       }}
     >
       {renderFolderItems()}
-      {visibleSessions.map((node) => renderSessionNode(node, 0, group.directory, projectId, group.isArchivedBucket === true))}
+      {visibleSessions.map((node) => renderSessionNode(node, 0, group.directory, projectId))}
       {totalSessions === 0 && allFoldersForGroup.length === 0 ? (
         <div className="py-1 text-left typography-micro text-muted-foreground">
-          {group.isArchivedBucket
-            ? t('sessions.sidebar.group.empty.noArchivedSessions')
-            : t('sessions.sidebar.group.empty.noSessionsInWorkspace')}
+          {t('sessions.sidebar.group.empty.noSessionsInWorkspace')}
         </div>
       ) : null}
       {remainingCount > 0 && !isExpanded ? (
@@ -531,196 +369,10 @@ export function SessionGroupSection(props: Props): React.ReactNode {
         >
           <div className="min-w-0 flex flex-1 flex-col justify-center gap-0.5 overflow-hidden">
             <p className="text-[14px] font-normal truncate text-foreground/92">
-              {showInlinePrTitle && prIndicator ? (
-                <span className="inline-flex min-w-0 max-w-full items-center">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex shrink-0 items-center gap-1 leading-none align-middle">
-                        <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-                          <RiGitBranchLine
-                            className="h-3.5 w-3.5 shrink-0 group-hover/gh:hidden"
-                            style={branchIconColor ? { color: branchIconColor } : undefined}
-                          />
-                          <span className="hidden text-muted-foreground group-hover/gh:inline-flex h-3.5 w-3.5 items-center justify-center">
-                            {isCollapsed ? <RiArrowRightSLine className="h-3.5 w-3.5" /> : <RiArrowDownSLine className="h-3.5 w-3.5" />}
-                          </span>
-                        </span>
-                        {prIndicator.url ? (
-                          <button
-                            type="button"
-                            className="inline-flex shrink-0 items-center leading-none"
-                            onMouseDown={(event) => event.stopPropagation()}
-                            onClick={handlePrLinkClick}
-                          >
-                            #{prIndicator.number}
-                          </button>
-                        ) : (
-                          <span className="inline-flex shrink-0 items-center leading-none">#{prIndicator.number}</span>
-                        )}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" sideOffset={6} align="start" className="max-w-sm">
-                      <div className="space-y-1 text-xs">
-                        {(baseBranchLabel || headBranchLabel) ? (
-                          <div className="text-muted-foreground truncate">
-                            {baseBranchLabel && headBranchLabel ? (
-                              <>
-                                <span>{baseBranchLabel}</span>
-                                <RiArrowLeftLongLine className="mx-0.5 inline h-3 w-3 align-[-2px]" />
-                                <span>{headBranchLabel}</span>
-                              </>
-                            ) : (
-                              <span>{baseBranchLabel ?? headBranchLabel ?? ''}</span>
-                            )}
-                          </div>
-                        ) : null}
-                        {mergeStateLabel ? <div className="text-muted-foreground truncate">{mergeStateLabel}</div> : null}
-                        {(mergeabilityLabel || checksSummary) ? (
-                          <div className="text-muted-foreground truncate">
-                            {mergeabilityLabel ?? ''}
-                            {mergeabilityLabel && checksSummary ? ' • ' : ''}
-                            {checksSummary ?? ''}
-                            {checksTail ? ` (${checksTail})` : ''}
-                          </div>
-                        ) : null}
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                  <span className="ml-1 min-w-0 flex-1 truncate leading-none align-middle">{group.branch}</span>
-                </span>
-              ) : group.isArchivedBucket ? (
-                <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-                  <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-                    <RiArchiveLine className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover/gh:hidden" />
-                    <span className="hidden text-muted-foreground group-hover/gh:inline-flex h-3.5 w-3.5 items-center justify-center">
-                      {isCollapsed ? <RiArrowRightSLine className="h-3.5 w-3.5" /> : <RiArrowDownSLine className="h-3.5 w-3.5" />}
-                    </span>
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{renderHighlightedText(group.label, normalizedSessionSearchQuery)}</span>
-                </span>
-              ) : (!group.isMain || group.worktree) ? (
-                <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-                  <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-                    <RiGitBranchLine
-                      className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover/gh:hidden"
-                      style={branchIconColor ? { color: branchIconColor } : undefined}
-                    />
-                    <span className="hidden text-muted-foreground group-hover/gh:inline-flex h-3.5 w-3.5 items-center justify-center">
-                      {isCollapsed ? <RiArrowRightSLine className="h-3.5 w-3.5" /> : <RiArrowDownSLine className="h-3.5 w-3.5" />}
-                    </span>
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{renderHighlightedText(group.label, normalizedSessionSearchQuery)}</span>
-                </span>
-              ) : (
-                renderHighlightedText(group.label, normalizedSessionSearchQuery)
-              )}
+              {renderHighlightedText(group.label, normalizedSessionSearchQuery)}
             </p>
-            {showBranchSubtitle && statusLine ? (
-              <span className="inline-flex min-w-0 items-center gap-1.5 leading-tight">
-                {group.isArchivedBucket ? (
-                  <RiArchiveLine className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                ) : (!group.isMain || isGitProject) ? (
-                  showInlinePrTitle && prIndicator ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center">
-                          <RiGitBranchLine
-                            className="h-3.5 w-3.5 text-muted-foreground"
-                            style={branchIconColor ? { color: branchIconColor } : undefined}
-                          />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" sideOffset={6} align="start" className="max-w-sm">
-                        <div className="space-y-1 text-xs">
-                          {(baseBranchLabel || headBranchLabel) ? (
-                            <div className="text-muted-foreground truncate">
-                              {baseBranchLabel && headBranchLabel ? (
-                                <>
-                                  <span>{baseBranchLabel}</span>
-                                  <RiArrowLeftLongLine className="mx-0.5 inline h-3 w-3 align-[-2px]" />
-                                  <span>{headBranchLabel}</span>
-                                </>
-                              ) : (
-                                <span>{baseBranchLabel ?? headBranchLabel ?? ''}</span>
-                              )}
-                            </div>
-                          ) : null}
-                          {mergeStateLabel ? <div className="text-muted-foreground truncate">{mergeStateLabel}</div> : null}
-                          {(mergeabilityLabel || checksSummary) ? (
-                            <div className="text-muted-foreground truncate">
-                              {mergeabilityLabel ?? ''}
-                              {mergeabilityLabel && checksSummary ? ' • ' : ''}
-                              {checksSummary ?? ''}
-                              {checksTail ? ` (${checksTail})` : ''}
-                            </div>
-                          ) : null}
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <RiGitBranchLine
-                      className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground"
-                      style={branchIconColor ? { color: branchIconColor } : undefined}
-                    />
-                  )
-                ) : null}
-                <span
-                  className={cn('min-w-0 truncate text-[11px] font-medium', !statusLine.color && 'text-muted-foreground/80')}
-                  style={statusLine.color ? { color: statusLine.color } : undefined}
-                >
-                  {statusLine.label}
-                </span>
-              </span>
-            ) : null}
           </div>
         </div>
-        {group.isArchivedBucket && allGroupSessions.length > 0 ? (
-          <div className={cn('absolute right-0.5 top-1/2 -translate-y-1/2 z-10 transition-opacity', mobileVariant ? 'opacity-100' : 'opacity-0 group-hover/gh:opacity-100 group-focus-within/gh:opacity-100')}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    sessionEvents.requestDelete({
-                      sessions: allGroupSessions,
-                      mode: 'session',
-                    });
-                  }}
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-interactive-hover/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                  aria-label={t('sessions.sidebar.group.actions.deleteArchivedInGroupAria', { label: group.label })}
-                >
-                  <RiDeleteBinLine className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={4}><p>{t('sessions.sidebar.group.actions.deleteArchivedSessions')}</p></TooltipContent>
-            </Tooltip>
-          </div>
-        ) : null}
-        {group.directory && !group.isMain && group.worktree ? (
-          <div className={cn('absolute right-7 top-1/2 -translate-y-1/2 z-10 transition-opacity', mobileVariant ? 'opacity-100' : 'opacity-0 group-hover/gh:opacity-100 group-focus-within/gh:opacity-100')}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    sessionEvents.requestDelete({
-                      sessions: allGroupSessions,
-                      mode: 'worktree',
-                      worktree: group.worktree,
-                    });
-                  }}
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-interactive-hover/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                  aria-label={t('sessions.sidebar.group.actions.deleteGroupAria', { label: group.label })}
-                >
-                  <RiDeleteBinLine className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={4}><p>{t('sessions.sidebar.group.actions.deleteWorktree')}</p></TooltipContent>
-            </Tooltip>
-          </div>
-        ) : null}
         {group.directory ? (
           <div className={cn('absolute right-0.5 top-1/2 -translate-y-1/2 z-10 transition-opacity', mobileVariant ? 'opacity-100' : 'opacity-0 group-hover/gh:opacity-100 group-focus-within/gh:opacity-100')}>
             <Tooltip>

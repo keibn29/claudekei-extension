@@ -626,16 +626,13 @@ const getSidebarSessionSignature = (session: Session, stableUpdatedAt: number): 
   const directory = (session as Session & { directory?: string | null }).directory ?? ''
   const parentID = (session as Session & { parentID?: string | null }).parentID ?? ''
   const projectWorktree = (session as Session & { project?: { worktree?: string | null } | null }).project?.worktree ?? ''
-  const shared = session.share?.url ?? ''
   return [
     session.id,
     session.title ?? '',
     session.time?.created ?? 0,
-    session.time?.archived ? 1 : 0,
     directory,
     parentID,
     projectWorktree,
-    shared,
     stableUpdatedAt,
   ].join('|')
 }

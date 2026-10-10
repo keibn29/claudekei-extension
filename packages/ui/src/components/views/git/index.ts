@@ -4,7 +4,6 @@ export { ChangesSection } from './ChangesSection';
 export { ChangeRow } from './ChangeRow';
 export { CommitSection } from './CommitSection';
 export { CommitInput } from './CommitInput';
-export { AIHighlightsBox } from './AIHighlightsBox';
 export { HistorySection } from './HistorySection';
 export { HistoryCommitRow } from './HistoryCommitRow';
 export { SyncActions } from './SyncActions';

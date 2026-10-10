@@ -44,7 +44,6 @@ export const buildAutoDeleteCandidates = ({
       if (!session?.id) return false;
       if (protectedIds.has(session.id)) return false;
       if (session.id === currentSessionId) return false;
-      if (session.share) return false;
       const lastActivity = getSessionLastActivity(session);
       if (!lastActivity) return false;
       return lastActivity < cutoffTime;
@@ -55,7 +54,6 @@ export const buildAutoDeleteCandidates = ({
 type CleanupResult = {
   completedIds: string[];
   failedIds: string[];
-  action: 'archive' | 'delete';
   skippedReason?: 'disabled' | 'loading' | 'cooldown' | 'no-candidates' | 'running';
 };
 
@@ -76,7 +74,6 @@ export const useSessionAutoCleanup = (enabledOrOptions?: boolean | CleanupOption
 
   const autoDeleteEnabled = useUIStore((state) => state.autoDeleteEnabled);
   const autoDeleteAfterDays = useUIStore((state) => state.autoDeleteAfterDays);
-  const sessionRetentionAction = useUIStore((state) => state.sessionRetentionAction);
   const autoDeleteLastRunAt = useUIStore((state) => state.autoDeleteLastRunAt);
   const setAutoDeleteLastRunAt = useUIStore((state) => state.setAutoDeleteLastRunAt);
 
@@ -101,28 +98,28 @@ export const useSessionAutoCleanup = (enabledOrOptions?: boolean | CleanupOption
   const runCleanup = React.useCallback(
       async ({ force = false }: { force?: boolean } = {}): Promise<CleanupResult> => {
       if (runningRef.current) {
-        return { completedIds: [], failedIds: [], action: sessionRetentionAction, skippedReason: 'running' };
+        return { completedIds: [], failedIds: [], skippedReason: 'running' };
       }
 
       if (!autoDeleteEnabled || autoDeleteAfterDays <= 0) {
         if (!force) {
-          return { completedIds: [], failedIds: [], action: sessionRetentionAction, skippedReason: 'disabled' };
+          return { completedIds: [], failedIds: [], skippedReason: 'disabled' };
         }
       }
 
       if (isLoading) {
-        return { completedIds: [], failedIds: [], action: sessionRetentionAction, skippedReason: 'loading' };
+        return { completedIds: [], failedIds: [], skippedReason: 'loading' };
       }
 
       const now = Date.now();
       if (!force && autoDeleteLastRunAt && now - autoDeleteLastRunAt < AUTO_DELETE_INTERVAL_MS) {
-        return { completedIds: [], failedIds: [], action: sessionRetentionAction, skippedReason: 'cooldown' };
+        return { completedIds: [], failedIds: [], skippedReason: 'cooldown' };
       }
 
       const { activeSessions: sessions } = await ensureGlobalSessionsLoaded(getAllSyncSessions());
 
       if (sessions.length === 0) {
-        return { completedIds: [], failedIds: [], action: sessionRetentionAction, skippedReason: 'no-candidates' };
+        return { completedIds: [], failedIds: [], skippedReason: 'no-candidates' };
       }
 
       const candidateIds = buildAutoDeleteCandidates({
@@ -134,7 +131,7 @@ export const useSessionAutoCleanup = (enabledOrOptions?: boolean | CleanupOption
 
       if (candidateIds.length === 0) {
         setAutoDeleteLastRunAt(now);
-        return { completedIds: [], failedIds: [], action: sessionRetentionAction, skippedReason: 'no-candidates' };
+        return { completedIds: [], failedIds: [], skippedReason: 'no-candidates' };
       }
 
       runningRef.current = true;
@@ -153,11 +150,6 @@ export const useSessionAutoCleanup = (enabledOrOptions?: boolean | CleanupOption
           }
 
           try {
-            if (sessionRetentionAction === 'archive') {
-              // Claude sessions cannot be archived; leave them in place.
-              failedIds.push(id);
-              continue;
-            }
             await claudeClient.deleteSession(id);
             completedIds.push(id);
           } catch {
@@ -165,12 +157,8 @@ export const useSessionAutoCleanup = (enabledOrOptions?: boolean | CleanupOption
           }
         }
 
-        if (sessionRetentionAction === 'archive') {
-          useGlobalSessionsStore.getState().archiveSessions(completedIds);
-        } else {
-          useGlobalSessionsStore.getState().removeSessions(completedIds);
-        }
-        return { completedIds, failedIds, action: sessionRetentionAction };
+        useGlobalSessionsStore.getState().removeSessions(completedIds);
+        return { completedIds, failedIds };
       } finally {
         runningRef.current = false;
         setIsRunning(false);
@@ -183,7 +171,6 @@ export const useSessionAutoCleanup = (enabledOrOptions?: boolean | CleanupOption
       autoDeleteLastRunAt,
       currentSessionId,
       isLoading,
-      sessionRetentionAction,
       setAutoDeleteLastRunAt,
     ]
   );
@@ -224,6 +211,5 @@ export const useSessionAutoCleanup = (enabledOrOptions?: boolean | CleanupOption
     isRunning,
     runCleanup,
     keepRecentCount: AUTO_DELETE_KEEP_RECENT,
-    action: sessionRetentionAction,
   };
 };

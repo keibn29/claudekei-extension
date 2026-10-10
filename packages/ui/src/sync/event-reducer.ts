@@ -142,14 +142,6 @@ export function applyDirectoryEvent(
       const sessions = [...draft.session]
       const result = Binary.search(sessions, info.id, (s) => s.id)
 
-      if (info.time.archived) {
-        if (result.found) sessions.splice(result.index, 1)
-        draft.session = sessions
-        cleanupSessionCaches(draft, info.id, callbacks?.onSetSessionTodo)
-        if (!info.parentID) draft.sessionTotal = Math.max(0, draft.sessionTotal - 1)
-        return true
-      }
-
       if (result.found) {
         sessions[result.index] = info
         draft.session = sessions

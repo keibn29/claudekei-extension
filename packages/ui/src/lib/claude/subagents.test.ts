@@ -24,6 +24,7 @@ import {
   resolveSubagentAlias,
   shouldCollapseInstruction,
   shouldGroupStartExpanded,
+  isStaleBusyChild,
   shouldShowNoActivityHint,
   summarizeSubagentStatuses,
   type ChildRecord,
@@ -197,17 +198,31 @@ describe('deriveSubagentStatus', () => {
   });
 });
 
+describe('stale busy child safety net', () => {
+  const base = { childPhase: 'busy', parentIdle: true, toolStatus: 'error', runStatus: 'stopped' };
+  test('busy child of an idle parent whose tool settled is ignored', () => {
+    expect(isStaleBusyChild(base)).toBe(true);
+    expect(isStaleBusyChild({ ...base, toolStatus: 'completed', runStatus: undefined })).toBe(true);
+  });
+  test('a running run, a busy parent, a running tool or a non-busy child keep their phase', () => {
+    expect(isStaleBusyChild({ ...base, runStatus: 'running' })).toBe(false);
+    expect(isStaleBusyChild({ ...base, parentIdle: false })).toBe(false);
+    expect(isStaleBusyChild({ ...base, toolStatus: 'running' })).toBe(false);
+    expect(isStaleBusyChild({ ...base, childPhase: 'retry' })).toBe(false);
+  });
+});
+
 describe('group summary', () => {
   test('counts running, done and failed (delivery included)', () => {
     expect(summarizeSubagentStatuses(['preparing', 'running', 'done', 'sent', 'failed', 'not-delivered', 'stopped'])).toEqual({
-      total: 7, running: 2, done: 2, failed: 2,
+      total: 7, running: 2, done: 2, failed: 2, stopped: 1,
     });
   });
 
   test('groups with 4+ members that are all settled start collapsed', () => {
-    expect(shouldGroupStartExpanded({ total: 4, running: 0, done: 4, failed: 0 })).toBe(false);
-    expect(shouldGroupStartExpanded({ total: 4, running: 1, done: 3, failed: 0 })).toBe(true);
-    expect(shouldGroupStartExpanded({ total: 3, running: 0, done: 3, failed: 0 })).toBe(true);
+    expect(shouldGroupStartExpanded({ total: 4, running: 0, done: 4, failed: 0, stopped: 0 })).toBe(false);
+    expect(shouldGroupStartExpanded({ total: 4, running: 1, done: 3, failed: 0, stopped: 0 })).toBe(true);
+    expect(shouldGroupStartExpanded({ total: 3, running: 0, done: 3, failed: 0, stopped: 0 })).toBe(true);
   });
 });
 

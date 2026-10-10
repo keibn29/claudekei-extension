@@ -1,13 +1,6 @@
 import type { Session, Message, Part, Provider } from "@/lib/claude/types";
 
 export type { Session, Message, Part, Provider };
-export type {
-  QuotaProviderId,
-  UsageWindow,
-  UsageWindows,
-  ProviderUsage,
-  ProviderResult
-} from './quota';
 
 export interface ChatState {
   sessions: Session[];

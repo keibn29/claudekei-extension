@@ -15,19 +15,15 @@ import {
   RiAddLine,
   RiArrowDownSLine,
   RiArrowRightSLine,
-  RiChat4Line,
   RiCheckLine,
   RiCloseLine,
   RiDeleteBinLine,
   RiDownloadLine,
   RiErrorWarningLine,
-  RiFileCopyLine,
   RiFolderLine,
-  RiLinkUnlinkM,
   RiMore2Line,
   RiPencilAiLine,
   RiPushpinLine,
-  RiShare2Line,
   RiShieldLine,
   RiUnpinLine,
   RiGitBranchLine,
@@ -49,7 +45,6 @@ import { useSessionDisplayStore } from '@/stores/useSessionDisplayStore';
 import { useSessionUnseenCount } from '@/sync/notification-store';
 import { useSessionMultiSelectStore } from '@/stores/useSessionMultiSelectStore';
 import { useI18n } from '@/lib/i18n';
-import { isFeatureEnabled } from '@/lib/claude/features';
 
 type Folder = { id: string; name: string; sessionIds: string[] };
 
@@ -63,7 +58,6 @@ type Props = {
   depth?: number;
   groupDirectory?: string | null;
   projectId?: string | null;
-  archivedBucket?: boolean;
   directoryStatus: Map<string, 'unknown' | 'exists' | 'missing'>;
   currentSessionId: string | null;
   pinnedSessionIds: Set<string>;
@@ -81,10 +75,6 @@ type Props = {
   handleSessionSelect: (sessionId: string, sessionDirectory: string | null, isMissingDirectory: boolean, projectId?: string | null) => void;
   handleSessionDoubleClick: () => void;
   togglePinnedSession: (sessionId: string) => void;
-  handleShareSession: (session: Session) => void;
-  copiedSessionId: string | null;
-  handleCopyShareUrl: (url: string, sessionId: string) => void;
-  handleUnshareSession: (sessionId: string) => void;
   openSidebarMenuKey: string | null;
   setOpenSidebarMenuKey: (key: string | null) => void;
   renamingFolderId: string | null;
@@ -93,10 +83,9 @@ type Props = {
   removeSessionFromFolder: (scopeKey: string, sessionId: string) => void;
   addSessionToFolder: (scopeKey: string, folderId: string, sessionId: string) => void;
   createFolderAndStartRename: (scopeKey: string, parentId?: string | null) => { id: string } | null;
-  openContextPanelTab: (directory: string, options: { mode: 'chat'; dedupeKey: string; label: string }) => void;
-  handleDeleteSession: (session: Session, source?: { archivedBucket?: boolean; hardDelete?: boolean }) => void;
+  handleDeleteSession: (session: Session) => void;
   mobileVariant: boolean;
-  renderSessionNode: (node: SessionNode, depth?: number, groupDirectory?: string | null, projectId?: string | null, archivedBucket?: boolean, secondaryMeta?: SecondaryMeta | null, renderContext?: 'project' | 'recent') => React.ReactNode;
+  renderSessionNode: (node: SessionNode, depth?: number, groupDirectory?: string | null, projectId?: string | null, secondaryMeta?: SecondaryMeta | null, renderContext?: 'project' | 'recent') => React.ReactNode;
   secondaryMeta?: SecondaryMeta | null;
   renderContext?: 'project' | 'recent';
 };
@@ -133,19 +122,18 @@ const treeContainsMenuKey = (
   node: SessionNode,
   menuKey: string | null,
   renderContext: 'project' | 'recent',
-  archivedBucket: boolean,
 ): boolean => {
   if (!menuKey) {
     return false;
   }
 
-  const nodeMenuKey = `${renderContext}:${archivedBucket ? 'archived' : 'active'}:${node.session.id}`;
+  const nodeMenuKey = `${renderContext}:${node.session.id}`;
   if (nodeMenuKey === menuKey) {
     return true;
   }
 
   for (const child of node.children) {
-    if (treeContainsMenuKey(child, menuKey, renderContext, archivedBucket)) {
+    if (treeContainsMenuKey(child, menuKey, renderContext)) {
       return true;
     }
   }
@@ -165,7 +153,6 @@ const areEqual = (prev: Props, next: Props): boolean => {
   if (prev.depth !== next.depth) return false;
   if (prev.groupDirectory !== next.groupDirectory) return false;
   if (prev.projectId !== next.projectId) return false;
-  if (prev.archivedBucket !== next.archivedBucket) return false;
   if (prev.currentSessionId !== next.currentSessionId) {
     const prevActiveInTree = treeContainsSessionId(prev.node, prev.currentSessionId);
     const nextActiveInTree = treeContainsSessionId(next.node, next.currentSessionId);
@@ -192,10 +179,9 @@ const areEqual = (prev: Props, next: Props): boolean => {
       return false;
     }
   }
-  if ((prev.copiedSessionId === prevSessionId) !== (next.copiedSessionId === nextSessionId)) return false;
 
-  const prevMenuInTree = treeContainsMenuKey(prev.node, prev.openSidebarMenuKey, prev.renderContext ?? 'project', prev.archivedBucket ?? false);
-  const nextMenuInTree = treeContainsMenuKey(next.node, next.openSidebarMenuKey, next.renderContext ?? 'project', next.archivedBucket ?? false);
+  const prevMenuInTree = treeContainsMenuKey(prev.node, prev.openSidebarMenuKey, prev.renderContext ?? 'project');
+  const nextMenuInTree = treeContainsMenuKey(next.node, next.openSidebarMenuKey, next.renderContext ?? 'project');
   if (prevMenuInTree !== nextMenuInTree) return false;
 
   const prevDirectory = normalizePath((prevSession as Session & { directory?: string | null }).directory ?? null)
@@ -220,7 +206,6 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
     depth = 0,
     groupDirectory,
     projectId,
-    archivedBucket = false,
     directoryStatus,
     currentSessionId,
     pinnedSessionIds,
@@ -236,10 +221,6 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
     handleSessionSelect,
     handleSessionDoubleClick,
     togglePinnedSession,
-    handleShareSession,
-    copiedSessionId,
-    handleCopyShareUrl,
-    handleUnshareSession,
     openSidebarMenuKey,
     setOpenSidebarMenuKey,
     renamingFolderId,
@@ -248,7 +229,6 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
     removeSessionFromFolder,
     addSessionToFolder,
     createFolderAndStartRename,
-    openContextPanelTab,
     handleDeleteSession,
     mobileVariant,
     renderSessionNode,
@@ -309,7 +289,7 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
   const [exportIncludeSubtasks, setExportIncludeSubtasks] = React.useState(true);
 
-  const menuInstanceKey = `${renderContext}:${archivedBucket ? 'archived' : 'active'}:${session.id}`;
+  const menuInstanceKey = `${renderContext}:${session.id}`;
   const isZombie = useViewportStore(
     React.useCallback((state) => Boolean(state.sessionMemoryState.get(session.id)?.isZombie), [session.id]),
   );
@@ -620,30 +600,12 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
         {isPinnedSession ? <RiUnpinLine className="mr-1 h-4 w-4" /> : <RiPushpinLine className="mr-1 h-4 w-4" />}
         {isPinnedSession ? t('sessions.sidebar.session.menu.unpin') : t('sessions.sidebar.session.menu.pin')}
       </DropdownMenuItem>
-      {!isFeatureEnabled('share') ? null : !resolvedSession.share ? (
-        <DropdownMenuItem onClick={() => handleShareSession(resolvedSession)} className="[&>svg]:mr-1">
-          <RiShare2Line className="mr-1 h-4 w-4" />
-          {t('sessions.sidebar.session.menu.share')}
-        </DropdownMenuItem>
-      ) : (
-        <>
-          <DropdownMenuItem onClick={() => { if (resolvedSession.share?.url) handleCopyShareUrl(resolvedSession.share.url, session.id); }} className="[&>svg]:mr-1">
-            {copiedSessionId === session.id
-              ? <><RiCheckLine className="mr-1 h-4 w-4" style={{ color: 'var(--status-success)' }} />{t('sessions.sidebar.session.menu.copied')}</>
-              : <><RiFileCopyLine className="mr-1 h-4 w-4" />{t('sessions.sidebar.session.menu.copyLink')}</>}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleUnshareSession(session.id)} className="[&>svg]:mr-1">
-            <RiLinkUnlinkM className="mr-1 h-4 w-4" />
-            {t('sessions.sidebar.session.menu.unshare')}
-          </DropdownMenuItem>
-        </>
-      )}
       <DropdownMenuItem onClick={() => { void handleExportSession(); }} className="[&>svg]:mr-1">
         <RiDownloadLine className="mr-1 h-4 w-4" />
         {t('sessions.sidebar.session.menu.exportMarkdown')}
       </DropdownMenuItem>
 
-      {sessionDirectory && !archivedBucket ? (() => {
+      {sessionDirectory ? (() => {
         const scopeFolders = getFoldersForScope(sessionDirectory);
         const currentFolderId = getSessionFolderId(sessionDirectory, session.id);
         return (
@@ -679,32 +641,13 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
         );
       })() : null}
 
-      {!isVSCode ? (
-        <DropdownMenuItem
-          disabled={!sessionDirectory}
-          onClick={() => {
-            if (!sessionDirectory) return;
-            openContextPanelTab(sessionDirectory, {
-              mode: 'chat',
-              dedupeKey: `session:${session.id}`,
-              label: sessionTitle,
-            });
-          }}
-          className="[&>svg]:mr-1"
-        >
-          <RiChat4Line className="mr-1 h-4 w-4" />
-          <span className="truncate">{t('sessions.sidebar.session.menu.openInSidePanel')}</span>
-          <span className="shrink-0 typography-micro px-1 rounded leading-none pb-px text-[var(--status-warning)] bg-[var(--status-warning)]/10">{t('sessions.sidebar.session.menu.betaBadge')}</span>
-        </DropdownMenuItem>
-      ) : null}
-
       <DropdownMenuSeparator />
       <DropdownMenuItem
         className="text-destructive focus:text-destructive [&>svg]:mr-1"
-        onClick={() => handleDeleteSession(session, { archivedBucket, hardDelete: isVSCode ? true : undefined })}
+        onClick={() => handleDeleteSession(session)}
       >
         <RiDeleteBinLine className="mr-1 h-4 w-4" />
-        {isVSCode || archivedBucket ? t('sessions.sidebar.bulkActions.delete') : t('sessions.sidebar.bulkActions.archive')}
+        {t('sessions.sidebar.bulkActions.delete')}
       </DropdownMenuItem>
     </DropdownMenuContent>
   );
@@ -715,7 +658,6 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
         <div
           data-session-row={session.id}
           data-session-scope={sessionDirectory ?? ''}
-          data-session-archived={archivedBucket ? '1' : '0'}
           className={cn(
             'group relative my-0.5 flex items-center rounded-sm px-1.5 py-1',
             isMissingDirectory ? 'opacity-75' : '',
@@ -881,7 +823,7 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
         </div>
       </DraggableSessionRow>
       {hasChildren && isExpanded
-        ? node.children.map((child) => renderSessionNode(child, depth + 1, sessionDirectory ?? groupDirectory, projectId, archivedBucket, undefined, renderContext))
+        ? node.children.map((child) => renderSessionNode(child, depth + 1, sessionDirectory ?? groupDirectory, projectId, undefined, renderContext))
         : null}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
         <DialogContent showCloseButton={false} className="max-w-sm gap-5">

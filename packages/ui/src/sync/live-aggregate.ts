@@ -22,10 +22,8 @@ const getSessionSignature = (session: Session): string => {
     session.title ?? '',
     session.time?.created ?? 0,
     session.time?.updated ?? 0,
-    session.time?.archived ?? 0,
     directory,
     parentID,
-    session.share?.url ?? '',
   ].join('|')
 }
 

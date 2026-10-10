@@ -15,7 +15,6 @@ import {
     RiFilePdfLine,
     RiFileVideoLine,
     RiPencilAiLine,
-    RiQuestionLine,
     RiSearchLine,
     RiStarFill,
     RiStarLine,
@@ -23,7 +22,6 @@ import {
     RiTimeLine,
     RiToolsLine,
 } from '@remixicon/react';
-import type { EditPermissionMode } from '@/stores/types/sessionTypes';
 import type { ModelMetadata } from '@/types';
 import {
     DropdownMenu,
@@ -43,7 +41,6 @@ import { useIsVSCodeRuntime } from '@/hooks/useRuntimeAPIs';
 import { isDesktopShell } from '@/lib/desktop';
 import { getAgentColor } from '@/lib/agentColors';
 import { useDeviceInfo } from '@/lib/device';
-import { getEditModeColors } from '@/lib/permissions/editModeColors';
 import { cn, fuzzyMatch } from '@/lib/utils';
 import { useContextStore } from '@/stores/contextStore';
 import { useConfigStore } from '@/stores/useConfigStore';
@@ -73,53 +70,6 @@ import { useCurrentSessionIsSubtask } from '@/hooks/useCurrentSessionIsSubtask';
 type IconComponent = ComponentType<any>;
 
 type ProviderModel = Record<string, unknown> & { id?: string; name?: string };
-
-type PermissionAction = 'allow' | 'ask' | 'deny';
-type PermissionRule = { permission: string; pattern: string; action: PermissionAction };
-
-const asPermissionRuleset = (value: unknown): PermissionRule[] | null => {
-    if (!Array.isArray(value)) {
-        return null;
-    }
-    const rules: PermissionRule[] = [];
-    for (const entry of value) {
-        if (!entry || typeof entry !== 'object') {
-            continue;
-        }
-        const candidate = entry as Partial<PermissionRule>;
-        if (typeof candidate.permission !== 'string' || typeof candidate.pattern !== 'string' || typeof candidate.action !== 'string') {
-            continue;
-        }
-        if (candidate.action !== 'allow' && candidate.action !== 'ask' && candidate.action !== 'deny') {
-            continue;
-        }
-        rules.push({ permission: candidate.permission, pattern: candidate.pattern, action: candidate.action });
-    }
-    return rules;
-};
-
-const resolveWildcardPermissionAction = (ruleset: unknown, permission: string): PermissionAction | undefined => {
-    const rules = asPermissionRuleset(ruleset);
-    if (!rules || rules.length === 0) {
-        return undefined;
-    }
-
-    for (let i = rules.length - 1; i >= 0; i -= 1) {
-        const rule = rules[i];
-        if (rule.permission === permission && rule.pattern === '*') {
-            return rule.action;
-        }
-    }
-
-    for (let i = rules.length - 1; i >= 0; i -= 1) {
-        const rule = rules[i];
-        if (rule.permission === '*' && rule.pattern === '*') {
-            return rule.action;
-        }
-    }
-
-    return undefined;
-};
 
 interface CapabilityDefinition {
     key: 'tool_call' | 'reasoning';
@@ -490,7 +440,7 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
             // Restore focus to chat input when model selector closes
             if (wasOpen && !isCompact) {
                 requestAnimationFrame(() => {
-                    const textarea = document.querySelector<HTMLTextAreaElement>('textarea[data-chat-input="true"]');
+                    const textarea = document.querySelector<HTMLElement>('[data-chat-input="true"]');
                     textarea?.focus();
                 });
             }
@@ -504,7 +454,7 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
             setAgentSearchQuery('');
             if (!isCompact) {
                 requestAnimationFrame(() => {
-                    const textarea = document.querySelector<HTMLTextAreaElement>('textarea[data-chat-input="true"]');
+                    const textarea = document.querySelector<HTMLElement>('[data-chat-input="true"]');
                     textarea?.focus();
                 });
             }
@@ -549,27 +499,9 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
 
     const sizeVariant: 'mobile' | 'vscode' | 'default' = isMobile ? 'mobile' : isVSCodeRuntime ? 'vscode' : 'default';
     const buttonHeight = sizeVariant === 'mobile' ? 'h-9' : sizeVariant === 'vscode' ? 'h-6' : 'h-8';
-    const editToggleIconClass = sizeVariant === 'mobile' ? 'h-5 w-5' : sizeVariant === 'vscode' ? 'h-4 w-4' : 'h-4 w-4';
     const controlIconSize = sizeVariant === 'mobile' ? 'h-5 w-5' : sizeVariant === 'vscode' ? 'h-4 w-4' : 'h-4 w-4';
     const controlTextSize = isCompact ? 'typography-micro' : 'typography-meta';
     const inlineGapClass = sizeVariant === 'mobile' ? 'gap-x-1' : sizeVariant === 'vscode' ? 'gap-x-2' : 'gap-x-3';
-    const renderEditModeIcon = React.useCallback((mode: EditPermissionMode, iconClass = editToggleIconClass) => {
-        const combinedClassName = cn(iconClass, 'flex-shrink-0');
-        const modeColors = getEditModeColors(mode);
-        const iconColor = modeColors ? modeColors.text : 'var(--foreground)';
-        const iconStyle = { color: iconColor };
-
-        if (mode === 'full') {
-            return <RiPencilAiLine className={combinedClassName} style={iconStyle} />;
-        }
-        if (mode === 'allow') {
-            return <RiCheckboxCircleLine className={combinedClassName} style={iconStyle} />;
-        }
-        if (mode === 'deny') {
-            return <RiCloseCircleLine className={combinedClassName} style={iconStyle} />;
-        }
-        return <RiQuestionLine className={combinedClassName} style={iconStyle} />;
-    }, [editToggleIconClass]);
 
     const currentProvider = getCurrentProvider();
     const currentProviderModels = currentProvider?.models;
@@ -1136,7 +1068,7 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
             if (!isCompact || !onMobilePanelSelection) {
                 // Restore focus to chat input after model selection
                 requestAnimationFrame(() => {
-                    const textarea = document.querySelector<HTMLTextAreaElement>('textarea[data-chat-input="true"]');
+                    const textarea = document.querySelector<HTMLElement>('[data-chat-input="true"]');
                     textarea?.focus();
                 });
             }
@@ -1327,23 +1259,6 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
         const hasModelConfig = currentAgent.model?.providerID && currentAgent.model?.modelID;
         const hasTemperatureOrTopP = currentAgent.temperature !== undefined || currentAgent.topP !== undefined;
 
-        const summarizePermission = (permissionName: string): { mode: EditPermissionMode; label: string } => {
-            const rules = asPermissionRuleset(currentAgent.permission) ?? [];
-            const hasCustom = rules.some((rule) => rule.permission === permissionName && rule.pattern !== '*');
-            const action = resolveWildcardPermissionAction(rules, permissionName) ?? 'ask';
-
-            if (hasCustom) {
-                return { mode: 'ask', label: t('chat.modelControls.permissionLabel.custom') };
-            }
-
-            if (action === 'allow') return { mode: 'allow', label: t('chat.modelControls.permissionLabel.allow') };
-            if (action === 'deny') return { mode: 'deny', label: t('chat.modelControls.permissionLabel.deny') };
-            return { mode: 'ask', label: t('chat.modelControls.permissionLabel.ask') };
-        };
-
-        const editPermissionSummary = summarizePermission('edit');
-        const bashPermissionSummary = summarizePermission('bash');
-        const webfetchPermissionSummary = summarizePermission('webfetch');
 
         return (
             <MobileOverlayPanel
@@ -1403,40 +1318,6 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
 
 
                     {}
-                    {isFeatureEnabled('agentsSettings') ? (
-                        <div className="rounded-xl border border-border/40 bg-sidebar/30 px-2 py-1.5">
-                            <div className="typography-micro text-muted-foreground mb-1">{t('chat.modelControls.permissions')}</div>
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-center justify-between">
-                                    <span className="typography-meta text-muted-foreground/80">{t('chat.modelControls.edit')}</span>
-                                    <div className="flex items-center gap-1.5">
-                                        {renderEditModeIcon(editPermissionSummary.mode, 'h-3.5 w-3.5')}
-                                        <span className="typography-meta font-medium text-foreground">
-                                            {editPermissionSummary.label}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="typography-meta text-muted-foreground/80">{t('chat.modelControls.bash')}</span>
-                                    <div className="flex items-center gap-1.5">
-                                        {renderEditModeIcon(bashPermissionSummary.mode, 'h-3.5 w-3.5')}
-                                        <span className="typography-meta font-medium text-foreground">
-                                            {bashPermissionSummary.label}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="typography-meta text-muted-foreground/80">{t('chat.modelControls.webFetch')}</span>
-                                    <div className="flex items-center gap-1.5">
-                                        {renderEditModeIcon(webfetchPermissionSummary.mode, 'h-3.5 w-3.5')}
-                                        <span className="typography-meta font-medium text-foreground">
-                                            {webfetchPermissionSummary.label}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ) : null}
 
                     {}
                     {hasCustomPrompt && (
@@ -1781,7 +1662,7 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
                 return;
             }
             requestAnimationFrame(() => {
-                const textarea = document.querySelector<HTMLTextAreaElement>('textarea[data-chat-input="true"]');
+                const textarea = document.querySelector<HTMLElement>('[data-chat-input="true"]');
                 textarea?.focus();
             });
         };
@@ -2559,23 +2440,6 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
         const hasModelConfig = currentAgent.model?.providerID && currentAgent.model?.modelID;
         const hasTemperatureOrTopP = currentAgent.temperature !== undefined || currentAgent.topP !== undefined;
 
-        const summarizePermission = (permissionName: string): { mode: EditPermissionMode; label: string } => {
-            const rules = asPermissionRuleset(currentAgent.permission) ?? [];
-            const hasCustom = rules.some((rule) => rule.permission === permissionName && rule.pattern !== '*');
-            const action = resolveWildcardPermissionAction(rules, permissionName) ?? 'ask';
-
-            if (hasCustom) {
-                                return { mode: 'ask', label: t('chat.modelControls.permissionLabel.custom') };
-                            }
-
-            if (action === 'allow') return { mode: 'allow', label: t('chat.modelControls.permissionLabel.allow') };
-            if (action === 'deny') return { mode: 'deny', label: t('chat.modelControls.permissionLabel.deny') };
-            return { mode: 'ask', label: t('chat.modelControls.permissionLabel.ask') };
-        };
-
-        const editPermissionSummary = summarizePermission('edit');
-        const bashPermissionSummary = summarizePermission('bash');
-        const webfetchPermissionSummary = summarizePermission('webfetch');
 
         return (
             <TooltipContent align="start" sideOffset={8} className="max-w-[280px]">
@@ -2632,38 +2496,6 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
                     )}
 
 
-                    {isFeatureEnabled('agentsSettings') ? (
-                        <div className="flex flex-col gap-1">
-                            <span className="typography-meta font-semibold uppercase tracking-wide text-muted-foreground/90">{t('chat.modelControls.permissions')}</span>
-                            <div className="flex items-center gap-3">
-                                <span className="typography-meta text-muted-foreground/80 w-16">{t('chat.modelControls.edit')}</span>
-                                <div className="flex items-center gap-1.5">
-                                    {renderEditModeIcon(editPermissionSummary.mode, 'h-3.5 w-3.5')}
-                                    <span className="typography-meta font-medium text-foreground w-12">
-                                        {editPermissionSummary.label}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className="typography-meta text-muted-foreground/80 w-16">{t('chat.modelControls.bash')}</span>
-                                <div className="flex items-center gap-1.5">
-                                    {renderEditModeIcon(bashPermissionSummary.mode, 'h-3.5 w-3.5')}
-                                    <span className="typography-meta font-medium text-foreground w-12">
-                                        {bashPermissionSummary.label}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className="typography-meta text-muted-foreground/80 w-16">{t('chat.modelControls.webFetch')}</span>
-                                <div className="flex items-center gap-1.5">
-                                    {renderEditModeIcon(webfetchPermissionSummary.mode, 'h-3.5 w-3.5')}
-                                    <span className="typography-meta font-medium text-foreground w-12">
-                                        {webfetchPermissionSummary.label}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    ) : null}
 
                     {hasCustomPrompt && (
                         <div className="flex items-center justify-between gap-3">

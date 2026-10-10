@@ -8,8 +8,6 @@ import { useThemeSystem } from '@/contexts/useThemeSystem';
 import { sessionEvents } from '@/lib/sessionEvents';
 import { isTauriShell } from '@/lib/desktop';
 import { useFileSystemAccess } from '@/hooks/useFileSystemAccess';
-import { createWorktreeSession } from '@/lib/worktreeSessionCreator';
-import { showOpenCodeStatus } from '@/lib/openCodeStatus';
 
 const getActiveElementSelectedText = (): string => {
   if (typeof document === 'undefined') {
@@ -73,7 +71,6 @@ type MenuAction =
   | 'command-palette'
   | 'quick-open'
   | 'new-session'
-  | 'new-worktree-session'
   | 'change-workspace'
   | 'open-git-tab'
   | 'open-diff-tab'
@@ -85,8 +82,7 @@ type MenuAction =
   | 'theme-system'
   | 'toggle-sidebar'
   | 'toggle-memory-debug'
-  | 'help-dialog'
-  | 'download-logs';
+  | 'help-dialog';
 
 export const useMenuActions = (
   onToggleMemoryDebug?: () => void
@@ -193,12 +189,6 @@ export const useMenuActions = (
           openNewSessionDraft();
           break;
 
-        case 'new-worktree-session':
-          setActiveMainTab('chat');
-          setSessionSwitcherOpen(false);
-          createWorktreeSession();
-          break;
-
         case 'change-workspace':
           handleChangeWorkspace();
           break;
@@ -259,13 +249,6 @@ export const useMenuActions = (
         case 'help-dialog':
           toggleHelpDialog();
           break;
-
-        case 'download-logs': {
-          void showOpenCodeStatus().catch(() => {
-            toast.error('Failed to collect OpenCode status');
-          });
-          break;
-        }
       }
     },
     [

@@ -26,14 +26,6 @@ export async function handleStandardGitBridgeMessage(message: BridgeMessageInput
       return { id, type, success: true, data: isRepo };
     }
 
-    case 'api:git/worktree-type': {
-      const { directory } = (payload || {}) as { directory?: string };
-      const dirError = requireDirectory(id, type, directory);
-      if (dirError) return dirError;
-      const isLinked = await gitService.isLinkedWorktree(directory!);
-      return { id, type, success: true, data: isLinked };
-    }
-
     case 'api:git/status': {
       const { directory } = (payload || {}) as { directory?: string };
       const dirError = requireDirectory(id, type, directory);
@@ -98,94 +90,6 @@ export async function handleStandardGitBridgeMessage(message: BridgeMessageInput
         return { id, type, success: false, error: 'Directory and branch are required' };
       }
       const result = await gitService.checkoutBranch(directory, branch);
-      return { id, type, success: true, data: result };
-    }
-
-    case 'api:git/worktrees': {
-      const { directory, method } = (payload || {}) as {
-        directory?: string;
-        method?: string;
-        body?: unknown;
-        directoryPath?: string;
-        deleteLocalBranch?: boolean;
-      };
-      const dirError = requireDirectory(id, type, directory);
-      if (dirError) return dirError;
-
-      const normalizedMethod = typeof method === 'string' ? method.toUpperCase() : 'GET';
-
-      if (normalizedMethod === 'GET') {
-        const worktrees = await gitService.listGitWorktrees(directory!);
-        return { id, type, success: true, data: worktrees };
-      }
-
-      if (normalizedMethod === 'POST') {
-        const created = await gitService.createWorktree(directory!, (payload || {}) as gitService.CreateGitWorktreePayload);
-        return { id, type, success: true, data: created };
-      }
-
-      if (normalizedMethod === 'DELETE') {
-        const removePayload = payload as {
-          body?: { directory?: string; deleteLocalBranch?: boolean };
-          directory?: string;
-          deleteLocalBranch?: boolean;
-        };
-        const bodyDirectory = typeof removePayload?.body?.directory === 'string'
-          ? removePayload.body.directory
-          : '';
-        const legacyDirectory = typeof removePayload?.directory === 'string' ? removePayload.directory : '';
-        const worktreeDirectory = bodyDirectory || legacyDirectory || '';
-
-        if (!worktreeDirectory) {
-          return { id, type, success: false, error: 'Worktree directory is required' };
-        }
-        const removed = await gitService.removeWorktree(directory!, {
-          directory: worktreeDirectory,
-          deleteLocalBranch: removePayload?.body?.deleteLocalBranch === true || removePayload?.deleteLocalBranch === true,
-        });
-        return { id, type, success: true, data: { success: Boolean(removed) } };
-      }
-
-      return { id, type, success: false, error: `Unsupported method: ${normalizedMethod}` };
-    }
-
-    case 'api:git/worktrees/validate': {
-      const { directory } = (payload || {}) as { directory?: string };
-      const dirError = requireDirectory(id, type, directory);
-      if (dirError) return dirError;
-      const result = await gitService.validateWorktreeCreate(directory!, (payload || {}) as gitService.CreateGitWorktreePayload);
-      return { id, type, success: true, data: result };
-    }
-
-    case 'api:git/worktrees/bootstrap-status': {
-      const { directory } = (payload || {}) as { directory?: string };
-      const dirError = requireDirectory(id, type, directory);
-      if (dirError) return dirError;
-      const result = await gitService.getWorktreeBootstrapStatus(directory!);
-      return { id, type, success: true, data: result };
-    }
-
-    case 'api:git/worktrees/preview': {
-      const { directory } = (payload || {}) as { directory?: string };
-      const dirError = requireDirectory(id, type, directory);
-      if (dirError) return dirError;
-      const result = await gitService.previewWorktreeCreate(directory!, (payload || {}) as gitService.CreateGitWorktreePayload);
-      return { id, type, success: true, data: result };
-    }
-
-    case 'api:git/validate-directory': {
-      const { directory, worktreeRoot } = (payload || {}) as { directory?: string; worktreeRoot?: string };
-      const dirError = requireDirectory(id, type, directory);
-      if (dirError) return dirError;
-      const result = await gitService.validateWorktreeDirectory(directory!, worktreeRoot!);
-      return { id, type, success: true, data: result };
-    }
-
-    case 'api:git/canonicalize-worktree-state': {
-      const { directory } = (payload || {}) as { directory?: string };
-      const dirError = requireDirectory(id, type, directory);
-      if (dirError) return dirError;
-      const result = await gitService.canonicalizeWorktreeState(directory!);
       return { id, type, success: true, data: result };
     }
 

@@ -18,10 +18,8 @@ import {
   RiCloseLine,
   RiContractUpDownLine,
   RiExpandUpDownLine,
-  RiCalendarScheduleLine,
 } from '@remixicon/react';
 import { cn } from '@/lib/utils';
-import { ArrowsMerge } from '@/components/icons/ArrowsMerge';
 import { useSessionDisplayStore } from '@/stores/useSessionDisplayStore';
 import { useI18n } from '@/lib/i18n';
 
@@ -29,8 +27,6 @@ type Props = {
   hideDirectoryControls: boolean;
   handleOpenDirectoryDialog: () => void;
   handleNewSession: () => void;
-  canOpenMultiRun: boolean;
-  openMultiRunLauncher: () => void;
   headerActionIconClass: string;
   reserveHeaderActionsSpace: boolean;
   headerActionButtonClass: string;
@@ -43,7 +39,6 @@ type Props = {
   searchMatchCount: number;
   collapseAllProjects: () => void;
   expandAllProjects: () => void;
-  openScheduledTasksDialog: () => void;
   selectionModeEnabled: boolean;
   onToggleSelectionMode: () => void;
   showSidebarToggle?: boolean;
@@ -56,8 +51,6 @@ export function SidebarHeader(props: Props): React.ReactNode {
     hideDirectoryControls,
     handleOpenDirectoryDialog,
     handleNewSession,
-    canOpenMultiRun,
-    openMultiRunLauncher,
     headerActionIconClass,
     reserveHeaderActionsSpace,
     headerActionButtonClass,
@@ -70,7 +63,6 @@ export function SidebarHeader(props: Props): React.ReactNode {
     searchMatchCount,
     collapseAllProjects,
     expandAllProjects,
-    openScheduledTasksDialog,
     selectionModeEnabled,
     onToggleSelectionMode,
     showSidebarToggle = false,
@@ -141,38 +133,9 @@ export function SidebarHeader(props: Props): React.ReactNode {
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={4}><p>{t('sessions.sidebar.header.actions.newSession')}</p></TooltipContent>
               </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={openMultiRunLauncher}
-                    className={headerActionButtonClass}
-                    aria-label={t('sessions.sidebar.header.actions.newMultiRun')}
-                    disabled={!canOpenMultiRun}
-                  >
-                    <ArrowsMerge className={headerActionIconClass} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" sideOffset={4}><p>{t('sessions.sidebar.header.actions.newMultiRun')}</p></TooltipContent>
-              </Tooltip>
             </div>
 
             <div className="flex items-center gap-1.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={openScheduledTasksDialog}
-                    className={headerActionButtonClass}
-                    aria-label={t('sessions.sidebar.header.actions.scheduledTasks')}
-                  >
-                    <RiCalendarScheduleLine className={headerActionIconClass} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" sideOffset={4}><p>{t('sessions.sidebar.header.actions.scheduledTasks')}</p></TooltipContent>
-              </Tooltip>
-
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button

@@ -22,14 +22,12 @@ import {
   type OpenChamberProjectTodoItem,
   type ProjectRef,
 } from '@/lib/openchamberConfig';
-import { generateBranchName } from '@/lib/git/branchNameGenerator';
 import { useDirectoryStore } from '@/stores/useDirectoryStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useConfigStore } from '@/stores/useConfigStore';
 import { useSessionUIStore } from '@/sync/session-ui-store';
 import { useSelectionStore } from '@/sync/selection-store';
 import { useInputStore } from '@/sync/input-store';
-import { createWorktreeSessionForNewBranch } from '@/lib/worktreeSessionCreator';
 import { cn } from '@/lib/utils';
 import { renderMagicPrompt } from '@/lib/magicPrompts';
 import { useI18n } from '@/lib/i18n';
@@ -38,13 +36,11 @@ import { TodoSendDialog, type TodoSendExecution } from './TodoSendDialog';
 interface ProjectNotesTodoPanelProps {
   projectRef: ProjectRef | null;
   projectLabel?: string | null;
-  canCreateWorktree?: boolean;
   onActionComplete?: () => void;
   className?: string;
 }
 
 type PendingSendTarget = {
-  kind: 'session' | 'worktree';
   todoId: string;
   todoText: string;
 };
@@ -74,7 +70,6 @@ const createTodoId = (): string => {
 export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
   projectRef,
   projectLabel,
-  canCreateWorktree = false,
   onActionComplete,
   className,
 }) => {
@@ -287,7 +282,7 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
       if (!projectRef || sendingTodoId) {
         return;
       }
-      setPendingSendTarget({ kind: 'session', todoId, todoText });
+      setPendingSendTarget({ todoId, todoText });
     },
     [projectRef, sendingTodoId]
   );
@@ -305,20 +300,6 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
       onActionComplete?.();
     },
     [currentSessionId, onActionComplete, routeToChat, setPendingInputText, t]
-  );
-
-  const handleSendToNewWorktreeSession = React.useCallback(
-    (todoId: string, todoText: string) => {
-      if (!projectRef || sendingTodoId) {
-        return;
-      }
-      if (!canCreateWorktree) {
-        toast.error(t('rightSidebar.contextNotesTodo.toast.worktreeRequiresGitRepo'));
-        return;
-      }
-      setPendingSendTarget({ kind: 'worktree', todoId, todoText });
-    },
-    [canCreateWorktree, projectRef, sendingTodoId, t]
   );
 
   const handleConfirmSend = React.useCallback(
@@ -341,34 +322,14 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
       try {
         routeToChat();
 
-        let sessionId: string | null = null;
-        let directoryHint: string | null = projectRef.path;
-
-        if (pendingSendTarget.kind === 'worktree') {
-          if (!canCreateWorktree) {
-            toast.error(t('rightSidebar.contextNotesTodo.toast.worktreeRequiresGitRepo'));
-            return;
-          }
-          const created = await createWorktreeSessionForNewBranch(projectRef.path, generateBranchName());
-          if (!created?.id) {
-            return;
-          }
-          sessionId = created.id;
-          directoryHint = null;
-        } else {
-          const session = await createSession(undefined, projectRef.path, null);
-          if (!session?.id) {
-            toast.error(t('rightSidebar.contextNotesTodo.toast.createSessionFailed'));
-            return;
-          }
-          sessionId = session.id;
-          directoryHint = session.directory ?? projectRef.path;
-          initializeNewOpenChamberSession(session.id, useConfigStore.getState().agents ?? []);
-        }
-
-        if (!sessionId) {
+        const session = await createSession(undefined, projectRef.path, null);
+        if (!session?.id) {
+          toast.error(t('rightSidebar.contextNotesTodo.toast.createSessionFailed'));
           return;
         }
+        const sessionId = session.id;
+        const directoryHint = session.directory ?? projectRef.path;
+        initializeNewOpenChamberSession(session.id, useConfigStore.getState().agents ?? []);
 
         const selectionState = useSelectionStore.getState();
         selectionState.saveSessionModelSelection(sessionId, execution.providerID, execution.modelID);
@@ -396,11 +357,7 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
           execution.variant || undefined,
         );
 
-        toast.success(
-          pendingSendTarget.kind === 'worktree'
-            ? t('rightSidebar.contextNotesTodo.toast.sentToNewWorktreeSession')
-            : t('rightSidebar.contextNotesTodo.toast.sentToNewSession')
-        );
+        toast.success(t('rightSidebar.contextNotesTodo.toast.sentToNewSession'));
         setPendingSendTarget(null);
         onActionComplete?.();
       } catch (error) {
@@ -411,7 +368,7 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
         setSendingTodoId(null);
       }
     },
-    [canCreateWorktree, createSession, initializeNewOpenChamberSession, onActionComplete, pendingSendTarget, projectRef, routeToChat, sendMessage, setCurrentSession, t]
+    [createSession, initializeNewOpenChamberSession, onActionComplete, pendingSendTarget, projectRef, routeToChat, sendMessage, setCurrentSession, t]
   );
 
   const planFileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -644,12 +601,6 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
                           <DropdownMenuItem onClick={() => handleSendToNewSession(todo.id, todo.text)}>
                             {t('rightSidebar.contextNotesTodo.todo.sendMenu.newSession')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => void handleSendToNewWorktreeSession(todo.id, todo.text)}
-                            disabled={!canCreateWorktree}
-                          >
-                            {t('rightSidebar.contextNotesTodo.todo.sendMenu.newWorktreeSession')}
-                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -739,7 +690,6 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
             setPendingSendTarget(null);
           }
         }}
-        target={pendingSendTarget?.kind ?? 'session'}
         projectDirectory={projectRef?.path ?? null}
         submitting={isSendDialogSubmitting}
         onConfirm={handleConfirmSend}

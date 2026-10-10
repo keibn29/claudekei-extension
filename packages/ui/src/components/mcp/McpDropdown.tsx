@@ -1,5 +1,4 @@
 import React from 'react';
-import type { McpStatus } from '@/lib/claude/types';
 import { RiRefreshLine } from '@remixicon/react';
 
 import {
@@ -17,42 +16,125 @@ import { MobileOverlayPanel } from '@/components/ui/MobileOverlayPanel';
 import { cn } from '@/lib/utils';
 import { useDeviceInfo } from '@/lib/device';
 import { useDirectoryStore } from '@/stores/useDirectoryStore';
-import { useMcpConfigStore } from '@/stores/useMcpConfigStore';
 import { computeMcpHealth, useMcpStore } from '@/stores/useMcpStore';
 import { McpIcon } from '@/components/icons/McpIcon';
 import { useI18n } from '@/lib/i18n';
+import type { McpServerInfo } from '@/lib/claude/types';
+import { MCP_STATUS_KEYS, useMcpToggle } from './mcpStatus';
+import { McpStatusDot } from './McpStatusDot';
 
-const statusTooltip = (
-  status: McpStatus | undefined,
-  t: (key: 'mcpDropdown.status.unknown' | 'mcpDropdown.status.connected' | 'mcpDropdown.status.failed' | 'mcpDropdown.status.unknownError' | 'mcpDropdown.status.needsAuth' | 'mcpDropdown.status.needsRegistration', params?: { error?: string }) => string
-): string => {
-  if (!status) return t('mcpDropdown.status.unknown');
-  switch (status.status) {
-    case 'connected':
-      return t('mcpDropdown.status.connected');
-    case 'failed':
-      return t('mcpDropdown.status.failed', { error: (status as { error?: string }).error || t('mcpDropdown.status.unknownError') });
-    case 'needs_auth':
-      return t('mcpDropdown.status.needsAuth');
-    case 'needs_client_registration':
-      return t('mcpDropdown.status.needsRegistration', { error: (status as { error?: string }).error || '' });
-    default:
-      return status.status;
-  }
+const EMPTY_SERVERS: McpServerInfo[] = [];
+
+/** Re-probe on demand; keeps the spinner visible for at least half a second. */
+const useMcpRefresh = () => {
+  const [spinning, setSpinning] = React.useState(false);
+  const refresh = React.useCallback(
+    (event?: React.MouseEvent) => {
+      event?.preventDefault();
+      if (spinning) return;
+      setSpinning(true);
+      const minSpin = new Promise((resolve) => setTimeout(resolve, 500));
+      void Promise.all([useMcpStore.getState().refresh(true), minSpin]).finally(() => setSpinning(false));
+    },
+    [spinning],
+  );
+  return { spinning, refresh };
 };
 
-const statusTone = (status: McpStatus | undefined): 'default' | 'success' | 'warning' | 'error' => {
-  switch (status?.status) {
-    case 'connected':
-      return 'success';
-    case 'failed':
-      return 'error';
-    case 'needs_auth':
-    case 'needs_client_registration':
-      return 'warning';
-    default:
-      return 'default';
+const RefreshButton: React.FC<{ spinning: boolean; onClick: (event: React.MouseEvent) => void; className?: string }> = ({ spinning, onClick, className }) => {
+  const { t } = useI18n();
+  return (
+    <button
+      type="button"
+      className={cn('inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-interactive-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary', className)}
+      disabled={spinning}
+      onClick={onClick}
+      aria-label={t('claudeMcp.refresh')}
+    >
+      <RiRefreshLine className={cn('h-4 w-4', spinning && 'animate-spin')} />
+    </button>
+  );
+};
+
+interface McpServerListProps {
+  /** Refreshes (cached, `refresh(false)`) each time this turns true. */
+  active: boolean;
+  /** Horizontal padding utility for the rows. */
+  rowClassName?: string;
+}
+
+/** Server rows with status dot and inline enable toggle; shared by the desktop dropdown and the mobile panel. */
+const McpServerList: React.FC<McpServerListProps> = ({ active, rowClassName }) => {
+  const { t } = useI18n();
+  const { isMobile } = useDeviceInfo();
+  const servers = useMcpStore((state) => state.snapshot?.servers ?? EMPTY_SERVERS);
+  const hasSnapshot = useMcpStore((state) => state.snapshot !== null);
+  const loading = useMcpStore((state) => state.loading);
+  const error = useMcpStore((state) => state.error);
+  const toggleSupported = useMcpStore((state) => state.toggleSupported);
+  const toggle = useMcpToggle();
+
+  React.useEffect(() => {
+    if (active) void useMcpStore.getState().refresh(false);
+  }, [active]);
+
+  const sorted = React.useMemo(() => [...servers].sort((a, b) => a.name.localeCompare(b.name)), [servers]);
+
+  const statusText = (server: McpServerInfo): string =>
+    server.status === 'failed' && server.error
+      ? t('claudeMcp.status.failedWithError', { error: server.error })
+      : t(MCP_STATUS_KEYS[server.status]);
+
+  if (sorted.length === 0) {
+    const message = !hasSnapshot && loading ? t('claudeMcp.loading') : !hasSnapshot && error ? error : t('claudeMcp.empty');
+    return <div className="px-4 py-5 text-center typography-ui-label text-muted-foreground">{message}</div>;
   }
+
+  return (
+    <>
+      {sorted.map((server) => {
+        const text = statusText(server);
+        const dot = <McpStatusDot status={server.status} label={text} />;
+        return (
+          <div key={server.name} className={cn('flex items-center justify-between gap-2 rounded-lg py-1.5 hover:bg-interactive-hover/50', rowClassName ?? 'px-4')}>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              {isMobile ? (
+                dot
+              ) : (
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>{dot}</TooltipTrigger>
+                  <TooltipContent side="left">
+                    <p className="max-w-xs break-words">{text}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              <div className="min-w-0">
+                <div className="truncate typography-ui-label">{server.name}</div>
+                {server.status === 'needs-auth' || server.status === 'failed' ? (
+                  <div
+                    className={cn('truncate typography-micro', server.status === 'failed' ? 'text-[var(--status-error)]' : 'text-[var(--status-warning)]')}
+                    title={text}
+                  >
+                    {server.status === 'failed' ? server.error ?? t('claudeMcp.status.failed') : t('claudeMcp.status.needsAuth')}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            <Switch
+              checked={server.status !== 'disabled'}
+              disabled={!toggleSupported}
+              aria-label={t('claudeMcp.toggleAria', { name: server.name })}
+              className="data-[checked]:bg-status-info"
+              onCheckedChange={(checked) => void toggle(server.name, checked)}
+            />
+          </div>
+        );
+      })}
+      {!toggleSupported ? (
+        <div className="px-4 pt-1 typography-micro text-muted-foreground">{t('claudeMcp.toggleUnsupported')}</div>
+      ) : null}
+    </>
+  );
 };
 
 interface McpDropdownProps {
@@ -66,139 +148,24 @@ interface McpDropdownContentProps {
 
 export const McpDropdownContent: React.FC<McpDropdownContentProps> = ({ active, className }) => {
   const { t } = useI18n();
-  const currentDirectory = useDirectoryStore((state) => state.currentDirectory);
-  const directory = currentDirectory ?? null;
-  const status = useMcpStore((state) => state.getStatusForDirectory(directory));
-  const refresh = useMcpStore((state) => state.refresh);
-  const connect = useMcpStore((state) => state.connect);
-  const disconnect = useMcpStore((state) => state.disconnect);
-  const mcpServers = useMcpConfigStore((state) => state.mcpServers);
-  const loadMcpConfigs = useMcpConfigStore((state) => state.loadMcpConfigs);
-  const [isSpinning, setIsSpinning] = React.useState(false);
-  const [busyName, setBusyName] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    void refresh({ directory, silent: true });
-  }, [refresh, directory]);
-
-  React.useEffect(() => {
-    void loadMcpConfigs({ force: true });
-  }, [loadMcpConfigs]);
-
-  React.useEffect(() => {
-    if (!active) return;
-    void Promise.all([
-      refresh({ directory, silent: true }),
-      loadMcpConfigs({ force: true }),
-    ]);
-  }, [active, refresh, directory, loadMcpConfigs]);
-
-  const sortedNames = React.useMemo(() => {
-    const names = new Set<string>(Object.keys(status));
-    for (const server of mcpServers) {
-      if (server?.name) {
-        names.add(server.name);
-      }
-    }
-    return Array.from(names).sort((a, b) => a.localeCompare(b));
-  }, [mcpServers, status]);
-
-  const handleRefresh = React.useCallback((e?: React.MouseEvent) => {
-    e?.preventDefault();
-    if (isSpinning) return;
-    setIsSpinning(true);
-    const minSpinPromise = new Promise(resolve => setTimeout(resolve, 500));
-    Promise.all([refresh({ directory }), minSpinPromise]).finally(() => {
-      setIsSpinning(false);
-    });
-  }, [isSpinning, refresh, directory]);
+  const directory = useDirectoryStore((state) => state.currentDirectory) ?? null;
+  const { spinning, refresh } = useMcpRefresh();
 
   return (
     <div className={cn('w-full', className)}>
       <div className="border-b border-[var(--interactive-border)]">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5">
-          <div className="min-w-0 flex items-baseline gap-2">
-            <div className="typography-ui-header font-semibold text-foreground">{t('mcpDropdown.title')}</div>
+          <div className="flex min-w-0 items-baseline gap-2">
+            <div className="typography-ui-header font-semibold text-foreground">{t('claudeMcp.title')}</div>
             {directory && (
-              <div className="truncate typography-micro text-muted-foreground">
-                {directory.split('/').pop() || directory}
-              </div>
+              <div className="truncate typography-micro text-muted-foreground">{directory.split('/').pop() || directory}</div>
             )}
           </div>
-          <button
-            type="button"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-interactive-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            disabled={isSpinning}
-            onClick={handleRefresh}
-            aria-label={t('mcpDropdown.actions.refreshAria')}
-          >
-            <RiRefreshLine className={cn('h-4 w-4', isSpinning && 'animate-spin')} />
-          </button>
+          <RefreshButton spinning={spinning} onClick={refresh} className="h-7 w-7" />
         </div>
       </div>
-
       <div className="max-h-64 overflow-y-auto py-2">
-        {sortedNames.map((serverName) => {
-          const serverStatus = status[serverName];
-          const tone = statusTone(serverStatus);
-          const isConnected = serverStatus?.status === 'connected';
-          const isBusy = busyName === serverName;
-          const tooltip = statusTooltip(serverStatus, t);
-
-          return (
-            <div
-              key={serverName}
-              className="flex items-center justify-between gap-2 px-4 py-1.5 rounded-lg hover:bg-interactive-hover/50"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Tooltip delayDuration={300}>
-                    <TooltipTrigger asChild>
-                      <span
-                        className={cn(
-                          'h-2 w-2 rounded-full flex-shrink-0',
-                          tone === 'success' && 'bg-status-success',
-                          tone === 'error' && 'bg-status-error',
-                          tone === 'warning' && 'bg-status-warning',
-                          tone === 'default' && 'bg-muted-foreground/40'
-                        )}
-                        aria-label={tooltip}
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent side="left">
-                      <p>{tooltip}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <span className="typography-ui-label truncate">{serverName}</span>
-                </div>
-              </div>
-
-              <Switch
-                checked={isConnected}
-                disabled={isBusy}
-                className="data-[checked]:bg-status-info"
-                onCheckedChange={async (checked) => {
-                  setBusyName(serverName);
-                  try {
-                    if (checked) {
-                      await connect(serverName, directory);
-                    } else {
-                      await disconnect(serverName, directory);
-                    }
-                  } finally {
-                    setBusyName(null);
-                  }
-                }}
-              />
-            </div>
-          );
-        })}
-
-        {sortedNames.length === 0 && (
-          <div className="px-4 py-5 typography-ui-label text-muted-foreground text-center">
-            {t('mcpDropdown.empty.configureInConfig')}
-          </div>
-        )}
+        <McpServerList active={active} />
       </div>
     </div>
   );
@@ -210,15 +177,11 @@ export const McpDropdown: React.FC<McpDropdownProps> = ({ headerIconButtonClass 
   const [tooltipOpen, setTooltipOpen] = React.useState(false);
   const blockTooltipRef = React.useRef(false);
   const { isMobile } = useDeviceInfo();
-  const currentDirectory = useDirectoryStore((state) => state.currentDirectory);
-  const directory = currentDirectory ?? null;
+  const directory = useDirectoryStore((state) => state.currentDirectory) ?? null;
+  const servers = useMcpStore((state) => state.snapshot?.servers);
+  const { spinning, refresh } = useMcpRefresh();
 
-  const status = useMcpStore((state) => state.getStatusForDirectory(directory));
-  const refresh = useMcpStore((state) => state.refresh);
-  const connect = useMcpStore((state) => state.connect);
-  const disconnect = useMcpStore((state) => state.disconnect);
-  const mcpServers = useMcpConfigStore((state) => state.mcpServers);
-  const loadMcpConfigs = useMcpConfigStore((state) => state.loadMcpConfigs);
+  const health = React.useMemo(() => computeMcpHealth(servers), [servers]);
 
   const handleDropdownOpenChange = React.useCallback((isOpen: boolean) => {
     if (!isOpen) {
@@ -236,130 +199,10 @@ export const McpDropdown: React.FC<McpDropdownProps> = ({ headerIconButtonClass 
     setTooltipOpen(isOpen);
   }, []);
 
-  const [isSpinning, setIsSpinning] = React.useState(false);
-
-  const [busyName, setBusyName] = React.useState<string | null>(null);
-
-  // Fetch on mount and when directory changes
-  React.useEffect(() => {
-    void refresh({ directory, silent: true });
-    void loadMcpConfigs({ force: true });
-  }, [refresh, directory, loadMcpConfigs]);
-
-  // Refresh when dropdown opens
-  React.useEffect(() => {
-    if (!open) return;
-    void Promise.all([
-      refresh({ directory, silent: true }),
-      loadMcpConfigs({ force: true }),
-    ]);
-  }, [open, refresh, directory, loadMcpConfigs]);
-
-  const health = React.useMemo(() => computeMcpHealth(status), [status]);
-
-  const sortedNames = React.useMemo(() => {
-    const names = new Set<string>(Object.keys(status));
-    for (const server of mcpServers) {
-      if (server?.name) {
-        names.add(server.name);
-      }
-    }
-    return Array.from(names).sort((a, b) => a.localeCompare(b));
-  }, [mcpServers, status]);
-
-  const handleRefresh = React.useCallback((e?: React.MouseEvent) => {
-    e?.preventDefault();
-    if (isSpinning) return;
-    setIsSpinning(true);
-    const minSpinPromise = new Promise(resolve => setTimeout(resolve, 500));
-    Promise.all([refresh({ directory }), minSpinPromise]).finally(() => {
-      setIsSpinning(false);
-    });
-  }, [isSpinning, refresh, directory]);
-
-  const renderServerList = () => (
-    <>
-      {sortedNames.map((serverName) => {
-        const serverStatus = status[serverName];
-        const tone = statusTone(serverStatus);
-        const isConnected = serverStatus?.status === 'connected';
-        const isBusy = busyName === serverName;
-        const tooltip = statusTooltip(serverStatus, t);
-
-        return (
-          <div
-            key={serverName}
-            className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-interactive-hover/50"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 min-w-0">
-                {isMobile ? (
-                  <span
-                    className={cn(
-                      'h-2 w-2 rounded-full flex-shrink-0',
-                      tone === 'success' && 'bg-status-success',
-                      tone === 'error' && 'bg-status-error',
-                      tone === 'warning' && 'bg-status-warning',
-                      tone === 'default' && 'bg-muted-foreground/40'
-                    )}
-                    aria-label={tooltip}
-                  />
-                ) : (
-                  <Tooltip delayDuration={300}>
-                    <TooltipTrigger asChild>
-                      <span
-                        className={cn(
-                          'h-2 w-2 rounded-full flex-shrink-0',
-                          tone === 'success' && 'bg-status-success',
-                          tone === 'error' && 'bg-status-error',
-                          tone === 'warning' && 'bg-status-warning',
-                          tone === 'default' && 'bg-muted-foreground/40'
-                        )}
-                        aria-label={tooltip}
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent side="left">
-                      <p>{tooltip}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-                <span className="typography-ui-label truncate">{serverName}</span>
-              </div>
-            </div>
-
-            <Switch
-              checked={isConnected}
-              disabled={isBusy}
-              className="data-[checked]:bg-status-info"
-              onCheckedChange={async (checked) => {
-                setBusyName(serverName);
-                try {
-                  if (checked) {
-                    await connect(serverName, directory);
-                  } else {
-                    await disconnect(serverName, directory);
-                  }
-                } finally {
-                  setBusyName(null);
-                }
-              }}
-            />
-          </div>
-        );
-      })}
-
-      {sortedNames.length === 0 && (
-        <div className="px-2 py-3 typography-ui-label text-muted-foreground text-center">
-          {t('mcpDropdown.empty.configureInConfig')}
-        </div>
-      )}
-    </>
-  );
-
   const triggerButton = (
     <button
       type="button"
-      aria-label={t('mcpDropdown.actions.openAria')}
+      aria-label={t('claudeMcp.openAria')}
       className={cn(headerIconButtonClass, 'relative')}
       onClick={isMobile ? () => setOpen(true) : undefined}
     >
@@ -376,47 +219,36 @@ export const McpDropdown: React.FC<McpDropdownProps> = ({ headerIconButtonClass 
                   ? 'bg-status-success'
                   : 'bg-muted-foreground/40'
           )}
-          aria-label={t('mcpDropdown.statusAria')}
+          aria-label={t('claudeMcp.statusAria')}
         />
       )}
     </button>
   );
 
-  // Mobile: use MobileOverlayPanel
   if (isMobile) {
     return (
       <>
         {triggerButton}
         <MobileOverlayPanel
           open={open}
-          title={t('mcpDropdown.title')}
+          title={t('claudeMcp.title')}
           onClose={() => setOpen(false)}
           renderHeader={(closeButton) => (
-            <div className="flex items-center justify-between px-3 py-2 border-b border-border/40">
-              <h2 className="typography-ui-label font-semibold text-foreground">{t('mcpDropdown.title')}</h2>
+            <div className="flex items-center justify-between border-b border-border/40 px-3 py-2">
+              <h2 className="typography-ui-label font-semibold text-foreground">{t('claudeMcp.title')}</h2>
               <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-interactive-hover transition-colors"
-                  disabled={isSpinning}
-                  onClick={handleRefresh}
-                  aria-label={t('mcpDropdown.actions.refreshAria')}
-                >
-                  <RiRefreshLine className={cn('h-4 w-4', isSpinning && 'animate-spin')} />
-                </button>
+                <RefreshButton spinning={spinning} onClick={refresh} className="p-1" />
                 {closeButton}
               </div>
             </div>
           )}
         >
           <div className="py-1">
-            {renderServerList()}
+            <McpServerList active={open} rowClassName="px-2" />
           </div>
           {directory && (
-            <div className="px-2 py-1 border-t border-border/40 mt-1">
-              <span className="typography-meta text-muted-foreground truncate block">
-                {directory.split('/').pop() || directory}
-              </span>
+            <div className="mt-1 border-t border-border/40 px-2 py-1">
+              <span className="block truncate typography-meta text-muted-foreground">{directory.split('/').pop() || directory}</span>
             </div>
           )}
         </MobileOverlayPanel>
@@ -424,17 +256,14 @@ export const McpDropdown: React.FC<McpDropdownProps> = ({ headerIconButtonClass 
     );
   }
 
-  // Desktop: use DropdownMenu
   return (
     <DropdownMenu open={open} onOpenChange={handleDropdownOpenChange}>
       <Tooltip delayDuration={1000} open={open ? false : tooltipOpen} onOpenChange={handleTooltipOpenChange}>
         <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
-            {triggerButton}
-          </DropdownMenuTrigger>
+          <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{t('mcpDropdown.title')}</p>
+          <p>{t('claudeMcp.title')}</p>
         </TooltipContent>
       </Tooltip>
 

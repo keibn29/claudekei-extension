@@ -1,0 +1,36 @@
+/**
+ * Skills catalog page (U-D). Keys use the `claudeSkillsCatalog.*` prefix. Other locales spread this dictionary
+ * until they are translated (precedent: en.subagents.ts).
+ */
+export const skillsCatalogDict = {
+  'claudeSkillsCatalog.title': 'Skills catalog',
+  'claudeSkillsCatalog.description': 'Install skills from a public git repository.',
+  'claudeSkillsCatalog.source.label': 'Source',
+  'claudeSkillsCatalog.source.placeholder': 'owner/repo[/subpath] or https://github.com/owner/repo',
+  'claudeSkillsCatalog.source.hint': 'Public repositories only. Default: anthropics/skills.',
+  'claudeSkillsCatalog.scan': 'Scan',
+  'claudeSkillsCatalog.scanning': 'Scanning...',
+  'claudeSkillsCatalog.scanFailed': 'Could not scan the source: {error}',
+  'claudeSkillsCatalog.empty.idle': 'Scan a source to list its skills.',
+  'claudeSkillsCatalog.empty.none': 'No skills found in {source}.',
+  'claudeSkillsCatalog.list.heading': 'Skills in {source}',
+  'claudeSkillsCatalog.list.selectAll': 'Select all',
+  'claudeSkillsCatalog.list.selectAllAria': 'Select all installable skills',
+  'claudeSkillsCatalog.list.selectAria': 'Select skill {name}',
+  'claudeSkillsCatalog.list.selected': '{count} selected',
+  'claudeSkillsCatalog.badge.installedUser': 'Installed (user)',
+  'claudeSkillsCatalog.badge.installedProject': 'Installed (project)',
+  'claudeSkillsCatalog.badge.installedBoth': 'Installed (user, project)',
+  'claudeSkillsCatalog.notInstallable': 'Cannot be installed',
+  'claudeSkillsCatalog.footer.scope': 'Install to',
+  'claudeSkillsCatalog.footer.scopeUser': 'User (~/.claude/skills)',
+  'claudeSkillsCatalog.footer.scopeProject': 'Project (.claude/skills)',
+  'claudeSkillsCatalog.footer.overwrite': 'Overwrite existing',
+  'claudeSkillsCatalog.footer.install': 'Install',
+  'claudeSkillsCatalog.footer.installCount': 'Install ({count})',
+  'claudeSkillsCatalog.footer.installing': 'Installing...',
+  'claudeSkillsCatalog.result.installed': 'Installed {count} skill(s): {names}',
+  'claudeSkillsCatalog.result.skipped': 'Skipped {name}: {reason}',
+  'claudeSkillsCatalog.result.nothing': 'Nothing was installed.',
+  'claudeSkillsCatalog.result.failed': 'Install failed: {error}',
+} as const;

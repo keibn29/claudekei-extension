@@ -24,8 +24,6 @@ type ProjectSection = {
     normalizedPath: string;
     icon?: string;
     color?: string;
-    iconImage?: { mime: string; updatedAt: number; source: 'custom' | 'auto' };
-    iconBackground?: string;
   };
   groups: SessionGroup[];
 };
@@ -52,7 +50,6 @@ type Props = {
   setActiveMainTab: (tab: 'chat' | 'plan' | 'git' | 'diff' | 'terminal' | 'files') => void;
   setSessionSwitcherOpen: (open: boolean) => void;
   openNewSessionDraft: (options?: { directoryOverride?: string | null }) => void;
-  openNewWorktreeDialog: () => void;
   openProjectEditDialog: (id: string) => void;
   removeProject: (id: string) => void;
   projectHeaderSentinelRefs: React.MutableRefObject<Map<string, HTMLDivElement | null>>;
@@ -100,21 +97,12 @@ export function SidebarProjectsList(props: Props): React.ReactNode {
             if (!primaryGroup) {
               return <div className="py-1 text-left typography-micro text-muted-foreground">{t('sessions.sidebar.empty.noSessions.title')}</div>;
             }
-            const archivedGroup = activeSection.groups.find((candidate) => candidate.isArchivedBucket);
-            const groupsToRender = [
-              primaryGroup,
-              ...(archivedGroup && archivedGroup.id !== primaryGroup.id ? [archivedGroup] : []),
-            ];
-
-            return groupsToRender.map((group) => {
-              const groupKey = `${activeSection.project.id}:${group.id}`;
-              const hideGroupLabel = group.id === primaryGroup.id;
-              return (
-                <React.Fragment key={groupKey}>
-                  {props.renderGroupSessions(group, groupKey, activeSection.project.id, hideGroupLabel, null, true)}
-                </React.Fragment>
-              );
-            });
+            const groupKey = `${activeSection.project.id}:${primaryGroup.id}`;
+            return (
+              <React.Fragment key={groupKey}>
+                {props.renderGroupSessions(primaryGroup, groupKey, activeSection.project.id, true, null, true)}
+              </React.Fragment>
+            );
           })()}
         </div>
       ) : (
@@ -159,8 +147,6 @@ export function SidebarProjectsList(props: Props): React.ReactNode {
                     projectDescription={projectDescription}
                     projectIcon={project.icon}
                     projectColor={project.color}
-                    projectIconImage={project.iconImage}
-                    projectIconBackground={project.iconBackground}
                     isCollapsed={isCollapsed}
                     isActiveProject={isActiveProject}
                     isRepo={Boolean(isRepo)}
@@ -174,12 +160,6 @@ export function SidebarProjectsList(props: Props): React.ReactNode {
                       props.setActiveMainTab('chat');
                       if (props.mobileVariant) props.setSessionSwitcherOpen(false);
                       props.openNewSessionDraft({ directoryOverride: project.normalizedPath });
-                    }}
-                    onNewWorktreeSession={() => {
-                      if (projectKey !== props.activeProjectId) props.setActiveProjectIdOnly(projectKey);
-                      props.setActiveMainTab('chat');
-                      if (props.mobileVariant) props.setSessionSwitcherOpen(false);
-                      props.openNewWorktreeDialog();
                     }}
                     onRenameStart={() => props.openProjectEditDialog(projectKey)}
                     onClose={() => props.removeProject(projectKey)}

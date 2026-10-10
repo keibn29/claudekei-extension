@@ -132,19 +132,6 @@ const sanitizeSkillCatalogs = (value: unknown): DesktopSettings['skillCatalogs']
   return result;
 };
 
-const HEX_COLOR_PATTERN = /^#(?:[\da-fA-F]{3}|[\da-fA-F]{6})$/;
-
-const normalizeIconBackground = (value: unknown): string | null => {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  return HEX_COLOR_PATTERN.test(trimmed) ? trimmed.toLowerCase() : null;
-};
-
 const sanitizeProjects = (value: unknown): DesktopSettings['projects'] | undefined => {
   if (!Array.isArray(value)) {
     return undefined;
@@ -182,31 +169,8 @@ const sanitizeProjects = (value: unknown): DesktopSettings['projects'] | undefin
     if (typeof candidate.icon === 'string' && candidate.icon.trim().length > 0) {
       project.icon = candidate.icon.trim();
     }
-    if (candidate.iconImage === null) {
-      (project as unknown as Record<string, unknown>).iconImage = null;
-    } else if (candidate.iconImage && typeof candidate.iconImage === 'object') {
-      const iconImage = candidate.iconImage as Record<string, unknown>;
-      const mime = typeof iconImage.mime === 'string' ? iconImage.mime.trim() : '';
-      const updatedAt = typeof iconImage.updatedAt === 'number' && Number.isFinite(iconImage.updatedAt)
-        ? Math.max(0, Math.round(iconImage.updatedAt))
-        : 0;
-      const source = iconImage.source === 'custom' || iconImage.source === 'auto'
-        ? iconImage.source
-        : null;
-      if (mime && updatedAt > 0 && source) {
-        (project as unknown as Record<string, unknown>).iconImage = { mime, updatedAt, source };
-      }
-    }
     if (typeof candidate.color === 'string' && candidate.color.trim().length > 0) {
       project.color = candidate.color.trim();
-    }
-    if (candidate.iconBackground === null) {
-      (project as unknown as Record<string, unknown>).iconBackground = null;
-    } else {
-      const iconBackground = normalizeIconBackground(candidate.iconBackground);
-      if (iconBackground) {
-        (project as unknown as Record<string, unknown>).iconBackground = iconBackground;
-      }
     }
     if (typeof candidate.addedAt === 'number' && Number.isFinite(candidate.addedAt) && candidate.addedAt >= 0) {
       project.addedAt = candidate.addedAt;
@@ -323,11 +287,6 @@ const applyDesktopUiPreferences = (settings: DesktopSettings) => {
     const normalized = Math.max(1, Math.min(365, settings.autoDeleteAfterDays));
     if (normalized !== store.autoDeleteAfterDays) {
       store.setAutoDeleteAfterDays(normalized);
-    }
-  }
-  if (settings.sessionRetentionAction === 'archive' || settings.sessionRetentionAction === 'delete') {
-    if (settings.sessionRetentionAction !== store.sessionRetentionAction) {
-      store.setSessionRetentionAction(settings.sessionRetentionAction);
     }
   }
 
@@ -568,9 +527,6 @@ const sanitizeWebSettings = (payload: unknown): DesktopSettings | null => {
   if (typeof candidate.autoDeleteAfterDays === 'number' && Number.isFinite(candidate.autoDeleteAfterDays)) {
     result.autoDeleteAfterDays = candidate.autoDeleteAfterDays;
   }
-  if (candidate.sessionRetentionAction === 'archive' || candidate.sessionRetentionAction === 'delete') {
-    result.sessionRetentionAction = candidate.sessionRetentionAction;
-  }
   if (typeof candidate.tunnelProvider === 'string') {
     const provider = candidate.tunnelProvider.trim().toLowerCase();
     if (provider.length > 0) {
@@ -625,9 +581,6 @@ const sanitizeWebSettings = (payload: unknown): DesktopSettings | null => {
   }
   if (typeof candidate.defaultAgent === 'string' && candidate.defaultAgent.length > 0) {
     result.defaultAgent = candidate.defaultAgent;
-  }
-  if (typeof candidate.autoCreateWorktree === 'boolean') {
-    result.autoCreateWorktree = candidate.autoCreateWorktree;
   }
   if (typeof candidate.gitmojiEnabled === 'boolean') {
     result.gitmojiEnabled = candidate.gitmojiEnabled;
@@ -697,112 +650,6 @@ const sanitizeWebSettings = (payload: unknown): DesktopSettings | null => {
   if (typeof candidate.usageRefreshIntervalMs === 'number' && Number.isFinite(candidate.usageRefreshIntervalMs)) {
     result.usageRefreshIntervalMs = candidate.usageRefreshIntervalMs;
   }
-  if (candidate.usageDisplayMode === 'usage' || candidate.usageDisplayMode === 'remaining') {
-    result.usageDisplayMode = candidate.usageDisplayMode;
-  }
-  if (Array.isArray(candidate.usageDropdownProviders)) {
-    result.usageDropdownProviders = candidate.usageDropdownProviders.filter(
-      (entry): entry is string => typeof entry === 'string' && entry.length > 0
-    );
-  }
-
-  // Parse usageSelectedModels (Record<string, string[]>)
-  if (candidate.usageSelectedModels && typeof candidate.usageSelectedModels === 'object') {
-    const selectedModels: Record<string, string[]> = {};
-    for (const [providerId, models] of Object.entries(candidate.usageSelectedModels)) {
-      if (Array.isArray(models)) {
-        selectedModels[providerId] = models.filter((m): m is string => typeof m === 'string');
-      }
-    }
-    if (Object.keys(selectedModels).length > 0) {
-      result.usageSelectedModels = selectedModels;
-    }
-  }
-
-  // Parse usageCollapsedFamilies (Record<string, string[]>)
-  if (candidate.usageCollapsedFamilies && typeof candidate.usageCollapsedFamilies === 'object') {
-    const collapsedFamilies: Record<string, string[]> = {};
-    for (const [providerId, families] of Object.entries(candidate.usageCollapsedFamilies)) {
-      if (Array.isArray(families)) {
-        collapsedFamilies[providerId] = families.filter((f): f is string => typeof f === 'string');
-      }
-    }
-    if (Object.keys(collapsedFamilies).length > 0) {
-      result.usageCollapsedFamilies = collapsedFamilies;
-    }
-  }
-
-  // Parse usageExpandedFamilies (Record<string, string[]>) - inverted collapsed logic for header dropdown
-  if (candidate.usageExpandedFamilies && typeof candidate.usageExpandedFamilies === 'object') {
-    const expandedFamilies: Record<string, string[]> = {};
-    for (const [providerId, families] of Object.entries(candidate.usageExpandedFamilies)) {
-      if (Array.isArray(families)) {
-        expandedFamilies[providerId] = families.filter((f): f is string => typeof f === 'string');
-      }
-    }
-    if (Object.keys(expandedFamilies).length > 0) {
-      result.usageExpandedFamilies = expandedFamilies;
-    }
-  }
-
-  // Parse usageModelGroups - custom model groups configuration per provider
-  if (candidate.usageModelGroups && typeof candidate.usageModelGroups === 'object') {
-    const modelGroups: Record<string, {
-      customGroups?: Array<{id: string; label: string; models: string[]; order: number}>;
-      modelAssignments?: Record<string, string>;
-      renamedGroups?: Record<string, string>;
-    }> = {};
-    for (const [providerId, config] of Object.entries(candidate.usageModelGroups)) {
-      if (config && typeof config === 'object') {
-        const typedConfig = config as Record<string, unknown>;
-        const providerConfig: {
-          customGroups?: Array<{id: string; label: string; models: string[]; order: number}>;
-          modelAssignments?: Record<string, string>;
-          renamedGroups?: Record<string, string>;
-        } = {};
-
-        // Parse customGroups
-        if (Array.isArray(typedConfig.customGroups)) {
-          providerConfig.customGroups = typedConfig.customGroups
-            .filter((g): g is Record<string, unknown> => g && typeof g === 'object')
-            .map((g) => ({
-              id: String(g.id ?? ''),
-              label: String(g.label ?? ''),
-              models: Array.isArray(g.models)
-                ? g.models.filter((m): m is string => typeof m === 'string')
-                : [],
-              order: typeof g.order === 'number' ? g.order : 0,
-            }));
-        }
-
-        // Parse modelAssignments
-        if (typedConfig.modelAssignments && typeof typedConfig.modelAssignments === 'object') {
-          providerConfig.modelAssignments = Object.fromEntries(
-            Object.entries(typedConfig.modelAssignments as Record<string, unknown>)
-              .filter(([, v]) => typeof v === 'string')
-              .map(([k, v]) => [k, String(v)])
-          );
-        }
-
-        // Parse renamedGroups
-        if (typedConfig.renamedGroups && typeof typedConfig.renamedGroups === 'object') {
-          providerConfig.renamedGroups = Object.fromEntries(
-            Object.entries(typedConfig.renamedGroups as Record<string, unknown>)
-              .filter(([, v]) => typeof v === 'string')
-              .map(([k, v]) => [k, String(v)])
-          );
-        }
-
-        if (Object.keys(providerConfig).length > 0) {
-          modelGroups[providerId] = providerConfig;
-        }
-      }
-    }
-    if (Object.keys(modelGroups).length > 0) {
-      result.usageModelGroups = modelGroups;
-    }
-  }
-
   if (typeof candidate.inputSpellcheckEnabled === 'boolean') {
     result.inputSpellcheckEnabled = candidate.inputSpellcheckEnabled;
   }

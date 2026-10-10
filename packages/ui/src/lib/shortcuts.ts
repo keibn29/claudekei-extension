@@ -133,12 +133,6 @@ const SHORTCUT_ACTIONS: ReadonlyArray<ShortcutAction> = [
     customizable: true,
   },
   {
-    id: 'open_status',
-    defaultCombo: 'mod+shift+o',
-    label: 'Open OpenCode status',
-    description: 'Open the OpenCode status dialog',
-  },
-  {
     id: 'open_settings',
     defaultCombo: 'mod+comma',
     label: 'Open settings',
@@ -208,13 +202,6 @@ const SHORTCUT_ACTIONS: ReadonlyArray<ShortcutAction> = [
     customizable: true,
   },
   {
-    id: 'new_chat_worktree',
-    defaultCombo: 'mod+shift+n',
-    label: 'New worktree draft',
-    description: 'Create a new worktree and open a draft in it',
-    customizable: true,
-  },
-  {
     id: 'submit_message',
     defaultCombo: 'mod+enter',
     label: 'Submit message',
@@ -278,6 +265,13 @@ const SHORTCUT_ACTIONS: ReadonlyArray<ShortcutAction> = [
     label: 'Cycle theme',
     description: 'Cycle between light, dark, and system theme',
     customizable: true,
+  },
+  {
+    id: 'open_timeline',
+    // OpenKei uses mod+t, but VS Code binds Ctrl/Cmd+T (Go to Symbol in Workspace) and forwards webview keydowns to the workbench.
+    defaultCombo: 'alt+t',
+    label: 'Open timeline',
+    description: 'Open the conversation timeline (navigate, revert or fork from a message)',
   },
   {
     id: 'open_model_selector',

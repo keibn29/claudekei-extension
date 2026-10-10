@@ -21,8 +21,6 @@ import { cn } from '@/lib/utils';
 import { RiArrowDownSLine } from '@remixicon/react';
 import { useI18n } from '@/lib/i18n';
 
-type TodoSendTarget = 'session' | 'worktree';
-
 export type TodoSendExecution = {
   providerID: string;
   modelID: string;
@@ -33,7 +31,6 @@ export type TodoSendExecution = {
 type TodoSendDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  target: TodoSendTarget;
   projectDirectory: string | null;
   submitting?: boolean;
   onConfirm: (execution: TodoSendExecution) => Promise<void> | void;
@@ -103,7 +100,7 @@ const ThinkingPill = ({ value, options, disabled, onChange }: ThinkingPillProps)
 
 export function TodoSendDialog(props: TodoSendDialogProps) {
   const { t } = useI18n();
-  const { open, onOpenChange, target, projectDirectory, submitting = false, onConfirm } = props;
+  const { open, onOpenChange, projectDirectory, submitting = false, onConfirm } = props;
 
   const loadProviders = useConfigStore((state) => state.loadProviders);
   const loadConfigAgents = useConfigStore((state) => state.loadAgents);
@@ -190,9 +187,7 @@ export function TodoSendDialog(props: TodoSendDialogProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, handleSubmit]);
 
-  const title = target === 'worktree'
-    ? t('rightSidebar.contextNotesTodo.sendDialog.title.newWorktree')
-    : t('rightSidebar.contextNotesTodo.sendDialog.title.newSession');
+  const title = t('rightSidebar.contextNotesTodo.sendDialog.title.newSession');
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!submitting) onOpenChange(nextOpen); }}>

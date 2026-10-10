@@ -34,11 +34,6 @@ export async function handleSpecialGitBridgeMessage(
   const { id, type, payload } = message;
 
   switch (type) {
-    case 'api:git/pr-description': {
-      // Generating PR text needed the removed OpenCode session API; not available in ClaudeKei Phase 1.
-      return { id, type, success: false, error: 'Pull request description generation is not available yet' };
-    }
-
     case 'api:git/conflict-details': {
       const { directory } = (payload || {}) as { directory?: string };
       if (!directory) {

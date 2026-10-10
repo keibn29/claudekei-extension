@@ -64,6 +64,14 @@ export class AgentLog {
     this.write({ ...all, [sessionId]: log });
   }
 
+  /** A user turn that never ran (cancelled while queued): its record must not outlive the message. */
+  forget(sessionId: string, uuid: string): void {
+    const all = this.all();
+    const log = all[sessionId];
+    if (!log?.entries.some(([id]) => id === uuid)) return;
+    this.write({ ...all, [sessionId]: { ...log, entries: log.entries.filter(([id]) => id !== uuid) } });
+  }
+
   /** Remembers the agent of the first spawn; later calls are ignored. */
   noteInitial(sessionId: string, agent: string): void {
     const all = this.all();

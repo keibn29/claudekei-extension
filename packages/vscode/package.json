@@ -68,33 +68,6 @@
         "title": "Focus Chat"
       },
       {
-        "command": "claudekei.openAgentManager",
-        "category": "ClaudeKei",
-        "title": "Open Agent Manager",
-        "icon": "$(circuit-board)"
-      },
-      {
-        "command": "claudekei.openActiveSessionInEditor",
-        "category": "ClaudeKei",
-        "title": "Open Active Session in Editor",
-        "icon": "$(link-external)"
-      },
-      {
-        "command": "claudekei.openNewSessionInEditor",
-        "category": "ClaudeKei",
-        "title": "Open New Session in Editor",
-        "icon": {
-          "light": "assets/app-icon.png",
-          "dark": "assets/app-icon.png"
-        }
-      },
-      {
-        "command": "claudekei.openCurrentOrNewSessionInEditor",
-        "category": "ClaudeKei",
-        "title": "Open Session in Editor",
-        "icon": "$(link-external)"
-      },
-      {
         "command": "claudekei.addToContext",
         "category": "ClaudeKei",
         "title": "Add to Context"
@@ -177,12 +150,6 @@
           "group": "navigation@50"
         }
       ],
-      "editor/title": [
-        {
-          "command": "claudekei.openNewSessionInEditor",
-          "group": "navigation@1"
-        }
-      ],
       "view/title": [
         {
           "command": "claudekei.newSession",
@@ -190,19 +157,9 @@
           "group": "navigation@1"
         },
         {
-          "command": "claudekei.openCurrentOrNewSessionInEditor",
-          "when": "view == claudekei.chatView",
-          "group": "navigation@2"
-        },
-        {
-          "command": "claudekei.openAgentManager",
-          "when": "view == claudekei.chatView",
-          "group": "navigation@3"
-        },
-        {
           "command": "claudekei.showSettings",
           "when": "view == claudekei.chatView",
-          "group": "navigation@4"
+          "group": "navigation@2"
         }
       ],
       "claudekei.submenu": [
@@ -319,7 +276,6 @@
     "package": "node scripts/package-vsix.mjs"
   },
   "devDependencies": {
-    "@types/adm-zip": "^0.5.7",
     "@types/bun": "1.4.2",
     "@types/vscode": "^1.85.0",
     "@vitejs/plugin-react": "^5.0.0",
@@ -332,7 +288,6 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.295",
     "@openchamber/ui": "workspace:*",
-    "adm-zip": "^0.5.16",
     "diff": "8.0.3",
     "jsonc-parser": "^3.3.1",
     "react": "^19.1.1",

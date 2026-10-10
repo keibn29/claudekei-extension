@@ -12,7 +12,9 @@ const record = (fn: string, result?: unknown) => (...args: unknown[]) => {
 }
 
 let failDeleteFor = new Set<string>()
+let revertResult: { files: string[]; filesError?: string } = { files: [] }
 const toasts: string[] = []
+const warnings: Array<{ message: string; description?: string }> = []
 
 // Real modules are restored in `afterAll` (mock.module is process-wide in bun).
 const realClientModule = { ...(await import('@/lib/claude/client')) }
@@ -35,6 +37,11 @@ mock.module('@/lib/claude/client', () => ({
     interrupt: record('interrupt'),
     respondPermission: record('respondPermission'),
     respondQuestion: record('respondQuestion'),
+    revert: (...args: unknown[]) => {
+      calls.push({ fn: 'revert', args })
+      return Promise.resolve(revertResult)
+    },
+    unrevert: record('unrevert'),
     fork: record('fork', { id: 'forked', title: 'Fork', directory: '/work', time: { created: 2, updated: 2 } }),
   },
 }))
@@ -46,6 +53,13 @@ const uiState = {
   },
   markSessionAsOpenChamberCreated: () => {},
 }
+// Restored in `afterAll` too: mock.module is process-wide in bun.
+const realUiStoreModule = { ...(await import('./session-ui-store')) }
+const realInputStoreModule = { ...(await import('./input-store')) }
+afterAll(() => {
+  mock.module('./session-ui-store', () => realUiStoreModule)
+  mock.module('./input-store', () => realInputStoreModule)
+})
 mock.module('./session-ui-store', () => ({ useSessionUIStore: { getState: () => uiState } }))
 mock.module('./input-store', () => ({
   useInputStore: { setState: (patch: unknown) => calls.push({ fn: 'inputStore.setState', args: [patch] }) },
@@ -82,7 +96,7 @@ mock.module('sonner', () => ({
     info: (message: string) => toasts.push(message),
     success: noopToast,
     error: noopToast,
-    warning: noopToast,
+    warning: (message: string, options?: { description?: string }) => warnings.push({ message, description: options?.description }),
     message: noopToast,
     loading: noopToast,
     dismiss: noopToast,
@@ -117,6 +131,8 @@ function setup() {
 beforeEach(() => {
   calls.length = 0
   toasts.length = 0
+  warnings.length = 0
+  revertResult = { files: [] }
   failDeleteFor = new Set()
   uiState.currentSessionId = null
 })
@@ -229,15 +245,41 @@ describe('fork', () => {
   })
 })
 
-describe('Phase 2 stubs', () => {
-  it('shows a toast instead of archiving, sharing or reverting', async () => {
+describe('revert', () => {
+  it('prefills the composer with the reverted message text when that session is current', async () => {
     setup()
-    expect(await sessionActions.archiveSession('a')).toBe(false)
-    expect(await sessionActions.shareSession('a')).toBeNull()
-    expect(await sessionActions.unshareSession('a')).toBeNull()
+    uiState.currentSessionId = 'a'
+    revertResult = { files: ['src/a.ts'] }
+    const result = await sessionActions.revertToMessage('a', 'm1')
+    expect(result).toEqual({ files: ['src/a.ts'] })
+    expect(calls).toContainEqual({ fn: 'revert', args: ['a', 'm1'] })
+    expect(calls).toContainEqual({
+      fn: 'inputStore.setState',
+      args: [{ pendingInputText: 'hello', pendingInputMode: 'replace' }],
+    })
+    expect(warnings).toHaveLength(0)
+  })
+
+  it('does not touch the composer when the session is not the current one', async () => {
+    setup()
+    uiState.currentSessionId = 'b'
     await sessionActions.revertToMessage('a', 'm1')
+    expect(calls.filter((c) => c.fn === 'revert')).toHaveLength(1)
+    expect(calls.filter((c) => c.fn === 'inputStore.setState')).toHaveLength(0)
+  })
+
+  it('warns when the files could not be restored but still prefills', async () => {
+    setup()
+    uiState.currentSessionId = 'a'
+    revertResult = { files: [], filesError: 'No file checkpoint for this message' }
+    await sessionActions.revertToMessage('a', 'm1')
+    expect(warnings).toEqual([{ message: 'Files were not restored', description: 'No file checkpoint for this message' }])
+    expect(calls.filter((c) => c.fn === 'inputStore.setState')).toHaveLength(1)
+  })
+
+  it('unrevert calls the host', async () => {
+    setup()
     await sessionActions.unrevertSession('a')
-    expect(toasts).toHaveLength(5)
-    expect(calls.filter((c) => c.fn === 'deleteSession')).toHaveLength(0)
+    expect(calls).toContainEqual({ fn: 'unrevert', args: ['a'] })
   })
 })

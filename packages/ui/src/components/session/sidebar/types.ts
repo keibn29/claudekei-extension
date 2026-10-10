@@ -1,5 +1,4 @@
 import type { Session } from '@/lib/claude/types';
-import type { WorktreeMetadata } from '@/types/worktree';
 
 export type SessionSummaryMeta = {
   additions?: number | string | null;
@@ -11,7 +10,6 @@ export type SessionSummaryMeta = {
 export type SessionNode = {
   session: Session;
   children: SessionNode[];
-  worktree: WorktreeMetadata | null;
 };
 
 export type SessionGroup = {
@@ -20,8 +18,6 @@ export type SessionGroup = {
   branch: string | null;
   description: string | null;
   isMain: boolean;
-  isArchivedBucket?: boolean;
-  worktree: WorktreeMetadata | null;
   directory: string | null;
   folderScopeKey?: string | null;
   sessions: SessionNode[];

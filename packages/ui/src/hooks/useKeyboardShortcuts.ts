@@ -5,10 +5,7 @@ import * as sessionActions from '@/sync/session-actions';
 import { useUIStore } from '@/stores/useUIStore';
 import { useThemeSystem } from '@/contexts/useThemeSystem';
 import { useAssistantStatus } from '@/hooks/useAssistantStatus';
-import { createWorktreeSession } from '@/lib/worktreeSessionCreator';
 import { useConfigStore } from '@/stores/useConfigStore';
-import { isVSCodeRuntime } from '@/lib/desktop';
-import { showOpenCodeStatus } from '@/lib/openCodeStatus';
 import { eventMatchesShortcut, getEffectiveShortcutCombo } from '@/lib/shortcuts';
 import { getAllSyncSessions } from '@/sync/sync-refs';
 
@@ -77,31 +74,17 @@ export const useKeyboardShortcuts = () => {
         return;
       }
 
-      if (eventMatchesShortcut(e, combo('open_status'))) {
-        e.preventDefault();
-        void showOpenCodeStatus();
-        return;
-      }
-
       if (eventMatchesShortcut(e, combo('open_help'))) {
         e.preventDefault();
         toggleHelpDialog();
         return;
       }
 
-      const matchedNewSessionShortcut = eventMatchesShortcut(e, combo('new_chat'));
-      const matchedWorktreeShortcut = eventMatchesShortcut(e, combo('new_chat_worktree'));
-
-      if (matchedNewSessionShortcut || matchedWorktreeShortcut) {
+      if (eventMatchesShortcut(e, combo('new_chat'))) {
         e.preventDefault();
 
         setActiveMainTab('chat');
         setSessionSwitcherOpen(false);
-
-        if (!isVSCodeRuntime() && matchedWorktreeShortcut) {
-          createWorktreeSession();
-          return;
-        }
 
         openNewSessionDraft();
         return;
@@ -143,7 +126,7 @@ export const useKeyboardShortcuts = () => {
 
       if (eventMatchesShortcut(e, combo('focus_input'))) {
         e.preventDefault();
-        const textarea = document.querySelector<HTMLTextAreaElement>('textarea[data-chat-input="true"]');
+        const textarea = document.querySelector<HTMLElement>('[data-chat-input="true"]');
         textarea?.focus();
         return;
       }
@@ -356,7 +339,6 @@ export const useKeyboardShortcuts = () => {
           isHelpDialogOpen,
           isSessionSwitcherOpen,
           isAboutDialogOpen,
-          isMultiRunLauncherOpen,
           isImagePreviewOpen,
           activeMainTab,
         } = useUIStore.getState();
@@ -370,7 +352,7 @@ export const useKeyboardShortcuts = () => {
         }
 
         // Check if any overlay is open or not on chat tab - don't process abort
-        const hasOverlay = isCommandPaletteOpen || isHelpDialogOpen || isSessionSwitcherOpen || isAboutDialogOpen || isMultiRunLauncherOpen || isImagePreviewOpen;
+        const hasOverlay = isCommandPaletteOpen || isHelpDialogOpen || isSessionSwitcherOpen || isAboutDialogOpen || isImagePreviewOpen;
         const isChatActive = activeMainTab === 'chat';
 
         if (hasOverlay || !isChatActive) {

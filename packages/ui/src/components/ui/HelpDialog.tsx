@@ -131,12 +131,6 @@ export const HelpDialog: React.FC = () => {
           icon: RiAddLine,
           keys: '',
         },
-        {
-          id: 'new_chat_worktree',
-          descriptionKey: "helpDialog.item.createNewWorktreeDraft",
-          icon: RiGitBranchLine,
-          keys: '',
-        },
         { id: 'focus_input', descriptionKey: "helpDialog.item.focusChatInput", icon: RiText, keys: '' },
         {
           id: 'abort_run',
@@ -183,6 +177,12 @@ export const HelpDialog: React.FC = () => {
           id: 'toggle_terminal_expanded',
           descriptionKey: 'helpDialog.item.toggleTerminalExpanded',
           icon: RiWindowLine,
+          keys: '',
+        },
+        {
+          id: 'open_timeline',
+          descriptionKey: 'helpDialog.item.openTimeline',
+          icon: RiTimeLine,
           keys: '',
         },
         {

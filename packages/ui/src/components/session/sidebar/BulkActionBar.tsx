@@ -21,7 +21,6 @@ type Props = {
   selectedCount: number;
   scopeKey: string | null;
   scopeFolders: SessionFolder[];
-  archivedBucket: boolean;
   onMoveToFolder: (folderId: string) => void;
   onCreateFolderAndMove: () => void;
   onRemoveFromFolder: () => void;
@@ -34,7 +33,6 @@ export const BulkActionBar: React.FC<Props> = ({
   selectedCount,
   scopeKey,
   scopeFolders,
-  archivedBucket,
   onMoveToFolder,
   onCreateFolderAndMove,
   onRemoveFromFolder,
@@ -43,10 +41,8 @@ export const BulkActionBar: React.FC<Props> = ({
   onDone,
 }) => {
   const { t } = useI18n();
-  const canMoveToFolder = Boolean(scopeKey) && !archivedBucket;
-  const destructiveLabel = archivedBucket
-    ? t('sessions.sidebar.bulkActions.delete')
-    : t('sessions.sidebar.bulkActions.archive');
+  const canMoveToFolder = Boolean(scopeKey);
+  const destructiveLabel = t('sessions.sidebar.bulkActions.delete');
   const iconButtonClass = 'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-interactive-hover/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50';
   const destructiveIconButtonClass = 'inline-flex h-7 w-7 items-center justify-center rounded-md text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/50';
 

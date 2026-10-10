@@ -150,8 +150,7 @@ export function useQueuedMessageAutoSend(enabledOrOptions?: boolean | { enabled?
           payload.primaryAttachments,
           payload.agentMentionName,
           payload.additionalParts,
-          resolved.variant,
-          'normal'
+          resolved.variant
         );
 
         const removeFromQueue = useMessageQueueStore.getState().removeFromQueue;

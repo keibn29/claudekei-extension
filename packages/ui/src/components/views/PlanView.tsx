@@ -29,14 +29,11 @@ import { useProjectsStore } from '@/stores/useProjectsStore';
 import { useSelectionStore } from '@/sync/selection-store';
 import { useConfigStore } from '@/stores/useConfigStore';
 import { useUIStore } from '@/stores/useUIStore';
-import { useGitStore } from '@/stores/useGitStore';
 import { useRuntimeAPIs } from '@/hooks/useRuntimeAPIs';
 import { useEffectiveDirectory } from '@/hooks/useEffectiveDirectory';
 import { EditorView } from '@codemirror/view';
 import { copyTextToClipboard } from '@/lib/clipboard';
-import { generateBranchName } from '@/lib/git/branchNameGenerator';
 import { parseProjectPlanMarkdown } from '@/lib/openchamberConfig';
-import { createWorktreeSessionForNewBranch } from '@/lib/worktreeSessionCreator';
 import { TodoSendDialog, type TodoSendExecution } from '@/components/session/TodoSendDialog';
 import { renderMagicPrompt } from '@/lib/magicPrompts';
 import { useI18n } from '@/lib/i18n';
@@ -46,11 +43,8 @@ type PlanViewProps = {
 };
 
 type PlanSendAction = 'improve' | 'implement';
-type PlanSendTarget = 'session' | 'worktree';
-
 type PendingPlanSend = {
   action: PlanSendAction;
-  target: PlanSendTarget;
 };
 
 const normalize = (value: string): string => {
@@ -154,7 +148,6 @@ export const PlanView: React.FC<PlanViewProps> = ({ targetPath = null }) => {
   const planModeEnabled = useFeatureFlagsStore((state) => state.planModeEnabled);
   const projects = useProjectsStore((state) => state.projects);
   const activeProjectId = useProjectsStore((state) => state.activeProjectId);
-  const gitDirectories = useGitStore((state) => state.directories);
   const effectiveDirectory = useEffectiveDirectory() ?? '';
   const setActiveMainTab = useUIStore((state) => state.setActiveMainTab);
   const setSessionSwitcherOpen = useUIStore((state) => state.setSessionSwitcherOpen);
@@ -179,10 +172,6 @@ export const PlanView: React.FC<PlanViewProps> = ({ targetPath = null }) => {
   const currentProjectRef = React.useMemo(
     () => resolveProjectRefForDirectory(projectDirectory, projects, activeProjectId),
     [activeProjectId, projectDirectory, projects],
-  );
-  const canCreateWorktree = React.useMemo(
-    () => (currentProjectRef ? gitDirectories.get(currentProjectRef.path)?.isGitRepo === true : false),
-    [currentProjectRef, gitDirectories],
   );
   const [pendingPlanSend, setPendingPlanSend] = React.useState<PendingPlanSend | null>(null);
   const [isPlanSendSubmitting, setIsPlanSendSubmitting] = React.useState(false);
@@ -523,32 +512,13 @@ export const PlanView: React.FC<PlanViewProps> = ({ targetPath = null }) => {
       try {
         routeToChat();
 
-        let sessionId: string | null = null;
-        let directoryHint: string | null = currentProjectRef.path;
-
-        if (pendingPlanSend.target === 'worktree') {
-          if (!canCreateWorktree) {
-            return;
-          }
-          const created = await createWorktreeSessionForNewBranch(currentProjectRef.path, generateBranchName());
-          if (!created?.id) {
-            return;
-          }
-          sessionId = created.id;
-          directoryHint = null;
-        } else {
-          const sessionResult = await createSession(undefined, currentProjectRef.path, null);
-          if (!sessionResult?.id) {
-            return;
-          }
-          sessionId = sessionResult.id;
-          directoryHint = sessionResult.directory ?? currentProjectRef.path;
-          initializeNewOpenChamberSession(sessionResult.id, useConfigStore.getState().agents ?? []);
-        }
-
-        if (!sessionId) {
+        const sessionResult = await createSession(undefined, currentProjectRef.path, null);
+        if (!sessionResult?.id) {
           return;
         }
+        const sessionId = sessionResult.id;
+        const directoryHint = sessionResult.directory ?? currentProjectRef.path;
+        initializeNewOpenChamberSession(sessionResult.id, useConfigStore.getState().agents ?? []);
 
         const selectionState = useSelectionStore.getState();
         selectionState.saveSessionModelSelection(sessionId, execution.providerID, execution.modelID);
@@ -581,7 +551,7 @@ export const PlanView: React.FC<PlanViewProps> = ({ targetPath = null }) => {
         setIsPlanSendSubmitting(false);
       }
     },
-    [canCreateWorktree, createSession, currentProjectRef, initializeNewOpenChamberSession, pendingPlanSend, resolvedPath, routeToChat, sendMessage, sendPromptTitle, setCurrentSession]
+    [createSession, currentProjectRef, initializeNewOpenChamberSession, pendingPlanSend, resolvedPath, routeToChat, sendMessage, sendPromptTitle, setCurrentSession]
   );
 
   const blockWidgets = React.useMemo(() => {
@@ -635,14 +605,8 @@ export const PlanView: React.FC<PlanViewProps> = ({ targetPath = null }) => {
                 <TooltipContent sideOffset={8}>{t('planView.actions.improve')}</TooltipContent>
               </Tooltip>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setPendingPlanSend({ action: 'improve', target: 'session' })}>
+                <DropdownMenuItem onClick={() => setPendingPlanSend({ action: 'improve' })}>
                   {t('planView.actions.sendToNewSession')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setPendingPlanSend({ action: 'improve', target: 'worktree' })}
-                  disabled={!canCreateWorktree}
-                >
-                  {t('planView.actions.sendToNewWorktreeSession')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -664,14 +628,8 @@ export const PlanView: React.FC<PlanViewProps> = ({ targetPath = null }) => {
                 <TooltipContent sideOffset={8}>{t('planView.actions.implement')}</TooltipContent>
               </Tooltip>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setPendingPlanSend({ action: 'implement', target: 'session' })}>
+                <DropdownMenuItem onClick={() => setPendingPlanSend({ action: 'implement' })}>
                   {t('planView.actions.sendToNewSession')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setPendingPlanSend({ action: 'implement', target: 'worktree' })}
-                  disabled={!canCreateWorktree}
-                >
-                  {t('planView.actions.sendToNewWorktreeSession')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -717,7 +675,6 @@ export const PlanView: React.FC<PlanViewProps> = ({ targetPath = null }) => {
             setPendingPlanSend(null);
           }
         }}
-        target={pendingPlanSend?.target ?? 'session'}
         projectDirectory={currentProjectRef?.path ?? null}
         submitting={isPlanSendSubmitting}
         onConfirm={handleConfirmPlanSend}

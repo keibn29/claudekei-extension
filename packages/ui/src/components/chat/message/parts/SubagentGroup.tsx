@@ -163,6 +163,7 @@ const SubagentGroup: React.FC<SubagentGroupProps> = ({ parts, expandedTools, onT
         counts.running > 0 ? t('chat.subagent.group.running', { count: counts.running }) : null,
         counts.done > 0 ? t('chat.subagent.group.done', { count: counts.done }) : null,
         counts.failed > 0 ? t('chat.subagent.group.failed', { count: counts.failed }) : null,
+        counts.stopped > 0 ? t('chat.subagent.group.stopped', { count: counts.stopped }) : null,
     ].filter(Boolean).join(' · ');
 
     return (

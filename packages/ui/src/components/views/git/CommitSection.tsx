@@ -1,13 +1,11 @@
 import {
   RiGitCommitLine,
   RiArrowUpLine,
-  RiAiGenerate2,
   RiLoader4Line,
   RiEmotionHappyLine,
 } from '@remixicon/react';
 import { Button } from '@/components/ui/button';
 import { CommitInput } from './CommitInput';
-import { AIHighlightsBox } from './AIHighlightsBox';
 import { useDeviceInfo } from '@/lib/device';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useI18n } from '@/lib/i18n';
@@ -18,14 +16,9 @@ interface CommitSectionProps {
   selectedCount: number;
   commitMessage: string;
   onCommitMessageChange: (value: string) => void;
-  generatedHighlights: string[];
-  onInsertHighlights: (highlights: string[]) => void;
-  onGenerateMessage: () => void;
-  isGeneratingMessage: boolean;
   onCommit: () => void;
   onCommitAndPush: () => void;
   commitAction: CommitAction;
-  isBusy: boolean;
   gitmojiEnabled: boolean;
   onOpenGitmojiPicker: () => void;
 }
@@ -34,14 +27,9 @@ export const CommitSection: React.FC<CommitSectionProps> = ({
   selectedCount,
   commitMessage,
   onCommitMessageChange,
-  generatedHighlights,
-  onInsertHighlights,
-  onGenerateMessage,
-  isGeneratingMessage,
   onCommit,
   onCommitAndPush,
   commitAction,
-  isBusy,
   gitmojiEnabled,
   onOpenGitmojiPicker,
 }) => {
@@ -67,11 +55,6 @@ export const CommitSection: React.FC<CommitSectionProps> = ({
           </p>
         ) : null}
 
-        <AIHighlightsBox
-          highlights={generatedHighlights}
-          onInsert={onInsertHighlights}
-        />
-
         <CommitInput
           value={commitMessage}
           onChange={onCommitMessageChange}
@@ -95,35 +78,13 @@ export const CommitSection: React.FC<CommitSectionProps> = ({
         )}
 
         <div className="@container/commit-actions flex items-center gap-2 min-w-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onGenerateMessage}
-            disabled={
-              isGeneratingMessage ||
-              commitAction !== null ||
-              selectedCount === 0 ||
-              isBusy
-            }
-            type="button"
-            aria-label={t('gitView.commit.generateAria')}
-            className="commit-actions__btn"
-          >
-            {isGeneratingMessage ? (
-              <RiLoader4Line className="size-4 animate-spin" />
-            ) : (
-              <RiAiGenerate2 className="size-4 text-primary" />
-            )}
-            <span className="commit-actions__label">{t('gitView.commit.generate')}</span>
-          </Button>
-
           <div className="flex-1" />
 
           <Button
             size="sm"
             variant="outline"
             onClick={onCommit}
-            disabled={!canCommit || isGeneratingMessage}
+            disabled={!canCommit}
             className="commit-actions__btn whitespace-nowrap"
             aria-label={t('gitView.commit.commitAria')}
           >
@@ -147,7 +108,7 @@ export const CommitSection: React.FC<CommitSectionProps> = ({
                   variant="default"
                   size="sm"
                   onClick={() => onCommitAndPush()}
-                  disabled={!canCommit || isGeneratingMessage}
+                  disabled={!canCommit}
                   className="h-7 w-7 p-0"
                   aria-label={t('gitView.commit.pushAria')}
                 >
@@ -167,7 +128,7 @@ export const CommitSection: React.FC<CommitSectionProps> = ({
               size="sm"
               variant="default"
               onClick={() => onCommitAndPush()}
-              disabled={!canCommit || isGeneratingMessage}
+              disabled={!canCommit}
               className="commit-actions__btn"
               aria-label={t('gitView.commit.pushAria')}
             >

@@ -1,257 +1,131 @@
+/**
+ * Claude-native MCP store: server list and status come from the host's runtime probe (`claudeClient.mcpStatus`),
+ * edits go through the bundled CLI (`saveMcp` / `removeMcp`) and enable/disable through `toggleMcp`
+ * (docs/SETTINGS_USAGE_SPEC.md sections 1.7 and 2).
+ */
+
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { McpStatus } from '@/lib/claude/types';
-import { useDirectoryStore } from '@/stores/useDirectoryStore';
+import { claudeClient } from '@/lib/claude/client';
+import type { McpServerInfo, McpServerScope, McpStatusSnapshot, McpTransportConfig } from '@/lib/claude/types';
 
-export type McpStatusMap = Record<string, McpStatus>;
-export type McpRuntimeDiagnostic = {
-  status: 'failed';
-  error: string;
-};
-export type McpRuntimeDiagnosticMap = Record<string, McpRuntimeDiagnostic>;
-
-const EMPTY_STATUS: McpStatusMap = {};
-const EMPTY_DIAGNOSTICS: McpRuntimeDiagnosticMap = {};
-
-type McpHealth = {
+export type McpHealth = {
   connected: number;
   total: number;
   hasFailed: boolean;
   hasAuthRequired: boolean;
 };
 
-const normalizeDirectory = (directory: string | null | undefined): string | null => {
-  if (typeof directory !== 'string') return null;
-  const trimmed = directory.trim();
-  if (!trimmed) return null;
-  const normalized = trimmed.replace(/\\/g, '/');
-  return normalized.length > 1 ? normalized.replace(/\/+$/, '') : normalized;
+/** `'new'` is the draft form for a server that does not exist yet. */
+export type McpSelection = string | 'new' | null;
+
+export const computeMcpHealth = (servers: McpServerInfo[] | null | undefined): McpHealth => {
+  const list = servers ?? [];
+  return {
+    connected: list.filter((server) => server.status === 'connected').length,
+    total: list.length,
+    hasFailed: list.some((server) => server.status === 'failed'),
+    hasAuthRequired: list.some((server) => server.status === 'needs-auth'),
+  };
 };
 
-const toKey = (directory: string | null | undefined): string => normalizeDirectory(directory) ?? '__global__';
+type McpState = {
+  snapshot: McpStatusSnapshot | null;
+  loading: boolean;
+  error: string | null;
+  selected: McpSelection;
+  /** Flips to false for the rest of the session once the host reports that toggling is not supported. */
+  toggleSupported: boolean;
 
-const MCP_UNAVAILABLE = 'MCP management is not available yet';
-
-const rejectMcp = (...args: unknown[]): Promise<never> => {
-  void args;
-  return Promise.reject(new Error(MCP_UNAVAILABLE));
+  select: (selection: McpSelection) => void;
+  /** `force` re-probes the servers; otherwise the host may answer from its short cache. */
+  refresh: (force?: boolean) => Promise<void>;
+  save: (name: string, scope: McpServerScope, config: McpTransportConfig, create: boolean) => Promise<void>;
+  remove: (name: string, scope: McpServerScope) => Promise<void>;
+  /** Optimistic: the row flips immediately and rolls back if the host rejects. Rethrows so callers can toast. */
+  toggle: (name: string, enabled: boolean) => Promise<void>;
 };
 
-/** Claude manages MCP servers itself (Phase 2): status is empty and mutations are rejected. */
-const mcpApi = {
-  mcp: {
-    status: async (): Promise<{ data: McpStatusMap }> => ({ data: {} }),
-    connect: rejectMcp,
-    disconnect: rejectMcp,
-    auth: {
-      start: rejectMcp as (...args: unknown[]) => Promise<{ data?: { authorizationUrl?: string } }>,
-      callback: rejectMcp,
-      remove: rejectMcp,
-    },
-  },
-};
+const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-const getMcpApiClient = (directory: string | null | undefined) => {
-  void directory;
-  return mcpApi;
-};
+let latestRequest = 0;
+let inflight: Promise<void> | null = null;
+let inflightForce = false;
+const toggling = new Set<string>();
 
-export const computeMcpHealth = (status: McpStatusMap | null | undefined): McpHealth => {
-  const entries = Object.entries(status ?? {});
-  const connected = entries.filter(([, s]) => s?.status === 'connected').length;
-  const total = entries.length;
-  const hasFailed = entries.some(([, s]) => s?.status === 'failed');
-  const hasAuthRequired = entries.some(([, s]) => s?.status === 'needs_auth' || s?.status === 'needs_client_registration');
-  return { connected, total, hasFailed, hasAuthRequired };
-};
+export const useMcpStore = create<McpState>()(
+  devtools((set, get) => {
+    const patchServer = (name: string, patch: Partial<McpServerInfo>) =>
+      set((state) =>
+        state.snapshot
+          ? {
+              snapshot: {
+                ...state.snapshot,
+                servers: state.snapshot.servers.map((server) => (server.name === name ? { ...server, ...patch } : server)),
+              },
+            }
+          : state,
+      );
 
-type RefreshOptions = {
-  directory?: string | null;
-  silent?: boolean;
-};
+    return {
+      snapshot: null,
+      loading: false,
+      error: null,
+      selected: null,
+      toggleSupported: true,
 
-type TestConnectionResult = {
-  status?: McpStatus;
-  error?: string;
-  warning?: string;
-};
+      select: (selection) => set({ selected: selection }),
 
-interface McpStore {
-  byDirectory: Record<string, McpStatusMap>;
-  diagnosticsByDirectory: Record<string, McpRuntimeDiagnosticMap>;
-  loadingKeys: Record<string, boolean>;
-  lastErrorKeys: Record<string, string | null>;
+      refresh: (force = false) => {
+        // A forced probe must not piggyback on a cached one; anything else can share the in-flight request.
+        if (inflight && (inflightForce || !force)) return inflight;
+        const id = ++latestRequest;
+        const run = (async () => {
+          set({ loading: true, error: null });
+          try {
+            const snapshot = await claudeClient.mcpStatus(force);
+            if (id === latestRequest) set({ snapshot, loading: false });
+          } catch (error) {
+            if (id === latestRequest) set({ loading: false, error: errorMessage(error) });
+          }
+        })();
+        inflight = run;
+        inflightForce = force;
+        void run.finally(() => {
+          if (inflight === run) inflight = null;
+        });
+        return run;
+      },
 
-  getStatusForDirectory: (directory?: string | null) => McpStatusMap;
-  getDiagnosticForDirectory: (directory?: string | null) => McpRuntimeDiagnosticMap;
-  getErrorForDirectory: (directory?: string | null) => string | null;
-  refresh: (options?: RefreshOptions) => Promise<void>;
-  connect: (name: string, directory?: string | null) => Promise<void>;
-  disconnect: (name: string, directory?: string | null) => Promise<void>;
-  startAuth: (name: string, directory?: string | null) => Promise<string>;
-  completeAuth: (name: string, code: string, directory?: string | null) => Promise<void>;
-  clearAuth: (name: string, directory?: string | null) => Promise<void>;
-  testConnection: (name: string, directory?: string | null) => Promise<TestConnectionResult>;
-}
+      save: async (name, scope, config, create) => {
+        await claudeClient.saveMcp(name, scope, config, create);
+        if (create) set({ selected: name });
+        await get().refresh(true);
+      },
 
-export const useMcpStore = create<McpStore>()(
-  devtools((set, get) => ({
-    byDirectory: {},
-    diagnosticsByDirectory: {},
-    loadingKeys: {},
-    lastErrorKeys: {},
+      remove: async (name, scope) => {
+        await claudeClient.removeMcp(name, scope);
+        if (get().selected === name) set({ selected: null });
+        await get().refresh(true);
+      },
 
-    getStatusForDirectory: (directory) => {
-      const key = toKey(directory ?? useDirectoryStore.getState().currentDirectory);
-      return get().byDirectory[key] ?? EMPTY_STATUS;
-    },
-
-    getDiagnosticForDirectory: (directory) => {
-      const key = toKey(directory ?? useDirectoryStore.getState().currentDirectory);
-      return get().diagnosticsByDirectory[key] ?? EMPTY_DIAGNOSTICS;
-    },
-
-    getErrorForDirectory: (directory) => {
-      const key = toKey(directory ?? useDirectoryStore.getState().currentDirectory);
-      return get().lastErrorKeys[key] ?? null;
-    },
-
-    refresh: async (options) => {
-      const directory = normalizeDirectory(options?.directory ?? useDirectoryStore.getState().currentDirectory);
-      const key = toKey(directory);
-
-      if (!options?.silent) {
-        set((state) => ({
-          loadingKeys: { ...state.loadingKeys, [key]: true },
-          lastErrorKeys: { ...state.lastErrorKeys, [key]: null },
-        }));
-      }
-
-      try {
-        const api = getMcpApiClient(directory);
-        const result = await api.mcp.status();
-        const data = (result.data ?? {}) as McpStatusMap;
-
-        set((state) => ({
-          byDirectory: { ...state.byDirectory, [key]: data },
-          diagnosticsByDirectory: {
-            ...state.diagnosticsByDirectory,
-            [key]: Object.fromEntries(
-              Object.entries(state.diagnosticsByDirectory[key] ?? {}).filter(([name]) => !data[name])
-            ),
-          },
-          loadingKeys: { ...state.loadingKeys, [key]: false },
-          lastErrorKeys: { ...state.lastErrorKeys, [key]: null },
-        }));
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to load MCP status';
-        set((state) => ({
-          loadingKeys: { ...state.loadingKeys, [key]: false },
-          lastErrorKeys: { ...state.lastErrorKeys, [key]: message },
-        }));
-      }
-    },
-
-    connect: async (name, directory) => {
-      const normalized = normalizeDirectory(directory ?? useDirectoryStore.getState().currentDirectory);
-      const key = toKey(normalized);
-      const api = getMcpApiClient(normalized);
-      try {
-        await api.mcp.connect({ name }, { throwOnError: true });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Connection failed';
-        set((state) => ({
-          diagnosticsByDirectory: {
-            ...state.diagnosticsByDirectory,
-            [key]: {
-              ...(state.diagnosticsByDirectory[key] ?? {}),
-              [name]: { status: 'failed', error: message },
-            },
-          },
-        }));
-        throw error;
-      }
-      await get().refresh({ directory: normalized, silent: true });
-    },
-
-    disconnect: async (name, directory) => {
-      const normalized = normalizeDirectory(directory ?? useDirectoryStore.getState().currentDirectory);
-      const api = getMcpApiClient(normalized);
-      await api.mcp.disconnect({ name }, { throwOnError: true });
-      await get().refresh({ directory: normalized, silent: true });
-    },
-
-    startAuth: async (name, directory) => {
-      const normalized = normalizeDirectory(directory ?? useDirectoryStore.getState().currentDirectory);
-      const api = getMcpApiClient(normalized);
-      const result = await api.mcp.auth.start({ name }, { throwOnError: true });
-      const authorizationUrl = result.data?.authorizationUrl;
-
-      if (!authorizationUrl) {
-        throw new Error('Authorization URL was not returned');
-      }
-
-      return authorizationUrl;
-    },
-
-    completeAuth: async (name, code, directory) => {
-      const normalized = normalizeDirectory(directory ?? useDirectoryStore.getState().currentDirectory);
-      const api = getMcpApiClient(normalized);
-      await api.mcp.auth.callback({ name, code }, { throwOnError: true });
-      await get().refresh({ directory: normalized, silent: true });
-    },
-
-    clearAuth: async (name, directory) => {
-      const normalized = normalizeDirectory(directory ?? useDirectoryStore.getState().currentDirectory);
-      const api = getMcpApiClient(normalized);
-      await api.mcp.auth.remove({ name }, { throwOnError: true });
-      await get().refresh({ directory: normalized, silent: true });
-    },
-
-    testConnection: async (name, directory) => {
-      const normalized = normalizeDirectory(directory ?? useDirectoryStore.getState().currentDirectory);
-      const key = toKey(normalized);
-      const api = getMcpApiClient(normalized);
-      const previousStatus = get().getStatusForDirectory(normalized)[name];
-      const wasConnected = previousStatus?.status === 'connected';
-      let errorMessage: string | undefined;
-      let warningMessage: string | undefined;
-
-      try {
-        await api.mcp.connect({ name }, { throwOnError: true });
-      } catch (error) {
-        errorMessage = error instanceof Error ? error.message : 'Connection failed';
-        set((state) => ({
-          diagnosticsByDirectory: {
-            ...state.diagnosticsByDirectory,
-            [key]: {
-              ...(state.diagnosticsByDirectory[key] ?? {}),
-              [name]: { status: 'failed', error: errorMessage ?? 'Connection failed' },
-            },
-          },
-        }));
-      }
-
-      await get().refresh({ directory: normalized, silent: true });
-      const currentStatus = get().getStatusForDirectory(normalized)[name];
-      const observedStatus = currentStatus;
-
-      if (!wasConnected && currentStatus?.status === 'connected') {
+      toggle: async (name, enabled) => {
+        const previous = get().snapshot?.servers.find((server) => server.name === name);
+        if (!previous || toggling.has(name)) return;
+        toggling.add(name);
+        patchServer(name, { status: enabled ? 'pending' : 'disabled' });
         try {
-          await api.mcp.disconnect({ name }, { throwOnError: true });
+          await claudeClient.toggleMcp(name, enabled);
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Disconnect failed';
-          warningMessage = `Connection test succeeded, but cleanup disconnect failed: ${message}`;
+          patchServer(name, { status: previous.status });
+          if (/not supported/i.test(errorMessage(error))) set({ toggleSupported: false });
+          throw error;
+        } finally {
+          toggling.delete(name);
         }
-        await get().refresh({ directory: normalized, silent: true });
-      }
-
-      return {
-        status: observedStatus ?? get().getStatusForDirectory(normalized)[name],
-        error: errorMessage,
-        warning: warningMessage,
-      };
-    },
-
-  }))
+        // Re-probe so the optimistic status is replaced by the real one.
+        void get().refresh(true);
+      },
+    };
+  }),
 );

@@ -19,7 +19,6 @@ export type SettingsPageSlug =
   | 'sessions'
   | 'magic-prompts'
   | 'notifications'
-  | 'voice'
   | 'tunnel'
   | 'plugins';
 
@@ -64,14 +63,6 @@ export const SETTINGS_GROUP_LABELS: Record<SettingsPageGroup, string> = {
 
 const SETTINGS_PAGE_FEATURE: Partial<Record<SettingsPageSlug, ClaudeFeature>> = {
   providers: 'providers',
-  usage: 'usage',
-  agents: 'agentsSettings',
-  commands: 'commandsSettings',
-  mcp: 'mcp',
-  'skills.installed': 'skills',
-  'skills.catalog': 'skills',
-  plugins: 'plugins',
-  voice: 'voice',
 };
 
 const BASE_SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
@@ -88,7 +79,7 @@ const BASE_SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
     title: 'Projects',
     group: 'projects',
     kind: 'split',
-    keywords: ['project', 'projects', 'worktree', 'worktrees', 'repo', 'repository', 'directory'],
+    keywords: ['project', 'projects', 'repo', 'repository', 'directory'],
   },
   {
     slug: 'remote-instances',
@@ -109,7 +100,7 @@ const BASE_SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
     slug: 'usage',
     title: 'Usage',
     group: 'usage',
-    kind: 'split',
+    kind: 'single',
     keywords: ['quota', 'billing', 'tokens', 'usage', 'limits'],
   },
   {
@@ -137,7 +128,7 @@ const BASE_SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
     slug: 'skills.installed',
     title: 'Skills',
     group: 'skills',
-    kind: 'single',
+    kind: 'split',
     keywords: ['skill', 'skills', 'instructions', 'install', 'catalog'],
   },
   {
@@ -152,7 +143,7 @@ const BASE_SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
     title: 'Git',
     group: 'git',
     kind: 'single',
-    keywords: ['git', 'github', 'identity', 'identities', 'ssh', 'profiles', 'credentials', 'keys', 'commit', 'gitmoji', 'oauth', 'prs', 'issues'],
+    keywords: ['git', 'identity', 'identities', 'ssh', 'profiles', 'credentials', 'keys', 'commit', 'gitmoji'],
     isAvailable: (ctx) => !ctx.isVSCode,
   },
   {
@@ -189,12 +180,11 @@ const BASE_SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
     title: 'Magic Prompts',
     group: 'general',
     kind: 'split',
-    keywords: ['prompts', 'templates', 'git', 'github', 'review', 'commit', 'pull request'],
+    keywords: ['prompts', 'templates', 'git', 'review', 'commit'],
     isAvailable: (ctx) => !ctx.isVSCode,
   },
 
   { slug: 'notifications', title: 'Notifications', group: 'general', kind: 'single', keywords: ['alerts', 'native', 'summary', 'summarization'], },
-  { slug: 'voice', title: 'Voice', group: 'advanced', kind: 'single', keywords: ['tts', 'speech', 'voice'], isAvailable: (ctx) => !ctx.isVSCode },
   { slug: 'tunnel', title: 'Remote Tunnel', group: 'advanced', kind: 'single', keywords: ['tunnel', 'cloudflare', 'qr', 'remote', 'mobile', 'share'], isAvailable: (ctx) => !ctx.isVSCode },
   { slug: 'plugins', title: 'Plugin', group: 'plugins', kind: 'single', keywords: ['plugin', 'plugins', 'source', 'config', 'file', 'open'], isAvailable: (ctx) => ctx.isVSCode },
 ] as const;

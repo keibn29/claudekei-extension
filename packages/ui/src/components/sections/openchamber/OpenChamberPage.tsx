@@ -6,8 +6,6 @@ import { PasskeySettings } from './PasskeySettings';
 import { DefaultsSettings } from './DefaultsSettings';
 import { GitSettings } from './GitSettings';
 import { NotificationSettings } from './NotificationSettings';
-import { GitHubSettings } from './GitHubSettings';
-import { VoiceSettings } from './VoiceSettings';
 import { TunnelSettings } from './TunnelSettings';
 import { DesktopNetworkSettings } from './DesktopNetworkSettings';
 import { KeyboardShortcutsSettings } from './KeyboardShortcutsSettings';
@@ -72,12 +70,8 @@ export const OpenChamberPage: React.FC<OpenChamberPageProps> = ({ section }) => 
                 return <ShortcutsSectionContent />;
             case 'git':
                 return <GitSectionContent />;
-            case 'github':
-                return <GitHubSectionContent />;
             case 'notifications':
                 return <NotificationSectionContent />;
-            case 'voice':
-                return <VoiceSectionContent />;
             case 'tunnel':
                 return <TunnelSectionContent />;
             default:
@@ -144,7 +138,7 @@ const SessionsSectionContent: React.FC = () => {
     );
 };
 
-// Git section: Commit message model, Worktree settings
+// Git section: Git settings
 const GitSectionContent: React.FC = () => {
     return (
         <div className="space-y-6">
@@ -153,25 +147,9 @@ const GitSectionContent: React.FC = () => {
     );
 };
 
-// GitHub section: Connect account for PR/issue workflows
-const GitHubSectionContent: React.FC = () => {
-    if (isVSCodeRuntime()) {
-        return null;
-    }
-    return <GitHubSettings />;
-};
-
 // Notifications section: Native browser notifications
 const NotificationSectionContent: React.FC = () => {
     return <NotificationSettings />;
-};
-
-// Voice section: Language selection and continuous mode
-const VoiceSectionContent: React.FC = () => {
-    if (isVSCodeRuntime()) {
-        return null;
-    }
-    return <VoiceSettings />;
 };
 
 const TunnelSectionContent: React.FC = () => {

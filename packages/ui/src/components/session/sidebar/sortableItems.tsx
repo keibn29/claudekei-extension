@@ -15,12 +15,10 @@ import {
   RiCloseLine,
   RiFolderLine,
   RiMore2Line,
-  RiNodeTree,
   RiPencilAiLine,
 } from '@remixicon/react';
 import { cn } from '@/lib/utils';
-import { PROJECT_COLOR_MAP, PROJECT_ICON_MAP, getProjectIconImageUrl } from '@/lib/projectMeta';
-import { useThemeSystem } from '@/contexts/useThemeSystem';
+import { PROJECT_COLOR_MAP, PROJECT_ICON_MAP } from '@/lib/projectMeta';
 import { useI18n } from '@/lib/i18n';
 
 export interface SortableProjectItemProps {
@@ -29,8 +27,6 @@ export interface SortableProjectItemProps {
   projectDescription: string;
   projectIcon?: string;
   projectColor?: string;
-  projectIconImage?: { mime: string; updatedAt: number; source: 'custom' | 'auto' };
-  projectIconBackground?: string;
   isCollapsed: boolean;
   isActiveProject: boolean;
   isRepo: boolean;
@@ -40,7 +36,6 @@ export interface SortableProjectItemProps {
   mobileVariant: boolean;
   onToggle: () => void;
   onNewSession: () => void;
-  onNewWorktreeSession?: () => void;
   onRenameStart: () => void;
   onClose: () => void;
   sentinelRef: (el: HTMLDivElement | null) => void;
@@ -62,8 +57,6 @@ export const SortableProjectItem: React.FC<SortableProjectItemProps> = ({
   projectDescription,
   projectIcon,
   projectColor,
-  projectIconImage,
-  projectIconBackground,
   isCollapsed,
   isActiveProject,
   isRepo,
@@ -73,7 +66,6 @@ export const SortableProjectItem: React.FC<SortableProjectItemProps> = ({
   mobileVariant,
   onToggle,
   onNewSession,
-  onNewWorktreeSession,
   onRenameStart,
   onClose,
   sentinelRef,
@@ -84,7 +76,6 @@ export const SortableProjectItem: React.FC<SortableProjectItemProps> = ({
   setOpenSidebarMenuKey,
 }) => {
   const { t } = useI18n();
-  const { currentTheme } = useThemeSystem();
   const {
     attributes,
     listeners,
@@ -94,23 +85,12 @@ export const SortableProjectItem: React.FC<SortableProjectItemProps> = ({
     isDragging,
   } = useSortable({ id });
 
-  const [imageFailed, setImageFailed] = React.useState(false);
   const suppressNextToggleRef = React.useRef(false);
   const menuInstanceKey = `project:${id}`;
   const isMenuOpen = openSidebarMenuKey === menuInstanceKey;
 
-  React.useEffect(() => {
-    setImageFailed(false);
-  }, [id, projectIconImage?.updatedAt]);
-
   const ProjectIcon = projectIcon ? PROJECT_ICON_MAP[projectIcon] : null;
   const iconColor = projectColor ? (PROJECT_COLOR_MAP[projectColor] ?? null) : null;
-  const imageUrl = !imageFailed
-    ? getProjectIconImageUrl({ id, iconImage: projectIconImage }, {
-      themeVariant: currentTheme.metadata.variant,
-      iconColor: currentTheme.colors.surface.foreground,
-    })
-    : null;
 
   const handleMenuOpenChange = React.useCallback((open: boolean) => {
     setOpenSidebarMenuKey(open ? menuInstanceKey : null);
@@ -175,29 +155,14 @@ export const SortableProjectItem: React.FC<SortableProjectItemProps> = ({
                       {...listeners}
                       className={cn(
                         'flex-1 min-w-0 flex items-center gap-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-md cursor-grab active:cursor-grabbing transition-[padding]',
-                        isRepo && !hideDirectoryControls
-                          ? (mobileVariant ? 'pr-20' : 'pr-7 group-hover/project:pr-20 group-focus-within/project:pr-20')
-                          : (mobileVariant ? 'pr-14' : 'pr-7 group-hover/project:pr-14 group-focus-within/project:pr-14'),
+                        mobileVariant ? 'pr-14' : 'pr-7 group-hover/project:pr-14 group-focus-within/project:pr-14',
                       )}
                     >
                     <span className="inline-flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center">
                       <span className="hidden h-3.5 w-3.5 items-center justify-center text-muted-foreground group-hover/project:inline-flex group-focus-within/project:inline-flex">
                         {isCollapsed ? <RiArrowRightSLine className="h-3.5 w-3.5" /> : <RiArrowDownSLine className="h-3.5 w-3.5" />}
                       </span>
-                      {imageUrl ? (
-                        <span
-                          className="inline-flex h-3.5 w-3.5 items-center justify-center overflow-hidden rounded-[3px] group-hover/project:hidden group-focus-within/project:hidden"
-                          style={projectIconBackground ? { backgroundColor: projectIconBackground } : undefined}
-                        >
-                          <img
-                            src={imageUrl}
-                            alt=""
-                            className="h-full w-full object-contain"
-                            draggable={false}
-                            onError={() => setImageFailed(true)}
-                          />
-                        </span>
-                      ) : ProjectIcon ? (
+                      {ProjectIcon ? (
                         <ProjectIcon className="h-3.5 w-3.5 group-hover/project:hidden group-focus-within/project:hidden" style={iconColor ? { color: iconColor } : undefined} />
                       ) : (
                         <RiFolderLine className="h-3.5 w-3.5 text-muted-foreground/80 group-hover/project:hidden group-focus-within/project:hidden" style={iconColor ? { color: iconColor } : undefined} />
@@ -220,30 +185,6 @@ export const SortableProjectItem: React.FC<SortableProjectItemProps> = ({
                 'absolute top-1/2 z-10 flex -translate-y-1/2 items-center gap-1',
                 showCreateButtons ? 'right-7' : 'right-0.5',
               )}>
-                {showCreateButtons && isRepo && !hideDirectoryControls && onNewWorktreeSession ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onNewWorktreeSession();
-                        }}
-                        className={cn(
-                        'inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:text-foreground transition-opacity',
-                          mobileVariant ? 'opacity-100' : 'opacity-0 pointer-events-none group-hover/project:opacity-100 group-hover/project:pointer-events-auto group-focus-within/project:opacity-100 group-focus-within/project:pointer-events-auto',
-                        )}
-                        aria-label={t('sessions.sidebar.project.actions.newWorktree')}
-                      >
-                        <RiNodeTree className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" sideOffset={4}>
-                      <p>{t('sessions.sidebar.project.actions.newWorktreeEllipsis')}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                ) : null}
-
                 <DropdownMenu
                   open={isMenuOpen}
                   onOpenChange={handleMenuOpenChange}

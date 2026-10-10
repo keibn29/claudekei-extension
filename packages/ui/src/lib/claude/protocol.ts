@@ -9,7 +9,16 @@ import type {
   ContextUsage,
   AccountInfo,
   Catalog,
+  ConfigField,
+  ConfigItem,
+  ConfigItemDetail,
+  ConfigItemKind,
+  ConfigScope,
+  ConfigSnapshot,
   EffortLevel,
+  McpServerScope,
+  McpStatusSnapshot,
+  McpTransportConfig,
   Message,
   Part,
   PermissionMode,
@@ -17,9 +26,13 @@ import type {
   PermissionResponse,
   QuestionAnswer,
   QuestionRequest,
+  RevertPreview,
+  RevertResult,
   Session,
   SessionStatus,
+  SkillCatalogItem,
   Todo,
+  UsageActivity,
   UsageLimits,
 } from './types';
 
@@ -114,6 +127,12 @@ export type ClaudeRequestMap = {
    * history is copied.
    */
   'claude:session.fork': { payload: { sessionId: string; atMessageId?: string }; response: Session };
+  /** Dry run of the file rewind for reverting to `messageId` (main-session user message). May spawn a cold session's process; never interrupts. */
+  'claude:session.revertPreview': { payload: { sessionId: string; messageId: string }; response: RevertPreview };
+  /** Restores files (when possible) and hides `messageId` and everything after it until the next send (commit) or unrevert. Interrupts a busy turn first. */
+  'claude:session.revert': { payload: { sessionId: string; messageId: string }; response: RevertResult };
+  /** Restores the files saved by revert and shows the hidden messages again. No-op without a marker. */
+  'claude:session.unrevert': { payload: { sessionId: string }; response: void };
   'claude:session.delete': { payload: { sessionId: string }; response: void };
   'claude:session.rename': { payload: { sessionId: string; title: string }; response: void };
   'claude:session.setModel': { payload: { sessionId: string; model: string }; response: void };
@@ -140,6 +159,39 @@ export type ClaudeRequestMap = {
    */
   'claude:terminal.run': { payload: { command: string }; response: void };
   'claude:catalog.refresh': { payload: Record<string, never>; response: Catalog };
+  // Settings: config files, plugins, MCP, skills catalog, usage activity (docs/SETTINGS_USAGE_SPEC.md 2.2)
+  'claude:config.list': { payload: Record<string, never>; response: ConfigSnapshot };
+  'claude:config.read': { payload: { path: string }; response: ConfigItemDetail };
+  'claude:config.save': {
+    payload: {
+      kind: ConfigItemKind;
+      scope: ConfigScope;
+      name: string;
+      create: boolean;
+      fields: Partial<Record<ConfigField, string>>;
+      body: string;
+    };
+    response: ConfigItem;
+  };
+  'claude:config.delete': { payload: { path: string }; response: void };
+  'claude:config.reload': { payload: Record<string, never>; response: Catalog };
+  'claude:plugin.setEnabled': { payload: { id: string; enabled: boolean }; response: void };
+  'claude:mcp.status': { payload: { refresh?: boolean }; response: McpStatusSnapshot };
+  'claude:mcp.save': {
+    payload: { name: string; scope: McpServerScope; config: McpTransportConfig; create: boolean };
+    response: void;
+  };
+  'claude:mcp.remove': { payload: { name: string; scope: McpServerScope }; response: void };
+  'claude:mcp.toggle': { payload: { name: string; enabled: boolean }; response: void };
+  'claude:skills.catalog': {
+    payload: { source?: string; refresh?: boolean };
+    response: { source: string; items: SkillCatalogItem[] };
+  };
+  'claude:skills.install': {
+    payload: { source: string; dirs: string[]; scope: ConfigScope; overwrite: boolean };
+    response: { installed: string[]; skipped: Array<{ name: string; reason: string }> };
+  };
+  'claude:usage.activity': { payload: Record<string, never>; response: UsageActivity | null };
 };
 
 export type ClaudeRequestType = keyof ClaudeRequestMap;

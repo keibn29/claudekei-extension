@@ -9,9 +9,13 @@ import {
   formatUsageReset,
   hasUsageLimits,
   shouldRefreshUsage,
+  formatUsageDuration,
+  usageWindowDurationMs,
+  usageWindowPace,
   usageWindowPercent,
   usageWindowTone,
 } from './usage';
+import type { UsageWindow } from './types';
 import type { ContextCategory } from './types';
 
 const categories: ContextCategory[] = [
@@ -122,5 +126,70 @@ describe('usage windows', () => {
     expect(shouldRefreshUsage(undefined, 100)).toBe(true);
     expect(shouldRefreshUsage(1_000, 20_000)).toBe(false);
     expect(shouldRefreshUsage(1_000, 40_000)).toBe(true);
+  });
+});
+
+describe('usage pace', () => {
+  const HOUR = 3_600_000;
+  const now = Date.UTC(2026, 9, 14, 10, 0, 0);
+  // Session window: 5 h long, 2 h elapsed (40%).
+  const session = (patch: Partial<UsageWindow>): UsageWindow => ({
+    id: 'session',
+    kind: 'session',
+    label: 'Session limit',
+    utilization: 0.3,
+    resetsAt: now + 3 * HOUR,
+    ...patch,
+  });
+
+  test('window durations', () => {
+    expect(usageWindowDurationMs({ kind: 'session' })).toBe(5 * HOUR);
+    expect(usageWindowDurationMs({ kind: 'weekly_all' })).toBe(7 * 24 * HOUR);
+    expect(usageWindowDurationMs({ kind: 'weekly_scoped' })).toBe(7 * 24 * HOUR);
+    expect(usageWindowDurationMs({ kind: 'monthly' })).toBeUndefined();
+  });
+
+  test('on track when utilization is at or below the elapsed share', () => {
+    const pace = usageWindowPace(session({ utilization: 0.3 }), now);
+    expect(pace?.status).toBe('on-track');
+    expect(Math.abs((pace?.expected ?? 0) - 0.4)).toBeLessThan(1e-9);
+    expect(pace?.runsOutAt).toBeUndefined();
+  });
+
+  test('on track right after a reset even with high utilization', () => {
+    const pace = usageWindowPace(session({ utilization: 0.5, resetsAt: now + 5 * HOUR - 60_000 }), now);
+    expect(pace?.status).toBe('on-track');
+  });
+
+  test('ahead projects when the limit runs out, before the reset', () => {
+    // 80% used after 2 h of 5 h: remaining 20% at 40%/h -> 0.5 h left.
+    const pace = usageWindowPace(session({ utilization: 0.8 }), now);
+    expect(pace?.status).toBe('ahead');
+    expect(Math.abs((pace?.runsOutAt ?? 0) - (now + 0.5 * HOUR))).toBeLessThan(1000);
+  });
+
+  test('ahead just above the elapsed share still projects a limit before the reset', () => {
+    const pace = usageWindowPace(session({ utilization: 0.45 }), now);
+    expect(pace?.status).toBe('ahead');
+    expect(pace?.runsOutAt).toBeGreaterThan(now);
+    expect(pace?.runsOutAt).toBeLessThan(now + 3 * HOUR);
+  });
+
+  test('exhausted at full utilization or when rejected', () => {
+    expect(usageWindowPace(session({ utilization: 1 }), now)?.status).toBe('exhausted');
+    expect(usageWindowPace(session({ utilization: 0.2, status: 'rejected' }), now)?.status).toBe('exhausted');
+  });
+
+  test('unknown kind or missing reset has no pace', () => {
+    expect(usageWindowPace(session({ kind: 'monthly' }), now)).toBeUndefined();
+    expect(usageWindowPace(session({ resetsAt: undefined }), now)).toBeUndefined();
+  });
+
+  test('formats projected durations', () => {
+    expect(formatUsageDuration(2 * HOUR + 12 * 60_000)).toBe('2 hr 12 min');
+    expect(formatUsageDuration(45 * 60_000)).toBe('45 min');
+    expect(formatUsageDuration(3 * HOUR)).toBe('3 hr');
+    expect(formatUsageDuration(28 * HOUR)).toBe('1 d 4 hr');
+    expect(formatUsageDuration(10_000)).toBe('less than a minute');
   });
 });

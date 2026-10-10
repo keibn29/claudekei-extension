@@ -3,14 +3,19 @@
  * The SDK is ESM-only and external to the esbuild bundle: it is loaded lazily with a dynamic import()
  * (docs/W0_SPIKE_NOTES.md section 5).
  */
-import type { Options, PermissionMode as SdkPermissionMode, SDKMessage, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import type { Options, PermissionMode as SdkPermissionMode, RewindFilesResult, SDKMessage, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { HistoryEntry } from './history';
 
-export type { Options as SdkOptions, SDKMessage, SDKUserMessage, SdkPermissionMode };
+export type { Options as SdkOptions, RewindFilesResult, SDKMessage, SDKUserMessage, SdkPermissionMode };
 
 /** The subset of the SDK `Query` the host uses. */
 export interface ClaudeQuery extends AsyncGenerator<SDKMessage, void> {
-  interrupt(): Promise<unknown>;
+  /** `cancelQueued` also cancels queued prompts (sdk.mjs accepts it; the 0.3.295 typings only declare `interrupt()`). */
+  interrupt(options?: { cancelQueued?: boolean }): Promise<unknown>;
+  /** Optional so fakes may omit it. Emits a `task_notification` with status `stopped` for that task. */
+  stopTask?(taskId: string): Promise<void>;
+  /** Optional so fakes compile. Restores files to their state at a user message (needs `enableFileCheckpointing`). */
+  rewindFiles?(userMessageId: string, options?: { dryRun?: boolean }): Promise<RewindFilesResult>;
   setModel(model?: string): Promise<void>;
   setPermissionMode(mode: SdkPermissionMode): Promise<void>;
   /** Optional so fakes may omit it; the host falls back to a respawn when it is missing or fails. */
@@ -18,6 +23,10 @@ export interface ClaudeQuery extends AsyncGenerator<SDKMessage, void> {
   /** Optional so fakes may omit them; the host treats a missing or failing method as "no data". */
   getContextUsage?(options?: { detail?: 'summary' | 'full' }): Promise<unknown>;
   usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET?(options?: { skipBehaviors?: boolean }): Promise<unknown>;
+  /** Optional so fakes may omit them; every MCP server the process knows (config + live status). */
+  mcpServerStatus?(): Promise<unknown[]>;
+  /** Persisted by Claude Code (`disabledMcpServers` of the project entry in `~/.claude.json`), docs/W0_SPIKE_NOTES.md section 10. */
+  toggleMcpServer?(name: string, enabled: boolean): Promise<void>;
   initializationResult(): Promise<InitializationResult>;
   close(): void;
 }

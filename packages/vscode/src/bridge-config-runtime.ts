@@ -13,12 +13,9 @@ type ConfigRuntimeDeps = {
   saveMagicPromptOverride: (id: string, text: string) => Promise<{ version: number; overrides: Record<string, string> }>;
   resetMagicPromptOverride: (id: string) => Promise<{ version: number; overrides: Record<string, string> }>;
   resetAllMagicPromptOverrides: () => Promise<{ version: number; overrides: Record<string, string> }>;
-  clientReloadDelayMs: number;
 };
 
-/** Settings still managed by the extension: UI settings and magic prompts. Agent/command/MCP/skill config is Phase 2. */
-const NOT_AVAILABLE = 'Not available in this version of ClaudeKei';
-
+/** Settings still managed by the extension: UI settings and magic prompts. Agents / commands / skills / MCP / plugins use the typed `claude:*` routes. */
 export async function handleConfigBridgeMessage(
   message: BridgeMessageInput,
   ctx: BridgeContext | undefined,
@@ -73,28 +70,6 @@ export async function handleConfigBridgeMessage(
       // Only refresh the catalog: live sessions are never restarted by a config reload.
       await ctx?.manager?.refreshCatalog();
       return { id, type, success: true, data: { restarted: false } };
-    }
-
-    // Read-only stubs so hidden settings sections degrade to empty lists instead of errors.
-    case 'api:config/agents':
-    case 'api:config/commands':
-    case 'api:config/mcp': {
-      const { method } = (payload || {}) as { method?: string };
-      if (typeof method === 'string' && method.toUpperCase() !== 'GET') {
-        return { id, type, success: false, error: NOT_AVAILABLE };
-      }
-      return { id, type, success: true, data: { sources: { md: { exists: false, path: null, fields: [] }, json: { exists: false, path: null, fields: [] } }, scope: null } };
-    }
-
-    case 'api:config/skills': {
-      return { id, type, success: true, data: { skills: [] } };
-    }
-
-    case 'api:config/skills:catalog':
-    case 'api:config/skills:scan':
-    case 'api:config/skills:install':
-    case 'api:config/skills/files': {
-      return { id, type, success: false, error: NOT_AVAILABLE };
     }
 
     default:

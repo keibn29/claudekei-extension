@@ -41,8 +41,8 @@ export type RunResult = {
  * Plays a recorded fixture the way the W3 pump will: `_input` lines become `startUserMessage`, raw SDK messages go
  * through `apply`, other synthetic lines are ignored, and the end of the stream calls `finish`.
  */
-export function runFixture(name: string, hooks?: MapperHooks, extra: { aliases?: AliasResolver; now?: () => number } = {}): RunResult {
-  const lines = loadNdjson(name);
+export function runFixture(name: string, hooks?: MapperHooks, extra: { aliases?: AliasResolver; now?: () => number; /** Skip the final `finish('ended')`, which would hide children / tools a mapper bug left open. */ skipFinish?: boolean; /** Drops fixture lines (e.g. to replay a recording without the CLI's stop notifications). */ filter?: (line: FixtureLine) => boolean } = {}): RunResult {
+  const lines = loadNdjson(name).filter((l) => extra.filter?.(l) ?? true);
   const options = lines.find((l) => l.type === '_options')?.options ?? {};
   const init = lines.find((l) => l.type === 'system' && l.subtype === 'init');
   const sessionId: string = init?.session_id ?? options.sessionId ?? 'sess';
@@ -74,7 +74,7 @@ export function runFixture(name: string, hooks?: MapperHooks, extra: { aliases?:
       feed(mapper.apply(line));
     }
   }
-  feed(mapper.finish('ended'));
+  if (!extra.skipFinish) feed(mapper.finish('ended'));
   return { mapper, state, main: bucketFor(state, sessionId), events, logs, inits, sessionId };
 }
 

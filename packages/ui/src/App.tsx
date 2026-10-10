@@ -1,7 +1,6 @@
 import React from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { VSCodeLayout } from '@/components/layout/VSCodeLayout';
-import { AgentManagerView } from '@/components/views/agent-manager';
 import { ChatView } from '@/components/views';
 import { FireworksProvider } from '@/contexts/FireworksContext';
 import { Toaster } from '@/components/ui/sonner';
@@ -45,15 +44,11 @@ import { ConfigUpdateOverlay } from '@/components/ui/ConfigUpdateOverlay';
 import { AboutDialog } from '@/components/ui/AboutDialog';
 import { RuntimeAPIProvider } from '@/contexts/RuntimeAPIProvider';
 import { registerRuntimeAPIs } from '@/contexts/runtimeAPIRegistry';
-import { VoiceProvider } from '@/components/voice';
 import { useUIStore } from '@/stores/useUIStore';
-import { useGitHubAuthStore } from '@/stores/useGitHubAuthStore';
 import { useFeatureFlagsStore } from '@/stores/useFeatureFlagsStore';
 import type { RuntimeAPIs } from '@/lib/api/types';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QuickOpenDialog } from '@/components/ui/QuickOpenDialog';
-import { McpOAuthCallbackPage } from '@/components/sections/mcp/McpOAuthCallbackPage';
-import { MCP_OAUTH_CALLBACK_PATH } from '@/components/sections/mcp/mcpOAuth';
 import { lazyWithChunkRecovery } from '@/lib/chunkLoadRecovery';
 import { useI18n } from '@/lib/i18n';
 
@@ -134,14 +129,6 @@ const readEmbeddedSessionChatConfig = (): EmbeddedSessionChatConfig | null => {
   };
 };
 
-const isMcpOAuthCallbackPath = (): boolean => {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  return window.location.pathname === MCP_OAUTH_CALLBACK_PATH;
-};
-
 const EmbeddedSessionSelectionGate: React.FC<{
   embeddedSessionChat: EmbeddedSessionChatConfig | null;
   isVSCodeRuntime: boolean;
@@ -196,7 +183,6 @@ function App({ apis }: AppProps) {
   const isSwitchingDirectory = useDirectoryStore((state) => state.isSwitchingDirectory);
   const [showMemoryDebug, setShowMemoryDebug] = React.useState(false);
   const { uiFont, monoFont } = useFontPreferences();
-  const refreshGitHubAuthStatus = useGitHubAuthStore((state) => state.refreshStatus);
   const [isVSCodeRuntime, setIsVSCodeRuntime] = React.useState<boolean>(() => apis.runtime.isVSCode);
   const [isEmbeddedVisible, setIsEmbeddedVisible] = React.useState(true);
   const [initRetryExhausted, setInitRetryExhausted] = React.useState(false);
@@ -217,7 +203,6 @@ function App({ apis }: AppProps) {
   const initializationInFlightRef = React.useRef(false);
   const embeddedSessionChat = React.useMemo<EmbeddedSessionChatConfig | null>(() => readEmbeddedSessionChatConfig(), []);
   const embeddedBackgroundWorkEnabled = !embeddedSessionChat || isEmbeddedVisible;
-  const isMcpOAuthCallback = React.useMemo(() => isMcpOAuthCallbackPath(), []);
 
   React.useEffect(() => {
     setStreamPerfEnabled(showMemoryDebug);
@@ -234,14 +219,6 @@ function App({ apis }: AppProps) {
     registerRuntimeAPIs(apis);
     return () => registerRuntimeAPIs(null);
   }, [apis]);
-
-  React.useEffect(() => {
-    if (embeddedSessionChat) {
-      return;
-    }
-
-    void refreshGitHubAuthStatus(apis.github, { force: true });
-  }, [apis.github, embeddedSessionChat, refreshGitHubAuthStatus]);
 
   React.useEffect(() => {
     if (typeof document === 'undefined') {
@@ -813,14 +790,6 @@ function App({ apis }: AppProps) {
     );
   }
 
-  if (isMcpOAuthCallback) {
-    return (
-      <ErrorBoundary>
-        <McpOAuthCallbackPage />
-      </ErrorBoundary>
-    );
-  }
-
   if (initRetryExhausted && !isInitialized && !isVSCodeRuntime && !embeddedSessionChat) {
     return (
       <ErrorBoundary>
@@ -834,29 +803,6 @@ function App({ apis }: AppProps) {
 
   // VS Code runtime - simplified layout without git/terminal views
   if (isVSCodeRuntime) {
-    // Check if this is the Agent Manager panel
-    const panelType = typeof window !== 'undefined'
-      ? (window as { __OPENCHAMBER_PANEL_TYPE__?: 'chat' | 'agentManager' }).__OPENCHAMBER_PANEL_TYPE__
-      : 'chat';
-
-    if (panelType === 'agentManager') {
-    return (
-      <ErrorBoundary>
-        <SyncProvider directory={currentDirectory || ''}>
-          <RuntimeAPIProvider apis={apis}>
-            <TooltipProvider delayDuration={700} skipDelayDuration={150}>
-              <div className="h-full text-foreground bg-background">
-                <SyncAppEffects embeddedBackgroundWorkEnabled={embeddedBackgroundWorkEnabled} />
-                <AgentManagerView />
-                <Toaster />
-              </div>
-            </TooltipProvider>
-          </RuntimeAPIProvider>
-        </SyncProvider>
-      </ErrorBoundary>
-    );
-    }
-
     return (
       <ErrorBoundary>
         <SyncProvider directory={currentDirectory || ''}>
@@ -877,8 +823,8 @@ function App({ apis }: AppProps) {
   }
 
   // Always mount the full provider tree to avoid remounts when isInitialized
-  // flips from false → true. FireworksProvider and VoiceProvider are lightweight
-  // shells; their heavy children are only activated when actually needed.
+  // flips from false → true. FireworksProvider is a lightweight
+  // shell; its heavy children are only activated when actually needed.
   const isBootShell = !isInitialized && !isDesktopRuntime;
 
   return (
@@ -886,25 +832,23 @@ function App({ apis }: AppProps) {
       <SyncProvider directory={currentDirectory || ''}>
         <RuntimeAPIProvider apis={apis}>
           <FireworksProvider>
-            <VoiceProvider>
-              <TooltipProvider delayDuration={700} skipDelayDuration={150}>
-                <div className={isDesktopRuntime ? 'h-full text-foreground bg-transparent' : 'h-full text-foreground bg-background'}>
-                  <SyncAppEffects embeddedBackgroundWorkEnabled={embeddedBackgroundWorkEnabled} />
-                  <MainLayout />
-                  <Toaster />
-                  {!isBootShell && (
-                    <>
-                      <ConfigUpdateOverlay />
-                      <QuickOpenDialog />
-                      <AboutDialogWrapper />
-                      {showMemoryDebug && (
-                        <MemoryDebugPanel onClose={() => setShowMemoryDebug(false)} />
-                      )}
-                    </>
-                  )}
-                </div>
-              </TooltipProvider>
-            </VoiceProvider>
+            <TooltipProvider delayDuration={700} skipDelayDuration={150}>
+              <div className={isDesktopRuntime ? 'h-full text-foreground bg-transparent' : 'h-full text-foreground bg-background'}>
+                <SyncAppEffects embeddedBackgroundWorkEnabled={embeddedBackgroundWorkEnabled} />
+                <MainLayout />
+                <Toaster />
+                {!isBootShell && (
+                  <>
+                    <ConfigUpdateOverlay />
+                    <QuickOpenDialog />
+                    <AboutDialogWrapper />
+                    {showMemoryDebug && (
+                      <MemoryDebugPanel onClose={() => setShowMemoryDebug(false)} />
+                    )}
+                  </>
+                )}
+              </div>
+            </TooltipProvider>
           </FireworksProvider>
         </RuntimeAPIProvider>
       </SyncProvider>

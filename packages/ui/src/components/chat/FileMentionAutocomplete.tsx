@@ -13,6 +13,7 @@ import { ScrollableOverlay } from '@/components/ui/ScrollableOverlay';
 import { useDirectoryShowHidden } from '@/lib/directoryShowHidden';
 import { useFilesViewShowGitignored } from '@/lib/filesViewShowGitignored';
 import { useI18n } from '@/lib/i18n';
+import { COMPOSER_POPUP_ID, composerPopupOptionId } from './autocompletePopupIds';
 
 type FileInfo = ProjectFileSearchHit;
 type AgentInfo = {
@@ -24,7 +25,8 @@ const EMPTY_FILES: FileInfo[] = [];
 const EMPTY_AGENTS: AgentInfo[] = [];
 
 export interface FileMentionHandle {
-  handleKeyDown: (key: string) => void;
+  /** Returns true when the key was consumed; false lets the editor handle it (e.g. Enter sends when nothing matches). */
+  handleKeyDown: (key: string) => boolean;
 }
 
 type AutocompleteTab = 'commands' | 'agents' | 'files';
@@ -379,22 +381,22 @@ export const FileMentionAutocomplete = React.forwardRef<FileMentionHandle, FileM
     handleKeyDown: (key: string) => {
       if (key === 'Escape') {
         onClose();
-        return;
+        return true;
       }
 
       const total = visibleAgents.length + visibleDirectories.length + visibleRecentFiles.length + visibleFiles.length;
       if (total === 0) {
-        return;
+        return false;
       }
 
       if (key === 'ArrowDown') {
         setSelectedIndex((prev) => (prev + 1) % total);
-        return;
+        return true;
       }
 
       if (key === 'ArrowUp') {
         setSelectedIndex((prev) => (prev - 1 + total) % total);
-        return;
+        return true;
       }
 
       if (key === 'Enter' || key === 'Tab') {
@@ -404,7 +406,7 @@ export const FileMentionAutocomplete = React.forwardRef<FileMentionHandle, FileM
           if (agent) {
             handleAgentPick(agent.name);
           }
-          return;
+          return true;
         }
         const dirIndex = safeIndex - visibleAgents.length;
         if (dirIndex < visibleDirectories.length) {
@@ -412,7 +414,7 @@ export const FileMentionAutocomplete = React.forwardRef<FileMentionHandle, FileM
           if (dir) {
             handleFileSelect(dir);
           }
-          return;
+          return true;
         }
         const fileIndex = dirIndex - visibleDirectories.length;
         const selectedFile = fileIndex < visibleRecentFiles.length
@@ -420,8 +422,10 @@ export const FileMentionAutocomplete = React.forwardRef<FileMentionHandle, FileM
           : visibleFiles[fileIndex - visibleRecentFiles.length];
         if (selectedFile) {
           handleFileSelect(selectedFile);
+          return true;
         }
       }
+      return false;
     }
   }), [visibleFiles, visibleDirectories, visibleRecentFiles, visibleAgents, selectedIndex, onClose, handleFileSelect, handleAgentPick]);
 
@@ -458,6 +462,8 @@ export const FileMentionAutocomplete = React.forwardRef<FileMentionHandle, FileM
   return (
       <div
         ref={containerRef}
+        id={COMPOSER_POPUP_ID}
+        role="listbox"
         className="absolute z-[100] min-w-0 w-full max-w-[640px] max-h-64 bg-background border-2 border-border/60 rounded-xl shadow-none bottom-full mb-2 left-0 flex flex-col"
         style={style}
       >
@@ -510,6 +516,9 @@ export const FileMentionAutocomplete = React.forwardRef<FileMentionHandle, FileM
                 <div
                   key={`agent-${agent.name}`}
                   ref={(el) => { itemRefs.current[index] = el; }}
+                  id={composerPopupOptionId(index)}
+                  role="option"
+                  aria-selected={isSelected}
                   className={cn(
                     'flex items-start gap-2 px-3 py-1.5 cursor-pointer typography-ui-label rounded-lg',
                     isSelected && 'bg-interactive-selection',
@@ -544,6 +553,9 @@ export const FileMentionAutocomplete = React.forwardRef<FileMentionHandle, FileM
                 <div
                   key={`dir-${dir.path}`}
                   ref={(el) => { itemRefs.current[rowIndex] = el; }}
+                  id={composerPopupOptionId(rowIndex)}
+                  role="option"
+                  aria-selected={isSelected}
                   className={cn(
                     "flex items-center gap-2 px-3 py-1.5 cursor-pointer typography-ui-label rounded-lg",
                     isSelected && "bg-interactive-selection"
@@ -573,6 +585,9 @@ export const FileMentionAutocomplete = React.forwardRef<FileMentionHandle, FileM
                 <div
                   key={`recent-${file.path}`}
                   ref={(el) => { itemRefs.current[rowIndex] = el; }}
+                  id={composerPopupOptionId(rowIndex)}
+                  role="option"
+                  aria-selected={isSelected}
                   className={cn(
                     "flex items-center gap-2 px-3 py-1.5 cursor-pointer typography-ui-label rounded-lg",
                     isSelected && "bg-interactive-selection"
@@ -624,6 +639,9 @@ export const FileMentionAutocomplete = React.forwardRef<FileMentionHandle, FileM
               const item = (
                 <div
                   ref={(el) => { itemRefs.current[rowIndex] = el; }}
+                  id={composerPopupOptionId(rowIndex)}
+                  role="option"
+                  aria-selected={isSelected}
                     className={cn(
                       "flex items-center gap-2 px-3 py-1.5 cursor-pointer typography-ui-label rounded-lg",
                       isSelected && "bg-interactive-selection"

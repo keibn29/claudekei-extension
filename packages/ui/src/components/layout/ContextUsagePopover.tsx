@@ -8,28 +8,20 @@ import { useI18n } from '@/lib/i18n';
 import { claudeClient } from '@/lib/claude/client';
 import { getUsage, setUsage } from '@/lib/claude/bootstrapCache';
 import { useUsageLimits } from '@/lib/claude/useUsageLimits';
-import type { ContextUsage, UsageWindow } from '@/lib/claude/types';
+import type { ContextUsage } from '@/lib/claude/types';
 import {
     buildContextBar,
     buildContextDetail,
     formatContextPercent,
     formatContextSummary,
     formatContextTokens,
-    formatUsageReset,
     hasUsageLimits,
     shouldRefreshUsage,
-    usageWindowPercent,
-    usageWindowTone,
     type ContextDetailRow,
-    type LimitTone,
 } from '@/lib/claude/usage';
+import { UsageLimitRow } from '@/components/usage/UsageLimitRow';
+import { useUIStore } from '@/stores/useUIStore';
 import { useSession } from '@/sync/sync-context';
-
-const TONE_COLOR: Record<LimitTone, string> = {
-    normal: 'var(--primary)',
-    warning: 'var(--status-warning)',
-    critical: 'var(--status-error)',
-};
 
 /** Pie colour of the trigger ring: green until 75%, then warning, then error (same thresholds as before). */
 const ringColor = (percent: number): string =>
@@ -72,34 +64,6 @@ const ContextBar: React.FC<ContextBarProps> = ({ usage, label }) => {
                     }}
                 />
             ))}
-        </div>
-    );
-};
-
-const LimitRow: React.FC<{ window: UsageWindow; now: number }> = ({ window: usageWindow, now }) => {
-    const { t } = useI18n();
-    const percent = usageWindowPercent(usageWindow);
-    const tone = usageWindowTone(usageWindow);
-    const reset = formatUsageReset(usageWindow.resetsAt, now);
-    return (
-        <div className="space-y-1" data-usage-window={usageWindow.id}>
-            <div className="flex items-baseline justify-between gap-2">
-                <span className="typography-meta min-w-0 truncate text-foreground">{usageWindow.label}</span>
-                <span className="typography-meta flex-shrink-0 tabular-nums" style={{ color: tone === 'normal' ? undefined : TONE_COLOR[tone] }}>
-                    {percent}%
-                </span>
-            </div>
-            <div
-                role="progressbar"
-                aria-label={t('contextUsage.popover.limitAria', { label: usageWindow.label, percent: `${percent}%` })}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={percent}
-                className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-subtle)]"
-            >
-                <div className="h-full rounded-full transition-[width]" style={{ width: `${percent}%`, backgroundColor: TONE_COLOR[tone] }} />
-            </div>
-            {reset ? <div className="typography-micro text-muted-foreground">{reset}</div> : null}
         </div>
     );
 };
@@ -247,6 +211,14 @@ export const ContextUsagePopover: React.FC<ContextUsagePopoverProps> = ({ sessio
         return () => window.clearInterval(timer);
     }, [open]);
 
+    // Same navigation the title-bar buttons use: pick the settings page, then switch the layout view.
+    const openUsageSettings = React.useCallback(() => {
+        useUIStore.getState().setSettingsPage('usage');
+        window.dispatchEvent(new CustomEvent('openchamber:navigate', { detail: { view: 'settings' } }));
+        setOpen(false);
+        setView('summary');
+    }, []);
+
     const percent = usage ? usage.percent : fallback.percentage;
     const clamped = Math.max(0, Math.min(100, percent));
     const degrees = clamped * 3.6;
@@ -336,12 +308,21 @@ export const ContextUsagePopover: React.FC<ContextUsagePopoverProps> = ({ sessio
 
                                 {hasUsageLimits(limits) ? (
                                     <div className="space-y-2.5 border-t border-border/40 pt-3" data-usage-limits>
-                                        <div className="typography-ui-label font-medium text-foreground">
-                                            {limits.plan
-                                                ? t('contextUsage.popover.limitsTitlePlan', { plan: limits.plan })
-                                                : t('contextUsage.popover.limitsTitle')}
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="typography-ui-label min-w-0 truncate font-medium text-foreground">
+                                                {limits.plan
+                                                    ? t('contextUsage.popover.limitsTitlePlan', { plan: limits.plan })
+                                                    : t('contextUsage.popover.limitsTitle')}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                className="typography-meta flex-shrink-0 rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                                                onClick={openUsageSettings}
+                                            >
+                                                {t('claudeUsage.popover.details')}
+                                            </button>
                                         </div>
-                                        {limits.windows.map((window) => <LimitRow key={window.id} window={window} now={now} />)}
+                                        {limits.windows.map((window) => <UsageLimitRow key={window.id} window={window} now={now} />)}
                                     </div>
                                 ) : null}
 

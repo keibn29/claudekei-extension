@@ -5,6 +5,7 @@ import { useConfigStore } from '@/stores/useConfigStore';
 import { useAgentsStore, isAgentBuiltIn, type AgentWithExtras } from '@/stores/useAgentsStore';
 import { ScrollableOverlay } from '@/components/ui/ScrollableOverlay';
 import { useI18n } from '@/lib/i18n';
+import { COMPOSER_POPUP_ID, composerPopupOptionId } from './autocompletePopupIds';
 
 interface AgentInfo {
   name: string;
@@ -15,7 +16,7 @@ interface AgentInfo {
 }
 
 export interface AgentMentionAutocompleteHandle {
-  handleKeyDown: (key: string) => void;
+  handleKeyDown: (key: string) => boolean;
 }
 
 type AutocompleteTab = 'commands' | 'agents' | 'files';
@@ -112,29 +113,31 @@ export const AgentMentionAutocomplete = React.forwardRef<AgentMentionAutocomplet
     handleKeyDown: (key: string) => {
       if (key === 'Escape') {
         onClose();
-        return;
+        return true;
       }
 
       if (!agents.length) {
-        return;
+        return false;
       }
 
       if (key === 'ArrowDown') {
         setSelectedIndex((prev) => (prev + 1) % agents.length);
-        return;
+        return true;
       }
 
       if (key === 'ArrowUp') {
         setSelectedIndex((prev) => (prev - 1 + agents.length) % agents.length);
-        return;
+        return true;
       }
 
       if (key === 'Enter' || key === 'Tab') {
         const agent = agents[(selectedIndex + agents.length) % agents.length];
         if (agent) {
           onAgentSelect(agent.name);
+          return true;
         }
       }
+      return false;
     },
   }), [agents, onAgentSelect, onClose, selectedIndex]);
 
@@ -148,6 +151,9 @@ export const AgentMentionAutocomplete = React.forwardRef<AgentMentionAutocomplet
         ref={(el) => {
           itemRefs.current[index] = el;
         }}
+        id={composerPopupOptionId(index)}
+        role="option"
+        aria-selected={index === selectedIndex}
           className={cn(
             'flex items-start gap-2 px-3 py-1.5 cursor-pointer rounded-lg typography-ui-label',
           index === selectedIndex && 'bg-interactive-selection'
@@ -192,6 +198,8 @@ export const AgentMentionAutocomplete = React.forwardRef<AgentMentionAutocomplet
   return (
     <div
       ref={containerRef}
+      id={COMPOSER_POPUP_ID}
+      role="listbox"
       className="absolute z-[100] min-w-0 w-full max-w-[360px] max-h-60 bg-background border-2 border-border/60 rounded-xl shadow-none bottom-full mb-2 left-0 flex flex-col"
     >
       {showTabs ? (

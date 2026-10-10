@@ -7,10 +7,6 @@ export const createVSCodeActionsAPI = (): VSCodeAPI => ({
     return result.result;
   },
 
-  async openAgentManager(): Promise<void> {
-    await executeVSCodeCommand('claudekei.openAgentManager');
-  },
-
   async openExternalUrl(url: string): Promise<void> {
     await openVSCodeExternalUrl(url);
   },

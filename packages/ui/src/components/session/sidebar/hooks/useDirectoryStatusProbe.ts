@@ -45,11 +45,6 @@ async function probeDirectory(directory: string): Promise<DirectoryStatusValue> 
     await claudeHost.listLocalDirectory(directory);
     return 'exists';
   } catch (error) {
-    const looksLikeSdkWorktree =
-      directory.includes('/opencode/worktree/') ||
-      directory.includes('/.opencode/data/worktree/') ||
-      directory.includes('/.local/share/opencode/worktree/');
-
     const reachable = await claudeHost.probeDirectory(directory).catch(() => false);
     if (reachable) {
       return 'exists';
@@ -62,7 +57,7 @@ async function probeDirectory(directory: string): Promise<DirectoryStatusValue> 
       message.includes('does not exist') ||
       message.includes('no such file');
 
-    if (definitelyMissing || looksLikeSdkWorktree) {
+    if (definitelyMissing) {
       return 'missing';
     }
 

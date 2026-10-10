@@ -1,0 +1,2 @@
+{"type":"_options","options":{"model":"haiku","permissionMode":"default","note":"handwritten: a process that accepts the prompt but never emits system/init (dies or stalls before init)"}}
+{"type":"_input","message":{"type":"user","message":{"role":"user","content":[{"type":"text","text":"hi"}]},"parent_tool_use_id":null,"uuid":"b0000000-0000-4000-8000-000000000001"}}

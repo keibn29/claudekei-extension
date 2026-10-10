@@ -39,6 +39,10 @@ export function createClaudeHost(context: vscode.ExtensionContext, output: vscod
     distDir: path.join(context.extensionPath, 'dist'),
     store: context.workspaceState,
     globalStore: context.globalState,
+    // Without a workspace folder there is no per-workspace storage: the global dir is shared by every such window, and
+    // the revert-copy sweep (dirs without a marker in THIS window's state) would delete the other windows' copies.
+    storageDir: context.storageUri?.fsPath ?? path.join(context.globalStorageUri.fsPath, 'no-workspace', vscode.env.sessionId),
+    trash: (absPath) => Promise.resolve(vscode.workspace.fs.delete(vscode.Uri.file(absPath), { recursive: true, useTrash: true })),
     broadcaster,
     getConfig: readManagerConfig,
     clientApp: `claudekei/${String(context.extension?.packageJSON?.version ?? '0')}`,

@@ -1,0 +1,186 @@
+[
+  {
+    "label": "plugin list --json",
+    "args": [
+      "plugin",
+      "list",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "[\n  {\n    \"id\": \"claudekei@claudekei\",\n    \"version\": \"0.5.3\",\n    \"scope\": \"user\",\n    \"enabled\": true,\n    \"installPath\": \"~/.claude/plugins/cache/claudekei/claudekei/0.5.3\",\n    \"installedAt\": \"2026-10-09T05:58:24.990Z\",\n    \"lastUpdated\": \"2026-10-09T20:31:08.516Z\",\n    \"mcpServers\": {\n      \"context7\": {\n        \"type\": \"http\",\n        \"url\": \"https://mcp.context7.com/mcp\"\n      },\n      \"grep_app\": {\n        \"type\": \"http\",\n        \"url\": \"https://mcp.grep.app\"\n      },\n      \"websearch\": {\n        \"type\": \"http\",\n        \"url\": \"https://mcp.exa.ai/mcp?tools=web_search_exa\"\n      }\n    },\n    \"projectEnabled\": false\n  }\n]\n",
+    "stderr": "",
+    "ms": 1057
+  },
+  {
+    "label": "plugin disable --json",
+    "args": [
+      "plugin",
+      "disable",
+      "claudekei@claudekei",
+      "-s",
+      "user",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"command\":\"disable\",\"outcome\":\"ok\",\"plugin\":\"claudekei@claudekei\",\"pluginId\":\"claudekei@claudekei\",\"scope\":\"user\",\"message\":\"Successfully disabled plugin: claudekei (scope: user)\"}\n",
+    "stderr": "",
+    "ms": 725
+  },
+  {
+    "label": "enabledPlugins after disable",
+    "value": {
+      "claudekei@claudekei": false
+    }
+  },
+  {
+    "label": "plugin enable --json",
+    "args": [
+      "plugin",
+      "enable",
+      "claudekei@claudekei",
+      "-s",
+      "user",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"command\":\"enable\",\"outcome\":\"ok\",\"plugin\":\"claudekei@claudekei\",\"pluginId\":\"claudekei@claudekei\",\"scope\":\"user\",\"message\":\"Successfully enabled plugin: claudekei (scope: user)\"}\n",
+    "stderr": "",
+    "ms": 731
+  },
+  {
+    "label": "enabledPlugins after enable",
+    "value": {
+      "claudekei@claudekei": true
+    }
+  },
+  {
+    "label": "plugin enable (already enabled)",
+    "args": [
+      "plugin",
+      "enable",
+      "claudekei@claudekei",
+      "-s",
+      "user"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "✘ Failed to enable plugin \"claudekei@claudekei\": Plugin \"claudekei@claudekei\" is already enabled at user scope\n",
+    "ms": 709
+  },
+  {
+    "label": "plugin enable unknown",
+    "args": [
+      "plugin",
+      "enable",
+      "nope@nowhere",
+      "-s",
+      "user"
+    ],
+    "exit": 0,
+    "stdout": "✔ Successfully enabled plugin: nope (scope: user)\n",
+    "stderr": "",
+    "ms": 829
+  },
+  {
+    "label": "mcp add-json",
+    "args": [
+      "mcp",
+      "add-json",
+      "zz-spike",
+      "{\"type\":\"stdio\",\"command\":\"echo\",\"args\":[\"spike\"],\"env\":{\"ZZ\":\"1\"}}",
+      "-s",
+      "user"
+    ],
+    "exit": 0,
+    "stdout": "Added stdio MCP server zz-spike to user config\n",
+    "stderr": "",
+    "ms": 710
+  },
+  {
+    "label": "mcp add-json duplicate",
+    "args": [
+      "mcp",
+      "add-json",
+      "zz-spike",
+      "{\"type\":\"stdio\",\"command\":\"echo\",\"args\":[\"spike\"],\"env\":{\"ZZ\":\"1\"}}",
+      "-s",
+      "user"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "MCP server zz-spike already exists in user config\n",
+    "ms": 676
+  },
+  {
+    "label": "mcp add-json invalid",
+    "args": [
+      "mcp",
+      "add-json",
+      "zz-bad",
+      "{not json",
+      "-s",
+      "user"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "Invalid configuration: : Invalid input\n",
+    "ms": 737
+  },
+  {
+    "label": "mcp add-json http",
+    "args": [
+      "mcp",
+      "add-json",
+      "zz-spike-http",
+      "{\"type\":\"http\",\"url\":\"http://127.0.0.1:9/mcp\",\"headers\":{\"X-Test\":\"a\"}}",
+      "-s",
+      "local"
+    ],
+    "exit": 0,
+    "stdout": "Added http MCP server zz-spike-http to local config\n",
+    "stderr": "",
+    "ms": 732
+  },
+  {
+    "label": "mcp remove local",
+    "args": [
+      "mcp",
+      "remove",
+      "zz-spike-http",
+      "-s",
+      "local"
+    ],
+    "exit": 0,
+    "stdout": "Removed MCP server zz-spike-http from local config\nFile modified: ~/.claude.json [project: /private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox]\n",
+    "stderr": "",
+    "ms": 788
+  },
+  {
+    "label": "mcp remove",
+    "args": [
+      "mcp",
+      "remove",
+      "zz-spike",
+      "-s",
+      "user"
+    ],
+    "exit": 0,
+    "stdout": "Removed MCP server zz-spike from user config\nFile modified: ~/.claude.json\n",
+    "stderr": "",
+    "ms": 722
+  },
+  {
+    "label": "mcp remove missing",
+    "args": [
+      "mcp",
+      "remove",
+      "zz-spike",
+      "-s",
+      "user"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "No MCP server named \"zz-spike\" in user scope\n",
+    "ms": 698
+  }
+]

@@ -1,8 +1,12 @@
 /** Test-only fakes: a fixture-driven Query, an in-memory session API and manual timers. */
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { ClaudeEventsPush } from '@openchamber/ui/src/lib/claude/protocol';
 import { Broadcaster } from './broadcaster';
 import { ClaudeSessionManager, DEFAULT_MANAGER_CONFIG, type ManagerConfig } from './ClaudeSessionManager';
-import type { ClaudeQuery, InitializationResult, QueryFactory, QueryParams, SdkRuntime, SdkSessionInfo, SessionApi, SDKMessage } from './sdk';
+import type { CliRunner } from './claudeCli';
+import type { ClaudeQuery, InitializationResult, QueryFactory, QueryParams, RewindFilesResult, SdkRuntime, SdkSessionInfo, SessionApi, SDKMessage } from './sdk';
 import { loadNdjson, type FixtureLine } from './testUtils';
 
 export class ManualTimers {
@@ -71,6 +75,20 @@ export function segmentsOf(name: string): FixtureLine[][] {
   return segments;
 }
 
+/** What a fake `rewindFiles(uuid)` answers: the dry run result, the real result (default: success) and a disk side effect. */
+export type RewindSpec = { dry: RewindFilesResult; real?: RewindFilesResult; apply?: () => void };
+export type RewindCall = { uuid: string; dryRun: boolean; query: number };
+
+/** Scripted MCP behaviour shared by every query of a harness. */
+export type FakeMcp = {
+  /** `mcpServerStatus()` answers in order; the last one repeats. */
+  responses: unknown[][];
+  calls: number;
+  toggles: Array<[string, boolean]>;
+  toggleError?: string;
+  statusError?: string;
+};
+
 export class FakeQuery implements ClaudeQuery {
   closed = false;
   interrupts = 0;
@@ -136,9 +154,39 @@ export class FakeQuery implements ClaudeQuery {
   async [Symbol.asyncDispose](): Promise<void> {
     this.close();
   }
-  async interrupt(): Promise<unknown> {
+  interruptOptions: unknown[] = [];
+  async interrupt(options?: { cancelQueued?: boolean }): Promise<unknown> {
     this.interrupts++;
+    this.interruptOptions.push(options);
     return { still_queued: [] };
+  }
+  /** Answers of `rewindFiles` per user message uuid (shared by every query of a harness); unknown uuid = no checkpoint. */
+  rewind = new Map<string, RewindSpec>();
+  rewindCalls: RewindCall[] = [];
+  /** Position of this query in the harness (0 = the catalog probe). */
+  index = 0;
+  async rewindFiles(userMessageId: string, options?: { dryRun?: boolean }): Promise<RewindFilesResult> {
+    this.rewindCalls.push({ uuid: userMessageId, dryRun: options?.dryRun === true, query: this.index });
+    const spec = this.rewind.get(userMessageId);
+    if (!spec) return { canRewind: false, error: 'No file checkpoint found for this message.' };
+    if (options?.dryRun) return spec.dry;
+    spec.apply?.();
+    return spec.real ?? { canRewind: true };
+  }
+  mcp: FakeMcp = { responses: [], calls: 0, toggles: [] };
+  async mcpServerStatus(): Promise<unknown[]> {
+    if (this.mcp.statusError) throw new Error(this.mcp.statusError);
+    const index = Math.min(this.mcp.calls++, this.mcp.responses.length - 1);
+    return this.mcp.responses[index] ?? [];
+  }
+  async toggleMcpServer(name: string, enabled: boolean): Promise<void> {
+    if (this.mcp.toggleError) throw new Error(this.mcp.toggleError);
+    this.mcp.toggles.push([name, enabled]);
+  }
+  /** Task ids passed to `stopTask`, in order. */
+  stopped: string[] = [];
+  async stopTask(taskId: string): Promise<void> {
+    this.stopped.push(taskId);
   }
   async setModel(model?: string): Promise<void> {
     this.models.push(model);
@@ -161,7 +209,9 @@ export class FakeQuery implements ClaudeQuery {
     }
     throw new Error('unsupported');
   }
-  async usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET(): Promise<unknown> {
+  usageOptions: Array<{ skipBehaviors?: boolean } | undefined> = [];
+  async usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET(options?: { skipBehaviors?: boolean }): Promise<unknown> {
+    this.usageOptions.push(options);
     this.usageCalls++;
     if (this.usageRaw === undefined) throw new Error('unsupported');
     return this.usageRaw;
@@ -218,11 +268,13 @@ export class FakeSessionApi implements SessionApi {
   async getSessionMessages(id: string): Promise<any[]> {
     return this.history.get(id) ?? [];
   }
-  async listSubagents(): Promise<string[]> {
-    return [];
+  /** Subagent transcripts per session: agentId -> entries. */
+  subagents = new Map<string, Record<string, any[]>>();
+  async listSubagents(id: string): Promise<string[]> {
+    return Object.keys(this.subagents.get(id) ?? {});
   }
-  async getSubagentMessages(): Promise<any[]> {
-    return [];
+  async getSubagentMessages(id: string, agentId: string): Promise<any[]> {
+    return this.subagents.get(id)?.[agentId] ?? [];
   }
 }
 
@@ -236,6 +288,17 @@ export type Harness = {
   store: Map<string, unknown>;
   config: ManagerConfig;
   logs: Array<{ level: string; message: string }>;
+  /** Directory of the revert copies (`<storageDir>/revert/<sessionId>`). */
+  storageDir: string;
+  /** Scripted MCP status / toggle behaviour shared by every query of this harness. */
+  mcp: FakeMcp;
+  /** Calls of the fake `claude` CLI, and an optional failure per call (`cliFail` returns the stderr to reject with). */
+  cliCalls: Array<{ args: string[]; cwd: string }>;
+  cliFail: { current?: (args: string[]) => string | undefined };
+  /** `rewindFiles` answers shared by every query of this harness. */
+  rewind: Map<string, RewindSpec>;
+  /** Every `rewindFiles` call of every query, in order. */
+  rewindLog: RewindCall[];
   /** Marks session ids of recorded fixtures as existing transcripts so list/resume see them. */
   addTranscript(id: string, title?: string): void;
 };
@@ -246,7 +309,7 @@ export function createHarness(
   overrides: Partial<ManagerConfig> = {},
   init: InitializationResult = STUB_INIT,
   /** `shared` simulates a window reload: a new manager over the same workspaceState and transcripts. */
-  extra: { home?: string; cwd?: string; shared?: { store: Map<string, unknown>; api: FakeSessionApi }; contextRaw?: unknown; usageRaw?: unknown; windows?: Record<string, number>; distDir?: string; measureWindows?: boolean } = {},
+  extra: { home?: string; cwd?: string; storageDir?: string; shared?: { store: Map<string, unknown>; api: FakeSessionApi }; contextRaw?: unknown; usageRaw?: unknown; windows?: Record<string, number>; distDir?: string; measureWindows?: boolean; cli?: CliRunner } = {},
 ): Harness {
   const timers = new ManualTimers();
   const broadcaster = new Broadcaster({ setTimer: timers.setTimeout, clearTimer: timers.clearTimeout });
@@ -256,6 +319,18 @@ export function createHarness(
   // Tests assume the classic default mode unless they ask for the product default (bypassPermissions).
   const config: ManagerConfig = { ...DEFAULT_MANAGER_CONFIG, defaultPermissionMode: 'default', ...overrides };
   const logs: Harness['logs'] = [];
+  const storageDir = extra.storageDir ?? mkdtempSync(join(tmpdir(), 'claudekei-storage-'));
+  const mcp: FakeMcp = { responses: [], calls: 0, toggles: [] };
+  const cliCalls: Harness['cliCalls'] = [];
+  const cliFail: Harness['cliFail'] = {};
+  const cli: CliRunner = extra.cli ?? (async (args, o) => {
+    cliCalls.push({ args, cwd: o.cwd });
+    const failure = cliFail.current?.(args);
+    if (failure) throw new Error(failure);
+    return { stdout: '', stderr: '' };
+  });
+  const rewind = new Map<string, RewindSpec>();
+  const rewindLog: RewindCall[] = [];
   const queryFactory: QueryFactory = (params) => {
     // The catalog probe (never-yielding prompt, persistSession false) gets an inert query.
     const isProbe = params.options.persistSession === false;
@@ -267,6 +342,16 @@ export function createHarness(
     q.contextRaw = isProbe ? undefined : extra.contextRaw;
     q.usageRaw = extra.usageRaw;
     q.windowsByModel = extra.windows;
+    q.rewind = rewind;
+    q.mcp = mcp;
+    q.index = queries.length;
+    const record = q.rewindFiles.bind(q);
+    q.rewindFiles = async (uuid, options) => {
+      const before = q.rewindCalls.length;
+      const result = await record(uuid, options);
+      rewindLog.push(...q.rewindCalls.slice(before));
+      return result;
+    };
     queries.push(q);
     return q;
   };
@@ -280,6 +365,9 @@ export function createHarness(
     getConfig: () => config,
     runtime: async () => runtime,
     home: extra.home ?? '/nonexistent-home',
+    storageDir,
+    cli,
+    mcpPollMs: 1,
     // The extra measuring probe would shift every test's query indices: only tests that give windows enable it.
     measureModelWindows: extra.measureWindows ?? extra.windows !== undefined,
     distDir: extra.distDir,
@@ -290,7 +378,7 @@ export function createHarness(
     timers,
   });
   return {
-    manager, broadcaster, timers, queries, api, pushes, store, config, logs,
+    manager, broadcaster, timers, queries, api, pushes, store, config, logs, storageDir, mcp, cliCalls, cliFail, rewind, rewindLog,
     addTranscript: (id, title = 'Existing') => void api.infos.set(id, { sessionId: id, summary: title, lastModified: Date.now(), createdAt: Date.now() - 1000 }),
   };
 }

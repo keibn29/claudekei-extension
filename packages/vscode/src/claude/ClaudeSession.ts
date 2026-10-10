@@ -6,9 +6,10 @@
  * Vscode-free: all effects go through `ClaudeSessionDeps`, so the manager and this class run headless in tests.
  */
 import { randomUUID } from 'node:crypto';
+import { isAbsolute, relative, resolve } from 'node:path';
 import type { ClaudeEvent, SessionSnapshot } from '@openchamber/ui/src/lib/claude/protocol';
 import type { ClaudeRequestPayload } from '@openchamber/ui/src/lib/claude/protocol';
-import type { ContextUsage, EffortLevel, PermissionMode, PermissionResponse, QuestionAnswer, Session, SessionStatus, SlashCommand } from '@openchamber/ui/src/lib/claude/types';
+import type { ContextUsage, EffortLevel, Message, PermissionMode, PermissionResponse, QuestionAnswer, RevertPreview, RevertResult, Session, SessionStatus, SlashCommand } from '@openchamber/ui/src/lib/claude/types';
 import type { AgentLog } from './agentLog';
 import { AsyncQueue } from './asyncQueue';
 import { estimateContextUsage, toContextUsage } from './contextUsage';
@@ -16,8 +17,11 @@ import { loadHistory } from './history';
 import { createMapper, type AliasResolver, type InitInfo, type Mapper } from './mapper';
 import { pluginAliasResolver } from './pluginAliases';
 import { PermissionBroker } from './permissions';
+import type { RevertMarker, RevertStore } from './revertStore';
 import type { ClaudeQuery, SdkOptions, SdkRuntime, SessionApi, SDKUserMessage } from './sdk';
 import { bucketFor, createSessionState, reduceEvents, type SessionState } from './sessionState';
+import { isTaskTool } from './toolNormalize';
+import { cutUuidBefore, forkUuidOf } from './transcriptCut';
 
 export type SessionLifecycle = 'draft' | 'cold' | 'starting' | 'live-idle' | 'live-busy' | 'closing';
 
@@ -66,6 +70,8 @@ export type ClaudeSessionDeps = {
   resolveModel?: (value: string) => string | undefined;
   /** Per-turn agent record so replayed user messages keep the agent they were sent with. */
   agentLog?: AgentLog;
+  /** Revert markers and the file copies behind `/redo` (docs/REVERT_SPEC.md); absent = revert is unavailable. */
+  revertStore?: RevertStore;
 };
 
 const TEXT_MIME = /^(text\/|application\/(json|xml|x-yaml|yaml|javascript|typescript|x-sh|x-httpd-php|sql|toml|x-ndjson|ld\+json)|[a-z]+\/[a-z.+-]*\+(json|xml))/i;
@@ -85,6 +91,9 @@ export function attachmentBlock(file: { mime: string; filename: string; dataUrl:
   const text = Buffer.from(data, 'base64').toString('utf8');
   return { type: 'text', text: `<file name="${file.filename}">\n${text}\n</file>` };
 }
+
+/** Stop watchdog: after an interrupt, wait this long before stopping tasks one by one, then again before killing the process. */
+const STOP_WATCHDOG_MS = 4000;
 
 const LIVE: ReadonlySet<SessionLifecycle> = new Set(['starting', 'live-idle', 'live-busy']);
 
@@ -116,9 +125,20 @@ export class ClaudeSession {
   /** Effort the live process runs with; `effortStale` = it could not be changed live (respawn on the next idle send). */
   private liveEffort: EffortLevel | null = null;
   private effortStale = false;
+  /** Agents / skills / plugins / MCP changed on disk: the live process is stale (respawn on the next idle send). */
+  private configStale = false;
   private lock: Promise<unknown> = Promise.resolve();
   private initEmitted = false;
   private titleTimers: unknown[] = [];
+  private stopTimers: unknown[] = [];
+  /** Pending revert: messages from this user message on are hidden and cut on the next send. */
+  private revertMarker: RevertMarker | undefined;
+  /** A committed revert whose cut no process has written into the transcript yet (persisted until `init`). */
+  private committedMarker: RevertMarker | undefined;
+  /** Bumped by every user message: a stop watchdog armed for an older turn must not touch a newer one. */
+  private turnSeq = 0;
+  /** Transcript uuid the next spawn resumes at (set by a committed revert, cleared once the process emitted `init`). */
+  private resumeAt: string | undefined;
   readonly broker: PermissionBroker;
 
   constructor(
@@ -132,6 +152,14 @@ export class ClaudeSession {
     this.loaded = !init.exists;
     this.state = createSessionState(init.info.id, this.info);
     this.lastActivity = deps.now();
+    const stored = deps.revertStore?.get(init.info.id);
+    if (stored?.committed) {
+      // The last process died / the window closed before announcing the cut: resume there again, keep the rest hidden.
+      this.committedMarker = stored;
+      this.resumeAt = stored.resumeAt ?? undefined;
+    } else {
+      this.revertMarker = stored;
+    }
     this.broker = new PermissionBroker({
       sessionId: init.info.id,
       cwd: deps.cwd,
@@ -148,6 +176,16 @@ export class ClaudeSession {
 
   get isLive(): boolean {
     return LIVE.has(this.lifecycle);
+  }
+
+  /** Config files changed: a live process respawns (resume) on the next send between turns; a busy turn is never cut. */
+  markConfigStale(): void {
+    if (this.isLive) this.configStale = true;
+  }
+
+  /** A revert is pending (not yet committed by a send). */
+  get hasRevert(): boolean {
+    return this.revertMarker !== undefined;
   }
 
   get isLoaded(): boolean {
@@ -180,10 +218,46 @@ export class ClaudeSession {
     bucket.info = this.info;
     this.state = snapshot.state;
     this.loaded = true;
+    this.resolveRevertMarker();
+    this.hideCommittedCut();
     // Cold session: a rough figure from the transcript until a live measurement replaces it.
     const tokens = this.lastKnownTokens();
     if (!this.contextUsage && tokens) this.info = { ...this.info, contextUsage: estimateContextUsage(tokens, this.deps.now()) };
     bucket.info = this.info;
+  }
+
+  /** Host message ids change across reloads: the stored marker is found again by the user message's transcript uuid. */
+  private resolveRevertMarker(): void {
+    const marker = this.revertMarker;
+    if (!marker) return;
+    const bucket = bucketFor(this.state, this.id);
+    const message = bucket.messages.find((m) => m.role === 'user' && m.claudeUuid === marker.uuid);
+    if (!message) {
+      this.deps.log('warn', 'revert marker points at a message that no longer exists; dropped', { id: this.id, uuid: marker.uuid });
+      this.revertMarker = undefined;
+      void this.deps.revertStore?.clear(this.id);
+      return;
+    }
+    this.info = { ...this.info, revert: { messageID: message.id } };
+    bucket.info = this.info;
+  }
+
+  /** After a reload with a committed (not yet written) cut: the messages beyond it stay hidden, like before the reload. */
+  private hideCommittedCut(): void {
+    const marker = this.committedMarker;
+    if (!marker?.resumeAt) return;
+    const bucket = bucketFor(this.state, this.id);
+    const index = bucket.messages.findIndex((m) => forkUuidOf(m, bucket.parts[m.id] ?? []) === marker.resumeAt);
+    if (index < 0) {
+      this.deps.log('warn', 'committed revert cut points at an entry that no longer exists; dropped', { id: this.id, resumeAt: marker.resumeAt });
+      this.committedMarker = undefined;
+      this.resumeAt = undefined;
+      void this.deps.revertStore?.clear(this.id);
+      return;
+    }
+    const removed = bucket.messages.slice(index + 1);
+    // Not announced: nobody has this session's state yet (it is being loaded).
+    if (removed.length > 0) reduceEvents(this.state, this.removalEvents(removed));
   }
 
   getSnapshot(): SessionSnapshot {
@@ -261,6 +335,8 @@ export class ClaudeSession {
       // Validate attachments before anything is spawned or emitted.
       const attachments = (input.files ?? []).map(attachmentBlock);
       await this.ensureLoaded();
+      // A pending revert becomes permanent now: the hidden messages are cut from the conversation.
+      if (this.revertMarker) await this.commitRevert();
       if (input.mode && this.modeAllowed(input.mode)) this.prefs.mode = input.mode;
       // The agent first: switching applies its model/effort preset, which explicit values sent with it then override.
       if (input.agent !== undefined) this.applyAgent(input.agent);
@@ -271,8 +347,9 @@ export class ClaudeSession {
 
       // Agent switch (or an effort change the live process could not take): respawn with `resume`, only between
       // turns; a busy turn keeps its agent.
-      if (this.lifecycle === 'live-idle' && (this.spawnedAgent !== (this.prefs.agent || undefined) || this.effortStale)) {
-        this.deps.log('info', 'agent or effort changed, respawning session process', { id: this.id, from: this.spawnedAgent, to: this.prefs.agent, effortStale: this.effortStale });
+      // Background subagents die with the process: while any runs, the respawn waits (the stale flags stay set).
+      if (this.lifecycle === 'live-idle' && !this.hasRunningTasks && (this.spawnedAgent !== (this.prefs.agent || undefined) || this.effortStale || this.configStale)) {
+        this.deps.log('info', 'agent, effort or config changed, respawning session process', { id: this.id, from: this.spawnedAgent, to: this.prefs.agent, effortStale: this.effortStale, configStale: this.configStale });
         await this.closeProcess();
       }
       if (!this.isLive) await this.spawn();
@@ -290,6 +367,9 @@ export class ClaudeSession {
       // Effort: what the live process runs with (a change it could not take yet is not in effect for this turn).
       this.mapper!.configure({ model: this.prefs.model, mode: this.prefs.mode, agent: this.spawnedAgent, effort: this.liveEffort });
       const { messageId, events } = this.mapper!.startUserMessage({ content: blocks, uuid });
+      // A stop watchdog of the previous turn must not close / stop anything of this one.
+      this.turnSeq += 1;
+      this.clearStopWatchdog();
       this.setLifecycle('live-busy');
       this.deps.onActivity?.(this, 'busy');
       this.publish(events);
@@ -361,10 +441,12 @@ export class ClaudeSession {
       if (!(this.deps.isModeAllowed?.(this.prefs.mode) ?? true)) this.prefs.mode = 'default';
       const options: SdkOptions = {
         cwd: this.deps.cwd,
-        ...(this.exists ? { resume: this.id } : { sessionId: this.id }),
+        ...(this.exists ? { resume: this.id, ...(this.resumeAt ? { resumeSessionAt: this.resumeAt } : {}) } : { sessionId: this.id }),
         ...(model && model !== 'default' ? { model } : {}),
         permissionMode: this.prefs.mode,
         ...(this.prefs.effort ? { effort: this.prefs.effort } : {}),
+        // Do not declare `perTaskStopAffordance`, and never abort the AbortController to interrupt a turn (that kills the
+        // process): `query.interrupt()` aborts the turn and every subagent running under it (docs/STOP_SUBAGENTS_FIX.md).
         // Required to enter bypassPermissions later in this process (mode cycling), not only to start in it.
         ...(this.deps.isModeAllowed?.('bypassPermissions') ?? true ? { allowDangerouslySkipPermissions: true } : {}),
         ...(agent ? { agent } : {}),
@@ -429,6 +511,7 @@ export class ClaudeSession {
       this.spawnedAgent = agent;
       this.liveEffort = this.prefs.effort ?? null;
       this.effortStale = false;
+      this.configStale = false;
       // Sessions that predate the per-turn record fall back to the agent they first ran with.
       this.deps.agentLog?.noteInitial(this.id, agent ?? this.prefs.mode);
       this.liveMode = this.prefs.mode;
@@ -450,14 +533,24 @@ export class ClaudeSession {
       for await (const message of query) {
         if (message.type === 'result') {
           sawResult = true;
+          this.clearStopWatchdog();
           this.scheduleContextUsage();
         }
-        if (message.type === 'system' && message.subtype === 'init') this.exists = true;
+        if (message.type === 'system' && message.subtype === 'init') {
+          this.exists = true;
+          // The cut is in the transcript now; a spawn that died before `init` keeps it for the next attempt.
+          this.resumeAt = undefined;
+          if (this.committedMarker) {
+            this.committedMarker = undefined;
+            void this.deps.revertStore?.clear(this.id).catch((error) => this.deps.log('warn', 'could not clear the committed revert marker', error instanceof Error ? error.message : String(error)));
+          }
+        }
         this.publish(mapper.apply(message));
       }
     } catch (error) {
       failure = error;
     } finally {
+      this.clearStopWatchdog();
       const wasClosing = this.closing;
       const wasBusy = this.status.type !== 'idle';
       this.broker.denyAll();
@@ -477,17 +570,256 @@ export class ClaudeSession {
     }
   }
 
+  // --- revert ---------------------------------------------------------------------
+
+  /** Workspace-relative path when inside the cwd, else absolute. */
+  private displayPath(path: string): string {
+    const abs = resolve(this.deps.cwd, path);
+    const rel = relative(this.deps.cwd, abs);
+    return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel) ? rel : abs;
+  }
+
+  /** The user message a revert targets (main session, with a transcript uuid, not a subagent instruction). */
+  private async revertTarget(messageId: string): Promise<{ uuid: string; messageId: string; resumeAt: string | null }> {
+    if (!this.exists) throw new Error('Nothing to revert yet');
+    await this.ensureLoaded();
+    const bucket = bucketFor(this.state, this.id);
+    const index = bucket.messages.findIndex((m) => m.id === messageId);
+    const message = bucket.messages[index];
+    if (!message || message.role !== 'user' || !message.claudeUuid || message.instruction) throw new Error('This message cannot be reverted');
+    const resumeAt = cutUuidBefore(bucket.messages, bucket.parts, index);
+    // No cuttable entry before it is only "revert to the very first message" when it really is the first message;
+    // otherwise (e.g. entries without a transcript uuid in front) deleting the transcript would lose the earlier turns.
+    if (resumeAt === undefined && index !== 0) throw new Error('This message cannot be reverted');
+    return { uuid: message.claudeUuid, messageId, resumeAt: resumeAt ?? null };
+  }
+
+  private async ensureProcess(): Promise<ClaudeQuery> {
+    if (!this.isLive) {
+      await this.spawn();
+      // Nobody sends to this process: let the idle timer close it.
+      this.deps.onActivity?.(this, 'idle');
+    }
+    const query = this.query!;
+    if (!query.rewindFiles) throw new Error('This Claude Code version cannot rewind files');
+    return query;
+  }
+
+  /** A process that is not running a turn: a busy one is interrupted and closed first (pending prompts are denied). */
+  private async idleQuery(): Promise<ClaudeQuery> {
+    // Running background subagents count as busy: rewinding files under them (and killing them on close) is a stop.
+    if (this.lifecycle === 'live-busy' || this.lifecycle === 'starting' || (this.isLive && this.hasRunningTasks)) {
+      this.mapper?.markStopRequested();
+      if (this.query) await this.interruptTurn(this.query).catch(() => undefined);
+      await this.closeProcess();
+    }
+    return this.ensureProcess();
+  }
+
+  /** Dry run of the file rewind for reverting to `messageId`: never interrupts, may spawn a cold session's process. */
+  revertPreview(messageId: string): Promise<RevertPreview> {
+    return this.exclusive(async () => {
+      const target = await this.revertTarget(messageId);
+      const dry = await (await this.ensureProcess()).rewindFiles!(target.uuid, { dryRun: true });
+      if (!dry.canRewind) return { files: [], insertions: 0, deletions: 0, filesError: dry.error ?? 'No file checkpoint for this message' };
+      return { files: (dry.filesChanged ?? []).map((p) => this.displayPath(p)), insertions: dry.insertions ?? 0, deletions: dry.deletions ?? 0 };
+    });
+  }
+
+  /**
+   * Restores the files (when the CLI has a checkpoint) and hides `messageId` and everything after it until the next
+   * send commits the cut, or `unrevert`. The current bytes of every file the rewind touches are saved first (D5).
+   */
+  revert(messageId: string): Promise<RevertResult> {
+    return this.exclusive(async () => {
+      const store = this.deps.revertStore;
+      if (!store) throw new Error('Revert is not available in this host');
+      const target = await this.revertTarget(messageId);
+      if (this.revertMarker?.uuid === target.uuid) return { files: [] };
+      const query = await this.idleQuery();
+      const dry = await query.rewindFiles!(target.uuid, { dryRun: true });
+      let files: string[] = [];
+      let filesError: string | undefined;
+      if (dry.canRewind) {
+        const absolute = (dry.filesChanged ?? []).map((p) => resolve(this.deps.cwd, p));
+        await store.capture(this.id, absolute); // a cap error propagates: nothing was changed yet
+        const real = await query.rewindFiles!(target.uuid);
+        if (real.canRewind) files = absolute.map((p) => this.displayPath(p));
+        else filesError = real.error ?? 'The files could not be restored';
+      } else {
+        filesError = dry.error ?? 'No file checkpoint for this message';
+      }
+      this.revertMarker = { uuid: target.uuid, resumeAt: target.resumeAt };
+      await store.set(this.id, this.revertMarker);
+      this.info = { ...this.info, revert: { messageID: target.messageId } };
+      this.publish([{ type: 'session.updated', properties: { sessionID: this.id, info: this.info } }]);
+      this.deps.onActivity?.(this, 'idle');
+      return { files, ...(filesError ? { filesError } : {}) };
+    });
+  }
+
+  /** Writes the saved files back (head state) and shows the hidden messages again. */
+  unrevert(): Promise<void> {
+    return this.exclusive(async () => {
+      if (!this.revertMarker) return;
+      await this.deps.revertStore?.restore(this.id);
+      await this.deps.revertStore?.clear(this.id);
+      this.revertMarker = undefined;
+      this.clearRevertInfo();
+      this.publish([{ type: 'session.updated', properties: { sessionID: this.id, info: this.info } }]);
+    });
+  }
+
+  private clearRevertInfo(): void {
+    const { revert: _revert, ...rest } = this.info;
+    this.info = rest;
+  }
+
+  /**
+   * The next send after a revert: drops the hidden messages (and the subagent children they created) from the state and
+   * makes the transcript follow: the next process resumes at the last kept entry, or, when the very first message was
+   * reverted, the transcript is deleted and a fresh session starts under the same id.
+   */
+  private async commitRevert(): Promise<void> {
+    const marker = this.revertMarker;
+    if (!marker) return;
+    await this.closeProcess();
+    if (marker.resumeAt) {
+      // Persist the cut until a process announced it: a reload before that keeps the messages hidden and resumes there.
+      this.resumeAt = marker.resumeAt;
+      this.committedMarker = marker;
+      await this.deps.revertStore?.commit(this.id, marker);
+    } else {
+      await this.deps.revertStore?.clear(this.id);
+      try {
+        await (await this.deps.runtime()).sessions.deleteSession(this.id, { dir: this.deps.cwd });
+      } catch (error) {
+        if (!/not found/i.test(error instanceof Error ? error.message : String(error))) throw error;
+      }
+      this.exists = false;
+      this.resumeAt = undefined;
+      this.setLifecycle('draft');
+    }
+    const bucket = bucketFor(this.state, this.id);
+    const from = this.info.revert?.messageID;
+    const events = this.removalEvents(from ? bucket.messages.filter((m) => m.id >= from) : []);
+    this.revertMarker = undefined;
+    this.clearRevertInfo();
+    events.push({ type: 'session.updated', properties: { sessionID: this.id, info: this.info } });
+    this.publish(events);
+  }
+
+  /** Events removing `removed` main messages and the subagent children their Agent calls created. */
+  private removalEvents(removed: Message[]): ClaudeEvent[] {
+    const bucket = bucketFor(this.state, this.id);
+    const events: ClaudeEvent[] = removed.map((m) => ({ type: 'message.removed', properties: { sessionID: this.id, messageID: m.id } }));
+    for (const childId of this.childrenOwnedBy(removed.map((m) => bucket.parts[m.id] ?? []).flat())) {
+      const info = this.state.sessions.get(childId)?.info;
+      if (info) events.push({ type: 'session.deleted', properties: { sessionID: childId, info } });
+      else this.state.sessions.delete(childId);
+    }
+    return events;
+  }
+
+  /** Child sessions created by `Agent` calls among `parts`, plus the children nested below them. */
+  private childrenOwnedBy(parts: ReadonlyArray<{ type: string; tool?: string; callID?: string; claude?: { name?: string } }>): string[] {
+    const owned = new Set<string>();
+    for (const part of parts) {
+      if (part.type !== 'tool' || !part.callID || !isTaskTool(part.claude?.name ?? part.tool ?? '')) continue;
+      const id = `sub_${part.callID}`;
+      if (this.state.sessions.has(id)) owned.add(id);
+    }
+    // Nested subagents hang off a removed child (parentID).
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const [id, bucket] of this.state.sessions) {
+        if (!owned.has(id) && bucket.info?.parentID && owned.has(bucket.info.parentID)) {
+          owned.add(id);
+          grew = true;
+        }
+      }
+    }
+    return [...owned];
+  }
+
   // --- control -------------------------------------------------------------------
 
   async interrupt(): Promise<void> {
     // Stop pressed while a send is still spawning the process: cancel that send instead of ignoring the click.
     if ((!this.query || this.lifecycle === 'starting') && this.sendInFlight > 0) this.pendingInterrupt = true;
-    if (!this.query) return;
+    const query = this.query;
+    if (!query) return;
+    // First: a foreground subagent cut short by the abort reports `completed`, which must show as stopped.
+    this.mapper?.markStopRequested();
+    // Armed before the await: the aborted `result` may arrive before the control response and must disarm it.
+    if (this.stopIncomplete()) this.armStopWatchdog(query, this.turnSeq);
     try {
-      await this.query.interrupt();
+      await this.interruptTurn(query);
     } catch (error) {
       this.deps.log('warn', 'interrupt failed', error);
     }
+  }
+
+  /** `interrupt({cancelQueued})` and the receipt: messages the CLI cancelled will never run, so they are removed. */
+  private async interruptTurn(query: ClaudeQuery): Promise<void> {
+    const receipt = await query.interrupt({ cancelQueued: true });
+    const cancelled = (receipt as { cancelled?: unknown } | null | undefined)?.cancelled;
+    if (!Array.isArray(cancelled) || cancelled.length === 0) return;
+    const messages = bucketFor(this.state, this.id).messages;
+    const events: ClaudeEvent[] = [];
+    for (const uuid of cancelled) {
+      // Uuids the host never sent (cron triggers, auto-resume) are ignored.
+      const message = typeof uuid === 'string' ? messages.find((m) => m.role === 'user' && m.claudeUuid === uuid) : undefined;
+      if (!message) continue;
+      events.push({ type: 'message.removed', properties: { sessionID: this.id, messageID: message.id } });
+      this.deps.agentLog?.forget(this.id, message.claudeUuid!);
+    }
+    this.publish(events);
+  }
+
+  /** True while the process still runs something the interrupt should have ended. */
+  private stopIncomplete(): boolean {
+    return this.status.type !== 'idle' || this.hasRunningTasks;
+  }
+
+  /** Background / foreground subagent runs still tracked by the mapper (they die with the process). */
+  private get hasRunningTasks(): boolean {
+    return (this.mapper?.runningTasks().length ?? 0) > 0;
+  }
+
+  /**
+   * An interrupt normally ends in an aborted `result` within moments. If tasks or the turn are still running after
+   * `STOP_WATCHDOG_MS`, stop each running task; if that does not help either, close the process (which idles everything).
+   * `turn` is the turn the stop was pressed in: once a newer user message started, the watchdog is moot.
+   */
+  private armStopWatchdog(query: ClaudeQuery, turn: number): void {
+    this.clearStopWatchdog();
+    const { timers } = this.deps;
+    const stale = (): boolean => this.query !== query || this.turnSeq !== turn || !this.stopIncomplete();
+    this.stopTimers.push(timers.setTimeout(() => {
+      this.stopTimers = [];
+      if (stale()) return;
+      const taskIds = new Set(this.mapper?.runningTasks().map((t) => t.taskId));
+      this.deps.log('info', 'stop watchdog: stopping tasks that outlived the interrupt', { id: this.id, tasks: [...taskIds] });
+      for (const taskId of taskIds) void query.stopTask?.(taskId).catch((error) => this.deps.log('debug', 'stopTask failed', error));
+      this.stopTimers.push(timers.setTimeout(() => {
+        this.stopTimers = [];
+        void this.closeIfStillStuck(stale);
+      }, STOP_WATCHDOG_MS));
+    }, STOP_WATCHDOG_MS));
+  }
+
+  /** Decided inside the exclusive section: a send that slipped in meanwhile makes the close moot. */
+  private closeIfStillStuck(stale: () => boolean): Promise<void> {
+    return this.exclusive(async () => {
+      if (stale()) return;
+      this.deps.log('warn', 'stop watchdog: closing the process', { id: this.id });
+      await this.closeProcess();
+    });
+  }
+
+  private clearStopWatchdog(): void {
+    for (const t of this.stopTimers.splice(0)) this.deps.timers.clearTimeout(t);
   }
 
   async setModel(model: string): Promise<void> {

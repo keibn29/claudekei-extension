@@ -5,7 +5,7 @@ type MagicPromptsState = {
   setSelectedPromptId: (id: string) => void;
 };
 
-const DEFAULT_PROMPT_ID = 'git.commit.generate';
+const DEFAULT_PROMPT_ID = 'git.conflict.resolve';
 
 export const useMagicPromptsStore = create<MagicPromptsState>((set) => ({
   selectedPromptId: DEFAULT_PROMPT_ID,

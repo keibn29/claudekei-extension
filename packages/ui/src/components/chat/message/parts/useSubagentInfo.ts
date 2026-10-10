@@ -23,6 +23,7 @@ import {
     buildSubagentActivity,
     buildSubagentSteps,
     getSubagentKind,
+    isStaleBusyChild,
     readSubagentInput,
     readSubagentLink,
     resolveSubagentAlias,
@@ -164,6 +165,7 @@ export const useSubagentInfo = (part: ToolPart): SubagentInfo => {
     const records = useSessionMessageRecords(sessionId ?? '', currentDirectory);
     useEnsureSessionMessages(sessionId ?? '', currentDirectory);
     const childStatus = useSessionStatus(sessionId ?? '', currentDirectory);
+    const parentStatus = useSessionStatus(parentSessionId ?? '', currentDirectory);
 
     // --- Run slice and derived content --------------------------------------------------------------
     const range = React.useMemo(
@@ -181,12 +183,16 @@ export const useSubagentInfo = (part: ToolPart): SubagentInfo => {
 
     const childPhase: ChildPhase | undefined = React.useMemo(() => {
         if (!sessionId) return undefined;
-        if (childStatus) return childStatus.type;
-        const last = records[records.length - 1];
-        const pending = last?.info.role === 'assistant'
-            && typeof (last.info as { time?: { completed?: number } }).time?.completed !== 'number';
-        return pending ? 'busy' : undefined;
-    }, [childStatus, records, sessionId]);
+        const phase: ChildPhase | undefined = (() => {
+            if (childStatus) return childStatus.type;
+            const last = records[records.length - 1];
+            const pending = last?.info.role === 'assistant'
+                && typeof (last.info as { time?: { completed?: number } }).time?.completed !== 'number';
+            return pending ? 'busy' : undefined;
+        })();
+        // A child still `busy` after the turn ended and the tool settled (e.g. a stopped run) must not keep spinning.
+        return isStaleBusyChild({ childPhase: phase, parentIdle: !parentStatus || parentStatus.type === 'idle', toolStatus, runStatus: link.runStatus }) ? 'idle' : phase;
+    }, [childStatus, link.runStatus, parentStatus, records, sessionId, toolStatus]);
 
     const runError = React.useMemo(() => findRunError(records, range), [range, records]);
     const toolError = (state as { error?: string }).error;

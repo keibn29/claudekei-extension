@@ -45,8 +45,6 @@ export type Session = {
     created: number;
     /** Used for display ordering and `trimSessions` eviction. */
     updated: number;
-    /** @deprecated legacy: archive is not supported; never set by the host. */
-    archived?: number;
     /** @deprecated legacy: never set by the host. */
     compacting?: number;
   };
@@ -85,13 +83,20 @@ export type Session = {
   contextUsage?: ContextUsage;
   /** @deprecated legacy: read by PlanView; the host does not set it. */
   slug?: string;
-  /** @deprecated legacy: sharing is not supported. */
-  share?: { url: string };
   /** @deprecated legacy: not populated. */
   summary?: { additions: number; deletions: number; files: number };
-  /** @deprecated legacy: undo/revert is not supported (Phase 2). */
+  /**
+   * Set by the host while messages from `messageID` onward are reverted (hidden) and not yet committed.
+   * Cleared by unrevert or the next send. The host sets only `messageID`.
+   */
   revert?: { messageID: string; partID?: string; snapshot?: string; diff?: string };
 };
+
+/** Dry run of the file rewind behind a revert. `files` are relative to the workspace cwd when inside it, else absolute. */
+export type RevertPreview = { files: string[]; insertions: number; deletions: number; filesError?: string };
+
+/** Outcome of a revert. `files`: same path convention as `RevertPreview`; `filesError`: the files could not be restored. */
+export type RevertResult = { files: string[]; filesError?: string };
 
 /** Live status of a session. */
 export type SessionStatus =
@@ -688,23 +693,12 @@ export type Catalog = {
 // sufficient; each is removed together with the code that uses it (docs/PHASE1_PLAN.md, W5/W6).
 // ---------------------------------------------------------------------------
 
-/** @deprecated legacy shape */
-export type PermissionActionConfig = 'ask' | 'allow' | 'deny';
-/** @deprecated legacy shape */
-export type PermissionRuleConfig = PermissionActionConfig | { [pattern: string]: PermissionActionConfig };
-/** @deprecated legacy shape */
-export type PermissionConfig = {
-  __originalKeys?: string[];
-  [tool: string]: PermissionRuleConfig | string[] | undefined;
-};
-
 /** @deprecated legacy shape: OpenCode server configuration. */
 export type Config = {
   model?: string;
   small_model?: string;
   default_agent?: string;
   username?: string;
-  permission?: PermissionConfig | PermissionActionConfig;
   [key: string]: unknown;
 };
 
@@ -735,14 +729,6 @@ export type VcsInfo = { branch?: string; default_branch?: string };
 /** @deprecated legacy shape */
 export type LspStatus = { id: string; name: string; root: string; status: 'connected' | 'error' };
 
-/** @deprecated legacy shape: OpenCode MCP server status. */
-export type McpStatus =
-  | { status: 'connected' }
-  | { status: 'disabled' }
-  | { status: 'failed'; error: string }
-  | { status: 'needs_auth' }
-  | { status: 'needs_client_registration'; error: string };
-
 /** @deprecated legacy shape: OpenCode command. Slash commands now come from `SlashCommand`. */
 export type Command = {
   name: string;
@@ -766,3 +752,71 @@ export type ProviderListResponse = {
   default: Record<string, string>;
   connected: string[];
 };
+
+// ---------------------------------------------------------------------------
+// Settings: agents / commands / skills / plugins / MCP / usage activity (docs/SETTINGS_USAGE_SPEC.md 2.1)
+// ---------------------------------------------------------------------------
+
+export type ConfigScope = 'user' | 'project';
+export type ConfigItemKind = 'agent' | 'command' | 'skill';
+export type ConfigField = 'description' | 'model' | 'effort' | 'color' | 'tools' | 'argument-hint' | 'allowed-tools';
+export const CONFIG_FIELDS: Readonly<Record<ConfigItemKind, readonly ConfigField[]>> = {
+  agent: ['description', 'model', 'effort', 'color', 'tools'],
+  command: ['description', 'argument-hint', 'allowed-tools', 'model'],
+  skill: ['description', 'allowed-tools'],
+};
+export const CONFIG_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
+export const AGENT_COLORS = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'cyan'] as const;
+export type ConfigItem = {
+  kind: ConfigItemKind;
+  /** Invocation name; plugin items are `<plugin>:<name>`. */
+  name: string;
+  source: ConfigScope | 'plugin';
+  /** `name@marketplace` when source === 'plugin'. */
+  plugin?: string;
+  /** Commands: sub-directory under commands/ (display only). */
+  group?: string;
+  description: string;
+  /** Absolute path of the .md / SKILL.md. */
+  path: string;
+  /** A project item with the same kind+name exists (project wins). */
+  shadowed?: true;
+  /** Frontmatter parse error; still listed, openable in editor. */
+  error?: string;
+};
+export type ConfigItemDetail = ConfigItem & {
+  fields: Partial<Record<ConfigField, string>>; // YAML arrays joined with ', '
+  otherKeys: string[];
+  body: string;
+  files?: string[]; // skills only
+};
+export type PluginInfo = { id: string; name: string; marketplace: string; version?: string; description?: string; scope: 'user' | 'project' | 'local'; enabled: boolean; installPath: string };
+export type MarketplaceInfo = { name: string; source: string; installLocation: string; lastUpdated?: number };
+export type ConfigSnapshot = {
+  items: ConfigItem[];
+  plugins: PluginInfo[];
+  marketplaces: MarketplaceInfo[];
+  claudekeiFiles: Array<{ scope: ConfigScope; path: string; exists: boolean }>;
+  projectMcpFile: { path: string; exists: boolean };
+};
+export type McpServerScope = 'user' | 'local' | 'project';
+export type McpTransportConfig =
+  | { type: 'stdio'; command: string; args?: string[]; env?: Record<string, string> }
+  | { type: 'http' | 'sse'; url: string; headers?: Record<string, string> };
+export type McpServerInfo = {
+  name: string;
+  status: 'connected' | 'failed' | 'needs-auth' | 'pending' | 'disabled';
+  /** SDK `source ?? scope ?? 'unknown'`. */
+  origin: string;
+  /** Present iff origin is user/local/project AND config is stdio/http/sse. */
+  scope?: McpServerScope;
+  config?: McpTransportConfig;
+  error?: string;
+  serverInfo?: { name: string; version: string };
+  toolCount: number;
+};
+export type McpStatusSnapshot = { servers: McpServerInfo[]; updatedAt: number; error?: string };
+export type SkillCatalogItem = { dir: string; name: string; description?: string; installable: boolean; warning?: string; installed: ConfigScope[] };
+export type UsageShare = { name: string; pct: number };
+export type UsageActivityWindow = { requests: number; sessions: number; behaviors: Array<{ key: string; pct: number }>; agents: UsageShare[]; skills: UsageShare[]; plugins: UsageShare[]; mcpServers: UsageShare[] };
+export type UsageActivity = { day: UsageActivityWindow; week: UsageActivityWindow; updatedAt: number };

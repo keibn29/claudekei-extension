@@ -10,9 +10,8 @@ import { cn } from '@/lib/utils';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { toast } from '@/components/ui';
 import { getProjectNotesAndTodos, saveProjectNotesAndTodos } from '@/lib/openchamberConfig';
-import { resolveProjectForSessionDirectory } from '@/lib/projectResolution';
+import { resolveProjectForDirectory } from '@/lib/projectResolution';
 import { useEffectiveDirectory } from '@/hooks/useEffectiveDirectory';
-import { summarizeText } from '@/lib/voice/summarize';
 import { isVSCodeRuntime } from '@/lib/desktop';
 import { useI18n } from '@/lib/i18n';
 
@@ -224,7 +223,6 @@ export const TextSelectionMenu: React.FC<TextSelectionMenuProps> = ({ containerR
   const setPendingInputText = useInputStore((state) => state.setPendingInputText);
   const isMobile = useUIStore((state) => state.isMobile);
   const projects = useProjectsStore((state) => state.projects);
-  const availableWorktreesByProject = useSessionUIStore((state) => state.availableWorktreesByProject);
   const effectiveDirectory = useEffectiveDirectory();
   const sessions = useSessions();
 
@@ -493,9 +491,9 @@ export const TextSelectionMenu: React.FC<TextSelectionMenuProps> = ({ containerR
   const currentProjectRef = React.useMemo(() => {
     const directory = effectiveDirectory
       ?? (typeof currentSession?.directory === 'string' ? currentSession.directory : '');
-    const resolved = resolveProjectForSessionDirectory(projects, availableWorktreesByProject, directory);
+    const resolved = resolveProjectForDirectory(projects, directory);
     return resolved ? { id: resolved.id, path: resolved.path } : null;
-  }, [availableWorktreesByProject, currentSession?.directory, effectiveDirectory, projects]);
+  }, [currentSession?.directory, effectiveDirectory, projects]);
 
   const handleAddToNotes = React.useCallback(async () => {
     if (!selectedText || !currentProjectRef) {
@@ -507,11 +505,8 @@ export const TextSelectionMenu: React.FC<TextSelectionMenuProps> = ({ containerR
 
     try {
       setIsAddingToNotes(true);
-      const distilledInsight = await summarizeText(selectedText, {
-        threshold: 0,
-        maxLength: 100,
-        mode: 'note',
-      });
+      // The server-side note distillation (zen summarize endpoint) went away with the voice stack.
+      const distilledInsight = selectedText.replace(/\s+/g, ' ').trim();
       const projectData = await getProjectNotesAndTodos(currentProjectRef);
       const nextNotes = appendDistilledInsightToNotes(projectData.notes, distilledInsight);
       const saved = await saveProjectNotesAndTodos(currentProjectRef, {

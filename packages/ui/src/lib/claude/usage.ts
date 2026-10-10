@@ -171,3 +171,41 @@ export const hasUsageLimits = (usage: UsageLimits | null | undefined): usage is 
 /** Refresh on popup open, but not more often than `throttleMs` (the host re-reads the endpoint every call). */
 export const shouldRefreshUsage = (lastUpdatedAt: number | undefined, now: number, throttleMs: number = 30_000): boolean =>
   typeof lastUpdatedAt !== 'number' || now - lastUpdatedAt >= throttleMs;
+
+// ---------------------------------------------------------------------------
+// Pace
+// ---------------------------------------------------------------------------
+
+/** Length of the rolling window behind a meter kind; `undefined` when the kind has no fixed length. */
+export const usageWindowDurationMs = (w: Pick<UsageWindow, 'kind'>): number | undefined =>
+  w.kind === 'session' ? 5 * 3_600_000 : w.kind.startsWith('weekly') ? 7 * 86_400_000 : undefined;
+
+export type UsagePace = { expected: number; status: 'on-track' | 'ahead' | 'exhausted'; runsOutAt?: number };
+
+/**
+ * Compares the share of the window that has elapsed (`expected`) with the utilization. `undefined` when the window
+ * has no known length or reset time. `runsOutAt` is a linear projection, kept only when it lands before the reset.
+ */
+export function usageWindowPace(w: UsageWindow, now: number): UsagePace | undefined {
+  const duration = usageWindowDurationMs(w);
+  if (duration === undefined || typeof w.resetsAt !== 'number') return undefined;
+  const start = w.resetsAt - duration;
+  const elapsed = Math.max(0, Math.min(duration, now - start));
+  const expected = elapsed / duration;
+  const utilization = w.utilization;
+  if (utilization >= 1 || w.status === 'rejected') return { expected, status: 'exhausted' };
+  if (elapsed < 0.02 * duration || utilization <= expected) return { expected, status: 'on-track' };
+  const runsOutAt = now + ((1 - utilization) * elapsed) / utilization;
+  return runsOutAt < w.resetsAt ? { expected, status: 'ahead', runsOutAt } : { expected, status: 'ahead' };
+}
+
+/** `2 hr 12 min`, `45 min`, `3 hr`, `1 d 4 hr`; `less than a minute` below one minute. */
+export const formatUsageDuration = (ms: number): string => {
+  const value = Math.max(0, ms);
+  const days = Math.floor(value / (24 * HOUR_MS));
+  const hours = Math.floor((value % (24 * HOUR_MS)) / HOUR_MS);
+  const minutes = Math.floor((value % HOUR_MS) / MINUTE_MS);
+  if (days > 0) return hours > 0 ? `${days} d ${hours} hr` : `${days} d`;
+  if (hours > 0) return minutes > 0 ? `${hours} hr ${minutes} min` : `${hours} hr`;
+  return minutes > 0 ? `${minutes} min` : 'less than a minute';
+};

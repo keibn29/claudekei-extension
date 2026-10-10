@@ -155,6 +155,14 @@ export type Mapper = {
   registerAgent(agentId: string, ownerToolUseId: string): void;
   /** Respawn: adopt the child sessions / agent registry of the session's current state (see implementation). */
   seed(state: SessionState): void;
+  /**
+   * The host asked the CLI to interrupt: a foreground subagent that the abort cuts short reports `task_notification
+   * completed` from the CLI's `finally`, which must not turn into a "done" card. The flag is cleared by the next
+   * user message and by the aborted `result`.
+   */
+  markStopRequested(): void;
+  /** Subagent runs that have started and not ended yet (the host's stop watchdog stops them one by one). */
+  runningTasks(): Array<{ taskId: string; runId: string; toolUseId: string; childId: string }>;
   readonly info: {
     readonly model: string;
     readonly mode: PermissionMode;
@@ -180,7 +188,8 @@ const AUTH_ERRORS = new Set([
   'cloud_credential_error',
 ]);
 const AUTH_TEXT = /\/login|not logged in|invalid api key|authentication/i;
-const INTERRUPT_TEXT = /^The user doesn't want to proceed with this tool use/;
+const INTERRUPT_TEXT = /^(The user doesn't want to proceed with this tool use|\[Request interrupted by user)/;
+const INTERRUPTED_MESSAGE = 'Interrupted by user';
 const SYNTHETIC_COMPACT_TEXT = 'Context compacted';
 
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -290,6 +299,14 @@ export function createMapper(options: MapperOptions): Mapper {
   const tools = new Map<string, ToolRef>();
   const asstByApi = new Map<string, AsstState>();
   const asyncTaskByAgent = new Map<string, ToolRef>();
+  /** Run keys registered as foreground (`task_started.is_backgrounded === false`). */
+  const foregroundRuns = new Set<string>();
+  /** Run keys ended by `stopRuns`: their late `task_notification` is ignored. */
+  const stoppedRuns = new Set<string>();
+  /** A host interrupt is in flight (see `Mapper.markStopRequested`). */
+  let stopRequested = false;
+  /** `result.total_cost_usd` is cumulative per `query()`: the cost already attributed to earlier turns of this process. */
+  let costSeen = 0;
   /** agentId -> subagent instance; also keyed by childId in `agentByChild`. */
   const agents = new Map<string, AgentRec>();
   /** Replay: owner Agent tool_use id -> agentId (from the subagent transcripts), applied when the child is created. */
@@ -789,7 +806,7 @@ export function createMapper(options: MapperOptions): Mapper {
     ref.done = true;
     const input = ref.part.state.input;
     const start = ref.startMs ?? ms();
-    if (ref.meta.runStatus === 'running') ref.meta.runStatus = 'error';
+    if (ref.meta.runStatus === 'running') ref.meta.runStatus = error === INTERRUPTED_MESSAGE ? 'stopped' : 'error';
     const merged = { ...(metadata ?? {}), ...ref.meta };
     ref.part.state = { status: 'error', input, error, ...(Object.keys(merged).length > 0 ? { metadata: merged } : {}), time: { start, end: ms() } };
     emitPart(ref.part);
@@ -875,10 +892,13 @@ export function createMapper(options: MapperOptions): Mapper {
   }
 
   /** Starts a run on a child: instruction message, busy status, tool metadata. */
-  function startRun(rec: AgentRec, runKey: string, ref: ToolRef, prompt: string | undefined, kind: 'initial' | 'followup'): void {
+  function startRun(rec: AgentRec, runKey: string, ref: ToolRef, prompt: string | undefined, kind: 'initial' | 'followup', foreground = false): void {
     const child = containers.get(rec.childId);
     if (!child) return;
     rec.runs.set(runKey, ref);
+    stoppedRuns.delete(runKey);
+    if (foreground) foregroundRuns.add(runKey);
+    else foregroundRuns.delete(runKey);
     setStatus(child, { type: 'busy' });
     if (prompt) {
       // One instruction per run: skip when this tool call already produced one (task_started seen twice).
@@ -926,6 +946,26 @@ export function createMapper(options: MapperOptions): Mapper {
     const child = containers.get(rec.childId);
     if (child && runStatus === 'completed') ensureChildReply(child, ref, reply);
     if (child && rec.runs.size === 0) {
+      finalizeContainer(child);
+      setStatus(child, { type: 'idle' });
+      if (child.info?.claude?.progress) setChildClaude(child, { progress: undefined });
+    }
+  }
+
+  /**
+   * Ends every run still tracked, as stopped: the CLI aborted the turn, so no `task_notification` will (reliably) come.
+   * Tool parts that are still open become errors; the children go idle.
+   */
+  function stopRuns(reason: string): void {
+    for (const rec of agents.values()) {
+      const child = containers.get(rec.childId);
+      for (const [key, ref] of [...rec.runs]) {
+        rec.runs.delete(key);
+        stoppedRuns.add(key);
+        updateSubMeta(ref, { runStatus: 'stopped' });
+        failTool(ref, reason);
+      }
+      if (!child) continue;
       finalizeContainer(child);
       setStatus(child, { type: 'idle' });
       if (child.info?.claude?.progress) setChildClaude(child, { progress: undefined });
@@ -1016,7 +1056,7 @@ export function createMapper(options: MapperOptions): Mapper {
 
     if (isError) {
       const text = stripToolError(rawText);
-      failTool(ref, INTERRUPT_TEXT.test(text) ? 'Interrupted by user' : text || 'Tool failed');
+      failTool(ref, INTERRUPT_TEXT.test(text) ? INTERRUPTED_MESSAGE : text || 'Tool failed');
       return;
     }
 
@@ -1358,7 +1398,7 @@ export function createMapper(options: MapperOptions): Mapper {
     if (!replay) return; // Live prompts are emitted by the host (startUserMessage); everything else here is noise.
 
     if (msg.isCompactSummary === true || msg.is_meta === true || msg.isSynthetic === true) {
-      if (msg.isCompactSummary === true) emitCompacted();
+      if (msg.isCompactSummary === true) emitCompacted(uuid);
       return;
     }
     if (text === undefined) {
@@ -1382,8 +1422,10 @@ export function createMapper(options: MapperOptions): Mapper {
   };
 
   /** Synthetic assistant text (compaction marker, hook notices): own message, completed immediately. */
-  function emitNotice(text: string, level?: string): void {
+  function emitNotice(text: string, level?: string, uuid?: string): void {
     const a = startAssistant(main, `notice:${nid()}`, undefined);
+    // The transcript entry behind the notice (replayed compaction summary) makes it a valid cut point for fork / revert.
+    if (uuid) a.message.claudeUuid = uuid;
     const ref = newTextRef(a, 'text', text);
     const part = ref.part as TextPart;
     part.synthetic = true;
@@ -1393,7 +1435,7 @@ export function createMapper(options: MapperOptions): Mapper {
     finalizeAssistant(a);
   }
 
-  const emitCompacted = (): void => emitNotice(SYNTHETIC_COMPACT_TEXT);
+  const emitCompacted = (uuid?: string): void => emitNotice(SYNTHETIC_COMPACT_TEXT, undefined, uuid);
 
   const abortOpenTools = (reason: string, includeAsync: boolean): void => {
     for (const ref of tools.values()) {
@@ -1408,17 +1450,25 @@ export function createMapper(options: MapperOptions): Mapper {
     const subtype = str(msg.subtype);
     const isError = msg.is_error === true || (subtype !== undefined && subtype !== 'success');
     const terminal = str(msg.terminal_reason);
-    const aborted = terminal !== undefined && terminal.startsWith('aborted');
+    const aborted = (terminal !== undefined && terminal.startsWith('aborted')) || (stopRequested && isError && subtype === 'error_during_execution');
 
     const last = main.lastAssistant;
     if (last) {
-      const cost = num(msg.total_cost_usd);
-      if (cost !== undefined) last.message.cost = cost;
+      const total = num(msg.total_cost_usd);
+      if (total !== undefined) {
+        // A turn that ended without a new main assistant message (e.g. an aborted one) must not overwrite the cost an
+        // earlier turn's message already carries: only the current turn's own assistant gets the delta, added up.
+        const delta = Math.max(0, total - costSeen);
+        if (delta > 0 && last.message.parentID === main.lastUserMessageId) last.message.cost = (last.message.cost ?? 0) + delta;
+        costSeen = Math.max(costSeen, total);
+      }
       emitMessage(last.message);
     }
 
     if (isError) {
-      abortOpenTools(aborted ? 'Interrupted by user' : 'Tool did not complete', false);
+      // An abort also kills background subagents, so their tool parts end too.
+      abortOpenTools(aborted ? INTERRUPTED_MESSAGE : 'Tool did not complete', aborted);
+      if (aborted) stopRuns(INTERRUPTED_MESSAGE);
       if (!aborted) {
         const errors = arr(msg.errors).filter((e): e is string => typeof e === 'string');
         const resultText = str(msg.result) ?? errors.join('; ');
@@ -1441,6 +1491,7 @@ export function createMapper(options: MapperOptions): Mapper {
       }
       setStatus(c, { type: 'idle' });
     }
+    if (aborted) stopRequested = false;
     setStatus(main, { type: 'idle' });
   };
 
@@ -1500,7 +1551,7 @@ export function createMapper(options: MapperOptions): Mapper {
         if (isTaskTool(ref.part.claude.name)) {
           const child = containers.get(childSessionId(toolUseId)) ?? createChild(toolUseId, ref.container, str(msg.description));
           const rec = attachAgent(child, agentId, toolUseId, str(msg.subagent_type));
-          startRun(rec, runKey, ref, str(msg.prompt) ?? str(ref.part.state.input.prompt), 'initial');
+          startRun(rec, runKey, ref, str(msg.prompt) ?? str(ref.part.state.input.prompt), 'initial', msg.is_backgrounded === false);
         } else if (ref.part.tool === 'sendmessage') {
           // A continuation of an existing agent: same task_id, new run_id, the sent message as `prompt`.
           const rec = agents.get(agentId);
@@ -1508,7 +1559,7 @@ export function createMapper(options: MapperOptions): Mapper {
             log('debug', 'task_started for SendMessage with an unknown agent', { agentId });
             return;
           }
-          startRun(rec, runKey, ref, str(msg.prompt) ?? str(ref.part.state.input.message), 'followup');
+          startRun(rec, runKey, ref, str(msg.prompt) ?? str(ref.part.state.input.message), 'followup', msg.is_backgrounded === false);
           linkSendMessage(ref, rec);
         }
         return;
@@ -1541,12 +1592,21 @@ export function createMapper(options: MapperOptions): Mapper {
       }
       case 'task_notification': {
         const toolUseId = str(msg.tool_use_id);
-        const status = str(msg.status);
-        const summary = str(msg.summary);
+        let status = str(msg.status);
+        let summary = str(msg.summary);
         const ref = toolUseId ? tools.get(toolUseId) : undefined;
         const rec = agents.get(str(msg.task_id) ?? '');
+        const runKey = str(msg.run_id) ?? toolUseId ?? '';
+        // Already ended by an aborted turn: a late notification must not flip the card back to "done".
+        if (stoppedRuns.delete(runKey)) return;
+        // The CLI reports `completed` for a foreground run its abort cut short.
+        if (stopRequested && status === 'completed' && foregroundRuns.has(runKey)) {
+          status = 'stopped';
+          summary = INTERRUPTED_MESSAGE;
+        }
+        foregroundRuns.delete(runKey);
         if (ref && isTaskTool(ref.part.claude.name) && !ref.done) completeAsyncTask(toolUseId, status, summary);
-        if (rec) endRun(rec, str(msg.run_id) ?? toolUseId ?? '', status, summary);
+        if (rec) endRun(rec, runKey, status, summary);
         else if (ref && ref.part.tool === 'sendmessage') completeAsyncTask(toolUseId, status, summary);
         return;
       }
@@ -1576,8 +1636,27 @@ export function createMapper(options: MapperOptions): Mapper {
         return;
       }
       // Known, intentionally ignored.
+      case 'task_updated': {
+        const rec = agents.get(str(msg.task_id) ?? '');
+        const patch = isRec(msg.patch) ? msg.patch : {};
+        if (!rec) return;
+        const runId = str(msg.run_id);
+        if (patch.is_backgrounded === true && runId) foregroundRuns.delete(runId);
+        const status = str(patch.status);
+        if (status === 'killed' || status === 'failed') {
+          // Without a run id the update concerns whatever the agent is running.
+          const keys = runId ? (rec.runs.has(runId) ? [runId] : []) : [...rec.runs.keys()];
+          for (const key of keys) {
+            const ref = rec.runs.get(key);
+            endRun(rec, key, status === 'killed' ? 'stopped' : 'failed', undefined);
+            // A background Agent's tool part is otherwise left running; a late task_notification must not revive it.
+            if (ref && isTaskTool(ref.part.claude.name) && !ref.done) failTool(ref, status === 'killed' ? INTERRUPTED_MESSAGE : 'Subagent failed');
+            stoppedRuns.add(key);
+          }
+        }
+        return;
+      }
       case 'thinking_tokens':
-      case 'task_updated':
       case 'background_tasks_changed':
       case 'hook_started':
       case 'hook_progress':
@@ -1668,6 +1747,7 @@ export function createMapper(options: MapperOptions): Mapper {
   const startUserMessage = (input: UserMessageInput): { messageId: string; events: ClaudeEvent[] } => {
     out = [];
     curTs = undefined;
+    stopRequested = false;
     const messageId = createUserMessage(main, input);
     setStatus(main, { type: 'busy' });
     const events = out;
@@ -1734,7 +1814,7 @@ export function createMapper(options: MapperOptions): Mapper {
     if (replay) linkReplaySendMessages();
     for (const rec of agents.values()) rec.runs.clear();
     for (const c of containers.values()) finalizeContainer(c);
-    const text = message ?? (reason === 'interrupted' ? 'Interrupted by user' : 'Session ended');
+    const text = message ?? (reason === 'interrupted' ? INTERRUPTED_MESSAGE : 'Session ended');
     abortOpenTools(text, true);
     for (const c of containers.values()) setStatus(c, { type: 'idle' });
     const events = out;
@@ -1749,6 +1829,13 @@ export function createMapper(options: MapperOptions): Mapper {
     if (settings.agent !== undefined) agent = settings.agent;
   };
 
+  const markStopRequested = (): void => {
+    stopRequested = true;
+  };
+
+  const runningTasks = (): Array<{ taskId: string; runId: string; toolUseId: string; childId: string }> =>
+    [...agents.values()].flatMap((rec) => [...rec.runs].map(([runId, ref]) => ({ taskId: rec.agentId, runId, toolUseId: ref.part.callID, childId: rec.childId })));
+
   return {
     apply,
     startUserMessage,
@@ -1756,6 +1843,8 @@ export function createMapper(options: MapperOptions): Mapper {
     configure,
     registerAgent,
     seed,
+    markStopRequested,
+    runningTasks,
     info: {
       get agent() {
         return agent;

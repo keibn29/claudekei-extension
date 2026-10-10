@@ -29,7 +29,6 @@ interface SessionFolderItemProps<TSessionNode> {
     depth?: number,
     groupDir?: string | null,
     projectId?: string | null,
-    archivedBucket?: boolean,
   ) => React.ReactNode;
   groupDirectory?: string | null;
   projectId?: string | null;
@@ -51,8 +50,6 @@ interface SessionFolderItemProps<TSessionNode> {
   depth?: number;
   /** Hide folder action buttons (rename/delete/new) */
   hideActions?: boolean;
-  /** Whether folder belongs to archived section */
-  archivedBucket?: boolean;
 }
 
 const SessionFolderItemBase = <TSessionNode,>({
@@ -78,7 +75,6 @@ const SessionFolderItemBase = <TSessionNode,>({
   onNewSubFolder,
   depth = 0,
   hideActions = false,
-  archivedBucket = false,
 }: SessionFolderItemProps<TSessionNode>) => {
   const { t } = useI18n();
   const [localRenaming, setLocalRenaming] = React.useState(false);
@@ -171,12 +167,7 @@ const SessionFolderItemBase = <TSessionNode,>({
           ? t('sessions.sidebar.folderItem.expandAria', { folderName: folder.name })
           : t('sessions.sidebar.folderItem.collapseAria', { folderName: folder.name })}
       >
-        <div className={cn(
-          'min-w-0 flex items-center gap-1.5 pl-1.5 flex-1 transition-[padding]',
-          archivedBucket
-            ? (mobileVariant ? 'pr-7' : 'group-hover/folder:pr-7 group-focus-within/folder:pr-7')
-            : '',
-        )}>
+        <div className="min-w-0 flex items-center gap-1.5 pl-1.5 flex-1 transition-[padding]">
           <FolderIcon className={cn('h-3.5 w-3.5 flex-shrink-0', isDropTarget ? 'text-primary' : 'text-muted-foreground')} />
 
           {renaming ? (
@@ -252,16 +243,15 @@ const SessionFolderItemBase = <TSessionNode,>({
         </div>
 
         {/* Action buttons */}
-        {!renaming && (!hideActions || archivedBucket) ? (
+        {!renaming && !hideActions ? (
           <div className="flex items-center gap-0.5 px-0.5">
             <div
               className={cn(
                 'flex items-center gap-0.5 transition-opacity',
                 mobileVariant ? 'opacity-100' : 'opacity-0 group-hover/folder:opacity-100 group-focus-within/folder:opacity-100',
-                archivedBucket && 'absolute right-0.5 top-1/2 z-10 -translate-y-1/2 px-0',
               )}
             >
-              {!archivedBucket && onNewSession ? (
+              {onNewSession ? (
                 <button
                   type="button"
                   onClick={(event) => {
@@ -276,7 +266,7 @@ const SessionFolderItemBase = <TSessionNode,>({
                 </button>
               ) : null}
               {/* Only allow sub-folders at depth 0 (one level deep max) */}
-              {!archivedBucket && onNewSubFolder && depth === 0 ? (
+              {onNewSubFolder && depth === 0 ? (
                 <button
                   type="button"
                   onClick={(event) => {
@@ -290,19 +280,17 @@ const SessionFolderItemBase = <TSessionNode,>({
                   <RiFolderAddLine className="h-3.5 w-3.5" />
                 </button>
               ) : null}
-              {!archivedBucket ? (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleStartRename();
-                  }}
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-interactive-hover/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                  aria-label={t('sessions.sidebar.folderItem.renameAria', { folderName: folder.name })}
-                >
-                  <RiPencilAiLine className="h-3.5 w-3.5" />
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleStartRename();
+                }}
+                className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-interactive-hover/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                aria-label={t('sessions.sidebar.folderItem.renameAria', { folderName: folder.name })}
+              >
+                <RiPencilAiLine className="h-3.5 w-3.5" />
+              </button>
               <button
                 type="button"
                 onClick={(event) => {
@@ -310,9 +298,7 @@ const SessionFolderItemBase = <TSessionNode,>({
                   onDelete();
                 }}
                 className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-interactive-hover/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                aria-label={archivedBucket
-                  ? t('sessions.sidebar.folderItem.deleteArchivedInFolderAria', { folderName: folder.name })
-                  : t('sessions.sidebar.folderItem.deleteFolderAria', { folderName: folder.name })}
+                aria-label={t('sessions.sidebar.folderItem.deleteFolderAria', { folderName: folder.name })}
               >
                 <RiDeleteBinLine className="h-3.5 w-3.5" />
               </button>
@@ -329,7 +315,7 @@ const SessionFolderItemBase = <TSessionNode,>({
           {/* Then sessions */}
           {sessions.length > 0 ? (
             sessions.map((node) =>
-              renderSessionNode(node, 0, groupDirectory ?? null, projectId ?? null, archivedBucket),
+              renderSessionNode(node, 0, groupDirectory ?? null, projectId ?? null),
             )
           ) : !subFolderItems ? (
             <div className="py-1 pl-1.5 text-left typography-micro text-muted-foreground/70">

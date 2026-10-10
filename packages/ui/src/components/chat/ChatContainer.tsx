@@ -2,6 +2,7 @@ import React from 'react';
 import type { Message, Part, UserMessage } from '@/lib/claude/types';
 
 import { ChatInput } from './ChatInput';
+import { TimelineDialog } from './TimelineDialog';
 import { useUIStore } from '@/stores/useUIStore';
 import { Skeleton } from '@/components/ui/skeleton';
 import ChatEmptyState from './ChatEmptyState';
@@ -46,6 +47,7 @@ import { SubagentHeader, SubagentReadOnlyFooter } from './SubagentHeader';
 import { SubagentSessionContext, type SubagentSessionContextValue } from './message/SubagentSessionContext';
 import { agentLabel, formatAgentName } from './mobileControlsUtils';
 import { useI18n } from '@/lib/i18n';
+import { eventMatchesShortcut, getEffectiveShortcutCombo } from '@/lib/shortcuts';
 
 const EMPTY_MESSAGES: Array<{ info: Message; parts: Part[] }> = [];
 const EMPTY_PERMISSIONS: PermissionRequest[] = [];
@@ -263,6 +265,11 @@ export const ChatContainer: React.FC = () => {
     const isExpandedInput = useUIStore((state) => state.isExpandedInput);
     const stickyUserHeader = useUIStore((state) => state.stickyUserHeader);
     const chatRenderMode = useUIStore((state) => state.chatRenderMode);
+    const isTimelineDialogOpen = useUIStore((state) => state.isTimelineDialogOpen);
+    const setTimelineDialogOpen = useUIStore((state) => state.setTimelineDialogOpen);
+    const shortcutOverrides = useUIStore((state) => state.shortcutOverrides);
+    // Only the chat view that is actually shown (not display:none) and has a session may open the timeline.
+    const timelineRootRef = React.useRef<HTMLDivElement | null>(null);
 
     // Streaming state
     const streamingMessageId = useStreamingStore(
@@ -496,6 +503,28 @@ export const ChatContainer: React.FC = () => {
         sessionPermissions: sessionBlockingCards,
         onActiveTurnChange: handleActiveTurnChange,
     });
+
+    // Alt+T toggles the timeline. Registered here (not in the global shortcut hook) so it only works while
+    // the chat view with the dialog is mounted and visible, and the open flag never outlives the dialog.
+    React.useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (!eventMatchesShortcut(event, getEffectiveShortcutCombo('open_timeline', shortcutOverrides))) return;
+            const root = timelineRootRef.current;
+            if (!root || root.offsetParent === null) return;
+            const { isSettingsDialogOpen, isCommandPaletteOpen, isHelpDialogOpen, isSessionSwitcherOpen, isAboutDialogOpen, isTimelineDialogOpen } = useUIStore.getState();
+            if (isSettingsDialogOpen || isCommandPaletteOpen || isHelpDialogOpen || isSessionSwitcherOpen || isAboutDialogOpen) return;
+            event.preventDefault();
+            setTimelineDialogOpen(!isTimelineDialogOpen);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [setTimelineDialogOpen, shortcutOverrides]);
+
+    // The dialog is only rendered for an open session: close it when that goes away or on unmount.
+    React.useEffect(() => {
+        if (!currentSessionId) setTimelineDialogOpen(false);
+    }, [currentSessionId, setTimelineDialogOpen]);
+    React.useEffect(() => () => setTimelineDialogOpen(false), [setTimelineDialogOpen]);
 
     const viewportMessages = sessionMessages;
 
@@ -849,7 +878,7 @@ export const ChatContainer: React.FC = () => {
     }
 
 	return provideSubagentSession(
-		<div className="relative flex flex-col h-full bg-background">
+		<div ref={timelineRootRef} className="relative flex flex-col h-full bg-background">
 			{subagentHeader}
 			<ChatViewport
 				currentSessionId={currentSessionId}
@@ -892,6 +921,13 @@ export const ChatContainer: React.FC = () => {
                 )}
                 {composer}
             </div>
+            <TimelineDialog
+                open={isTimelineDialogOpen}
+                onOpenChange={setTimelineDialogOpen}
+                onScrollToMessage={navigation.scrollToMessageId}
+                onScrollByTurnOffset={navigation.scrollByTurnOffset}
+                onResumeToLatest={navigation.resumeToLatest}
+            />
         </div>
     );
 };

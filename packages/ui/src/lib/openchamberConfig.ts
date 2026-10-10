@@ -30,7 +30,6 @@ function getRuntimeFilesAPI(): FilesAPI | null {
 
 export interface OpenChamberConfig {
   projectPath?: string;
-  'setup-worktree'?: string[];
   projectNotes?: string;
   projectTodos?: OpenChamberProjectTodoItem[];
   projectPlanFiles?: OpenChamberProjectPlanFileLink[];
@@ -608,9 +607,9 @@ export async function readOpenChamberConfig(project: ProjectRef): Promise<OpenCh
 /**
  * Write the per-user config for a project.
  *
- * Server owns `version` and `scheduledTasks` keys; client reads them via their
- * dedicated route and never round-trips them through this config write path to
- * avoid a read-then-write race clobbering a concurrent server update.
+ * Server owns the `version` key; the client never round-trips it through this
+ * config write path to avoid a read-then-write race clobbering a concurrent
+ * server update.
  */
 export async function writeOpenChamberConfig(
   project: ProjectRef,
@@ -648,7 +647,6 @@ export async function writeOpenChamberConfig(
 
     const serverOwned: Record<string, unknown> = {};
     if (existing.version !== undefined) serverOwned.version = existing.version;
-    if (existing.scheduledTasks !== undefined) serverOwned.scheduledTasks = existing.scheduledTasks;
 
     const content = JSON.stringify({
       ...existing,
@@ -673,19 +671,6 @@ export async function updateOpenChamberConfig(
   const existing = await readOpenChamberConfig(project) || {};
   const merged = { ...existing, ...updates };
   return writeOpenChamberConfig(project, merged);
-}
-
-/**
- * Get worktree setup commands from config.
- */
-export async function getWorktreeSetupCommands(project: ProjectRef): Promise<string[]> {
-  const config = await readOpenChamberConfig(project);
-  return config?.['setup-worktree'] ?? [];
-}
-
-export async function saveWorktreeSetupCommands(project: ProjectRef, commands: string[]): Promise<boolean> {
-  const filtered = commands.filter((cmd) => cmd.trim().length > 0);
-  return updateOpenChamberConfig(project, { 'setup-worktree': filtered });
 }
 
 export async function getProjectNotesAndTodos(project: ProjectRef): Promise<OpenChamberProjectNotesTodos> {
@@ -874,25 +859,6 @@ export async function saveProjectActionsState(
     projectActions: sanitized.actions,
     projectActionsPrimaryId: sanitized.primaryActionId ?? undefined,
   });
-}
-
-/**
- * Substitute variables in a command string.
- * Supported variables:
- * - $ROOT_PROJECT_PATH: The root project directory path
- * - $ROOT_WORKTREE_PATH: Legacy alias for $ROOT_PROJECT_PATH
- */
-export function substituteCommandVariables(
-  command: string,
-  variables: { rootWorktreePath: string }
-): string {
-  return command
-    // New preferred name
-    .replace(/\$ROOT_PROJECT_PATH/g, variables.rootWorktreePath)
-    .replace(/\$\{ROOT_PROJECT_PATH\}/g, variables.rootWorktreePath)
-    // Legacy
-    .replace(/\$ROOT_WORKTREE_PATH/g, variables.rootWorktreePath)
-    .replace(/\$\{ROOT_WORKTREE_PATH\}/g, variables.rootWorktreePath);
 }
 
 async function deleteLegacyOpenChamberConfig(projectDirectory: string): Promise<void> {

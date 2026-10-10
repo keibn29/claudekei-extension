@@ -1,4 +1,7 @@
 import type { ClaudeRequestMap, ClaudeRequestType } from '@openchamber/ui/src/lib/claude/protocol';
+import type { ConfigField, ConfigItemKind, ConfigScope, McpServerScope, McpTransportConfig } from '@openchamber/ui/src/lib/claude/types';
+import { deleteConfigItem, listConfig, readConfigItem, saveConfigItem } from './claude/claudeConfig';
+import { installSkills, scanSkillsSource } from './claude/skillsCatalog';
 import { isAnswerList } from './claude/permissions';
 import { validateTerminalCommand } from './claude/terminalCommand';
 import type { BridgeContext, BridgeResponse } from './bridge';
@@ -13,6 +16,40 @@ const requireString = (payload: Record<string, unknown>, key: string): string =>
   return value;
 };
 
+const requireEnum = <T extends string>(payload: Record<string, unknown>, key: string, allowed: readonly T[]): T => {
+  const value = payload[key];
+  if (typeof value !== 'string' || !(allowed as readonly string[]).includes(value)) throw new Error(`Invalid "${key}"`);
+  return value as T;
+};
+
+const requireBoolean = (payload: Record<string, unknown>, key: string): boolean => {
+  if (typeof payload[key] !== 'boolean') throw new Error(`Invalid "${key}"`);
+  return payload[key] as boolean;
+};
+
+const isStringRecord = (value: unknown): value is Record<string, string> =>
+  !!value && typeof value === 'object' && !Array.isArray(value) && Object.values(value).every((v) => typeof v === 'string');
+
+const requireMcpConfig = (payload: Record<string, unknown>): McpTransportConfig => {
+  const config = asRecord(payload.config);
+  const type = requireEnum(config, 'type', ['stdio', 'http', 'sse'] as const);
+  if (type === 'stdio') {
+    const { command, args, env } = config;
+    if (typeof command !== 'string' || !command.trim()) throw new Error('Invalid "config.command"');
+    if (args !== undefined && !(Array.isArray(args) && args.every((a) => typeof a === 'string'))) throw new Error('Invalid "config.args"');
+    if (env !== undefined && !isStringRecord(env)) throw new Error('Invalid "config.env"');
+    return { type, command, ...(args ? { args: args as string[] } : {}), ...(env ? { env } : {}) };
+  }
+  const { url, headers } = config;
+  if (typeof url !== 'string' || !url.trim()) throw new Error('Invalid "config.url"');
+  if (headers !== undefined && !isStringRecord(headers)) throw new Error('Invalid "config.headers"');
+  return { type, url, ...(headers ? { headers } : {}) };
+};
+
+const CONFIG_KINDS = ['agent', 'command', 'skill'] as const satisfies readonly ConfigItemKind[];
+const CONFIG_SCOPES = ['user', 'project'] as const satisfies readonly ConfigScope[];
+const MCP_SCOPES = ['user', 'local', 'project'] as const satisfies readonly McpServerScope[];
+
 const CLAUDE_REQUEST_TYPES: ReadonlySet<string> = new Set<ClaudeRequestType>([
   'claude:bootstrap',
   'claude:session.list',
@@ -21,6 +58,9 @@ const CLAUDE_REQUEST_TYPES: ReadonlySet<string> = new Set<ClaudeRequestType>([
   'claude:session.send',
   'claude:session.interrupt',
   'claude:session.fork',
+  'claude:session.revertPreview',
+  'claude:session.revert',
+  'claude:session.unrevert',
   'claude:session.delete',
   'claude:session.rename',
   'claude:session.setModel',
@@ -33,6 +73,19 @@ const CLAUDE_REQUEST_TYPES: ReadonlySet<string> = new Set<ClaudeRequestType>([
   'claude:permission.respond',
   'claude:question.respond',
   'claude:catalog.refresh',
+  'claude:config.list',
+  'claude:config.read',
+  'claude:config.save',
+  'claude:config.delete',
+  'claude:config.reload',
+  'claude:plugin.setEnabled',
+  'claude:mcp.status',
+  'claude:mcp.save',
+  'claude:mcp.remove',
+  'claude:mcp.toggle',
+  'claude:skills.catalog',
+  'claude:skills.install',
+  'claude:usage.activity',
 ]);
 
 /**
@@ -77,6 +130,13 @@ export async function handleClaudeBridgeMessage(message: BridgeMessageInput, ctx
         return ok();
       case 'claude:session.fork':
         return ok(await manager.fork(requireString(payload, 'sessionId'), typeof payload.atMessageId === 'string' ? payload.atMessageId : undefined));
+      case 'claude:session.revertPreview':
+        return ok(await manager.revertPreview(requireString(payload, 'sessionId'), requireString(payload, 'messageId')));
+      case 'claude:session.revert':
+        return ok(await manager.revert(requireString(payload, 'sessionId'), requireString(payload, 'messageId')));
+      case 'claude:session.unrevert':
+        await manager.unrevert(requireString(payload, 'sessionId'));
+        return ok();
       case 'claude:session.delete':
         await manager.delete(requireString(payload, 'sessionId'));
         return ok();
@@ -125,6 +185,61 @@ export async function handleClaudeBridgeMessage(message: BridgeMessageInput, ctx
       }
       case 'claude:catalog.refresh':
         return ok(await manager.refreshCatalog());
+      case 'claude:config.list':
+        return ok(await listConfig(manager.configFs()));
+      case 'claude:config.read':
+        return ok(await readConfigItem(manager.configFs(), requireString(payload, 'path')));
+      case 'claude:config.save': {
+        const fields = asRecord(payload.fields);
+        if (!isStringRecord(fields)) throw new Error('Invalid "fields"');
+        if (typeof payload.body !== 'string') throw new Error('Invalid "body"');
+        const item = await saveConfigItem(manager.configFs(), {
+          kind: requireEnum(payload, 'kind', CONFIG_KINDS),
+          scope: requireEnum(payload, 'scope', CONFIG_SCOPES),
+          name: requireString(payload, 'name'),
+          create: requireBoolean(payload, 'create'),
+          fields: fields as Partial<Record<ConfigField, string>>,
+          body: payload.body,
+        });
+        void manager.reloadConfig();
+        return ok(item);
+      }
+      case 'claude:config.delete':
+        await deleteConfigItem(manager.configFs(), requireString(payload, 'path'));
+        void manager.reloadConfig();
+        return ok();
+      case 'claude:config.reload':
+        return ok(await manager.reloadConfig());
+      case 'claude:plugin.setEnabled':
+        await manager.setPluginEnabled(requireString(payload, 'id'), requireBoolean(payload, 'enabled'));
+        return ok();
+      case 'claude:mcp.status':
+        return ok(await manager.mcpStatus(payload.refresh === true));
+      case 'claude:mcp.save':
+        await manager.saveMcp({ name: requireString(payload, 'name'), scope: requireEnum(payload, 'scope', MCP_SCOPES), config: requireMcpConfig(payload), create: requireBoolean(payload, 'create') });
+        return ok();
+      case 'claude:mcp.remove':
+        await manager.removeMcp({ name: requireString(payload, 'name'), scope: requireEnum(payload, 'scope', MCP_SCOPES) });
+        return ok();
+      case 'claude:mcp.toggle':
+        await manager.toggleMcp(requireString(payload, 'name'), requireBoolean(payload, 'enabled'));
+        return ok();
+      case 'claude:skills.catalog':
+        return ok(await scanSkillsSource(await manager.skillsOptions(), typeof payload.source === 'string' && payload.source ? payload.source : undefined, payload.refresh === true));
+      case 'claude:skills.install': {
+        const dirs = payload.dirs;
+        if (!Array.isArray(dirs) || dirs.length === 0 || !dirs.every((d) => typeof d === 'string' && d.length > 0)) throw new Error('Invalid "dirs"');
+        const result = await installSkills(await manager.skillsOptions(), {
+          source: requireString(payload, 'source'),
+          dirs: dirs as string[],
+          scope: requireEnum(payload, 'scope', CONFIG_SCOPES),
+          overwrite: requireBoolean(payload, 'overwrite'),
+        });
+        void manager.reloadConfig();
+        return ok(result);
+      }
+      case 'claude:usage.activity':
+        return ok(await manager.usageActivity());
     }
   } catch (error) {
     return { id, type, success: false, error: error instanceof Error ? error.message : String(error) };

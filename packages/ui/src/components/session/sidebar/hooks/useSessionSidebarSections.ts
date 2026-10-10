@@ -1,8 +1,7 @@
 import React from 'react';
 import type { Session } from '@/lib/claude/types';
 import type { SessionGroup, SessionNode, GroupSearchData } from '../types';
-import { dedupeSessionsById, normalizePath } from '../utils';
-import type { WorktreeMetadata } from '@/types/worktree';
+import { normalizePath } from '../utils';
 
 type ProjectItem = {
   id: string;
@@ -11,8 +10,6 @@ type ProjectItem = {
   normalizedPath: string;
   icon?: string;
   color?: string;
-  iconImage?: { mime: string; updatedAt: number; source: 'custom' | 'auto' };
-  iconBackground?: string;
 };
 
 type ProjectSection = {
@@ -23,15 +20,12 @@ type ProjectSection = {
 type Args = {
   normalizedProjects: ProjectItem[];
   getSessionsForProject: (project: { normalizedPath: string }) => Session[];
-  getArchivedSessionsForProject: (project: { normalizedPath: string }) => Session[];
-  availableWorktreesByProject: Map<string, WorktreeMetadata[]>;
   projectRepoStatus: Map<string, boolean | null>;
   projectRootBranches: Map<string, string | null>;
   lastRepoStatus: boolean;
   buildGroupedSessions: (
     sessions: Session[],
     projectRoot: string,
-    availableWorktrees: WorktreeMetadata[],
     rootBranch: string | null,
     isRepo: boolean,
   ) => SessionGroup[];
@@ -46,8 +40,6 @@ export const useSessionSidebarSections = (args: Args) => {
   const {
     normalizedProjects,
     getSessionsForProject,
-    getArchivedSessionsForProject,
-    availableWorktreesByProject,
     projectRepoStatus,
     projectRootBranches,
     lastRepoStatus,
@@ -61,18 +53,13 @@ export const useSessionSidebarSections = (args: Args) => {
 
   const projectSections = React.useMemo<ProjectSection[]>(() => {
     return normalizedProjects.map((project) => {
-      const projectSessions = dedupeSessionsById([
-        ...getSessionsForProject(project),
-        ...getArchivedSessionsForProject(project),
-      ]);
-      const worktreesForProject = availableWorktreesByProject.get(project.normalizedPath) ?? [];
+      const projectSessions = getSessionsForProject(project);
       const isRepo = projectRepoStatus.has(project.id)
         ? Boolean(projectRepoStatus.get(project.id))
         : lastRepoStatus;
       const groups = buildGroupedSessions(
         projectSessions,
         project.normalizedPath,
-        worktreesForProject,
         projectRootBranches.get(project.id) ?? null,
         isRepo,
       );
@@ -81,8 +68,6 @@ export const useSessionSidebarSections = (args: Args) => {
   }, [
     normalizedProjects,
     getSessionsForProject,
-    getArchivedSessionsForProject,
-    availableWorktreesByProject,
     projectRepoStatus,
     lastRepoStatus,
     buildGroupedSessions,

@@ -42,6 +42,7 @@ export const subagentsDict = {
   'chat.subagent.group.running': '{count} running',
   'chat.subagent.group.done': '{count} done',
   'chat.subagent.group.failed': '{count} failed',
+  'chat.subagent.group.stopped': '{count} stopped',
 
   // Child session view
   'chat.subagent.child.back': 'Back to {parent}',

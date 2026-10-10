@@ -73,6 +73,39 @@ const byTimestamp = (a: HistoryEntry, b: HistoryEntry): number => (Date.parse(a.
  */
 export type SubagentTranscript = readonly HistoryEntry[] | { agentId: string; entries: readonly HistoryEntry[] };
 
+/** `tool_use` ids of the assistant entries (the Agent calls that own subagent transcripts are among them). */
+function toolUseIds(entries: readonly HistoryEntry[]): string[] {
+  const ids: string[] = [];
+  for (const entry of entries) {
+    const content = (entry.message as { content?: unknown } | undefined)?.content;
+    if (!Array.isArray(content)) continue;
+    for (const block of content) if (block && typeof block === 'object' && (block as { type?: unknown }).type === 'tool_use' && typeof (block as { id?: unknown }).id === 'string') ids.push((block as { id: string }).id);
+  }
+  return ids;
+}
+
+/**
+ * A truncating resume (revert) leaves dead branches in the JSONL, and their subagent transcripts stay on disk. Keeps only
+ * the transcripts whose owning `tool_use` is in the kept main chain or in another kept transcript (nested subagents).
+ */
+function keepLiveSubagents<T extends { entries: readonly HistoryEntry[] }>(main: readonly HistoryEntry[], transcripts: readonly T[], log: ReplayOptions['log']): T[] {
+  const owned = new Set(toolUseIds(main));
+  const ownerOf = (t: T): string | undefined => t.entries.find((e) => e.parent_tool_use_id)?.parent_tool_use_id ?? undefined;
+  const kept = new Set<T>();
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const t of transcripts) {
+      const owner = ownerOf(t);
+      if (kept.has(t) || !owner || !owned.has(owner)) continue;
+      kept.add(t);
+      for (const id of toolUseIds(t.entries)) owned.add(id);
+      grew = true;
+    }
+  }
+  for (const t of transcripts) if (!kept.has(t)) log?.('debug', 'subagent transcript of a discarded branch skipped', { owner: ownerOf(t) });
+  return transcripts.filter((t) => kept.has(t));
+}
+
 export function replayEntries(entries: readonly HistoryEntry[], options: ReplayOptions, subagentEntries: readonly SubagentTranscript[] = []): HistorySnapshot {
   const mapper = createMapper({
     sessionId: options.sessionId,
@@ -96,7 +129,11 @@ export function replayEntries(entries: readonly HistoryEntry[], options: ReplayO
     reduceEvents(state, batch);
   };
 
-  const transcripts = subagentEntries.map((sub): { agentId?: string; entries: readonly HistoryEntry[] } => (Array.isArray(sub) ? { entries: sub as readonly HistoryEntry[] } : (sub as { agentId: string; entries: readonly HistoryEntry[] })));
+  const transcripts = keepLiveSubagents(
+    entries,
+    subagentEntries.map((sub): { agentId?: string; entries: readonly HistoryEntry[] } => (Array.isArray(sub) ? { entries: sub as readonly HistoryEntry[] } : (sub as { agentId: string; entries: readonly HistoryEntry[] }))),
+    options.log,
+  );
   // agentId <-> owner Agent tool: every entry of a subagent transcript carries the owner's tool_use id.
   for (const t of transcripts) {
     const owner = t.entries.find((e) => e.parent_tool_use_id)?.parent_tool_use_id;

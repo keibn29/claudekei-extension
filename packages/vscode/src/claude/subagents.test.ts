@@ -5,7 +5,7 @@ import { replayEntries, type HistoryEntry } from './history';
 import { createMapper } from './mapper';
 import { bucketFor, createSessionState, reduceEvents, type SessionBucket, type SessionState } from './sessionState';
 import { isHiddenToolSearch, normalizeToolInput } from './toolNormalize';
-import { allToolParts, fakeClock, loadJson, runFixture } from './testUtils';
+import { allToolParts, fakeClock, loadJson, loadNdjson, runFixture } from './testUtils';
 
 const sub = (name: string) => `subagents/${name}`;
 const childOf = (state: SessionState, mainId: string): { id: string; bucket: SessionBucket } => {
@@ -292,7 +292,7 @@ describe('edge cases (synthetic streams)', () => {
     reduceEvents(t.state, t.mapper.finish('interrupted'));
     const agent = toolsByName(t.state, 'task')[0]!;
     expect(agent.state.status).toBe('error');
-    expect(meta(agent).runStatus).toBe('error');
+    expect(meta(agent).runStatus).toBe('stopped');
     expect(bucketFor(t.state, 'sub_toolu_agent').status).toEqual({ type: 'idle' });
   });
 });
@@ -435,4 +435,232 @@ describe('helpers', () => {
   test('SendMessage input normalization falls back to content', () => {
     expect(normalizeToolInput('SendMessage', { to: 'exp-1', content: 'hello', recipient_kind: 'name', summary: 's' })).toEqual({ to: 'exp-1', content: 'hello', recipientKind: 'name', summary: 's', message: 'hello' });
   });
+});
+
+describe('stopping the main agent stops every subagent (docs/STOP_SUBAGENTS_FIX.md)', () => {
+  const make = () => {
+    const mapper = createMapper({ sessionId: 's', cwd: '/w', mode: 'default', model: 'm', agent: 'claudekei:orchestrator', now: fakeClock() });
+    const state = createSessionState('s');
+    const events: ClaudeEvent[] = [];
+    const feed = (e: ClaudeEvent[]) => {
+      events.push(...e);
+      reduceEvents(state, e);
+    };
+    const apply = (m: unknown) => feed(mapper.apply(m));
+    const turn = (text = 'go') => feed(mapper.startUserMessage({ content: text }).events);
+    turn();
+    return { mapper, state, events, apply, turn };
+  };
+  const agentCall = (id: string, prompt = 'p') => ({ type: 'assistant', uuid: `u_${id}`, parent_tool_use_id: null, message: { id: `msg_${id}`, model: 'm', content: [{ type: 'tool_use', id, name: 'Agent', input: { description: 'd', prompt, subagent_type: 'helper' } }] } });
+  const sendCall = (id: string, to: string) => ({ type: 'assistant', uuid: `u_${id}`, parent_tool_use_id: null, message: { id: `msg_${id}`, model: 'm', content: [{ type: 'tool_use', id, name: 'SendMessage', input: { to, message: 'again' } }] } });
+  const started = (task: string, tool: string, extra: Record<string, unknown> = {}) => ({ type: 'system', subtype: 'task_started', task_id: task, tool_use_id: tool, run_id: `run_${tool}`, prompt: 'p', ...extra });
+  const notification = (task: string, tool: string, status: string, extra: Record<string, unknown> = {}) => ({ type: 'system', subtype: 'task_notification', task_id: task, tool_use_id: tool, run_id: `run_${tool}`, status, summary: '', ...extra });
+  const abortedResult = { type: 'result', subtype: 'error_during_execution', is_error: true, terminal_reason: 'aborted_tools', errors: [] };
+  const okResult = { type: 'result', subtype: 'success', is_error: false, result: 'ok' };
+  const toolResult = (id: string, content: string, isError = false) => ({ type: 'user', uuid: `r_${id}`, parent_tool_use_id: null, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content, ...(isError ? { is_error: true } : {}) }] } });
+  const agentTool = (state: SessionState, callId: string) => toolsByName(state, 'task').find((t) => t.callID === callId)!;
+
+  test('aborted result without notifications: child idle, tool error, runStatus stopped, no running tasks', () => {
+    const t = make();
+    t.apply(agentCall('toolu_a'));
+    t.apply(started('ag1', 'toolu_a'));
+    expect(t.mapper.runningTasks()).toEqual([{ taskId: 'ag1', runId: 'run_toolu_a', toolUseId: 'toolu_a', childId: 'sub_toolu_a' }]);
+    expect(bucketFor(t.state, 'sub_toolu_a').status).toEqual({ type: 'busy' });
+    t.apply(abortedResult);
+    const tool = agentTool(t.state, 'toolu_a');
+    expect(tool.state.status).toBe('error');
+    expect((tool.state as { error: string }).error).toBe('Interrupted by user');
+    expect(meta(tool).runStatus).toBe('stopped');
+    expect(bucketFor(t.state, 'sub_toolu_a').status).toEqual({ type: 'idle' });
+    expect(bucketFor(t.state, 's').status).toEqual({ type: 'idle' });
+    expect(t.mapper.runningTasks()).toEqual([]);
+  });
+
+  test('3 parallel Agents and a SendMessage run all end stopped', () => {
+    const t = make();
+    for (const n of ['a', 'b', 'c']) {
+      t.apply(agentCall(`toolu_${n}`));
+      t.apply(started(`ag_${n}`, `toolu_${n}`));
+    }
+    // a finished earlier (its result is in), then continued in the background through SendMessage
+    t.apply(notification('ag_a', 'toolu_a', 'completed', { summary: 'first' }));
+    t.apply(sendCall('toolu_s', 'ag_a'));
+    t.apply(started('ag_a', 'toolu_s'));
+    expect(t.mapper.runningTasks().map((r) => r.taskId).sort()).toEqual(['ag_a', 'ag_b', 'ag_c']);
+    t.apply(abortedResult);
+    expect(t.mapper.runningTasks()).toEqual([]);
+    for (const n of ['b', 'c']) {
+      expect(agentTool(t.state, `toolu_${n}`).state.status).toBe('error');
+      expect(meta(agentTool(t.state, `toolu_${n}`)).runStatus).toBe('stopped');
+      expect(bucketFor(t.state, `sub_toolu_${n}`).status).toEqual({ type: 'idle' });
+    }
+    const send = toolsByName(t.state, 'sendmessage')[0]!;
+    expect(send.state.status).toBe('error');
+    expect(meta(send).runStatus).toBe('stopped');
+    expect(bucketFor(t.state, 'sub_toolu_a').status).toEqual({ type: 'idle' });
+  });
+
+  test('a normal result keeps a child with an active run busy (async runs end with their notification)', () => {
+    const t = make();
+    t.apply(agentCall('toolu_a'));
+    t.apply(started('ag1', 'toolu_a', { is_backgrounded: true }));
+    t.apply(toolResult('toolu_a', 'Async agent launched successfully\nagentId: ag1'));
+    t.apply(okResult);
+    expect(bucketFor(t.state, 'sub_toolu_a').status).toEqual({ type: 'busy' });
+    expect(bucketFor(t.state, 's').status).toEqual({ type: 'idle' });
+    expect(t.mapper.runningTasks()).toHaveLength(1);
+    t.apply(notification('ag1', 'toolu_a', 'completed', { summary: 'done' }));
+    expect(bucketFor(t.state, 'sub_toolu_a').status).toEqual({ type: 'idle' });
+  });
+
+  test('stop requested + `completed` notification of a foreground run is a stop, not a done card', () => {
+    const t = make();
+    t.apply(agentCall('toolu_a'));
+    t.apply(started('ag1', 'toolu_a', { is_backgrounded: false }));
+    t.mapper.markStopRequested();
+    t.apply(notification('ag1', 'toolu_a', 'completed'));
+    const tool = agentTool(t.state, 'toolu_a');
+    expect(tool.state.status).toBe('error');
+    expect(meta(tool).runStatus).toBe('stopped');
+    expect(bucketFor(t.state, 'sub_toolu_a').status).toEqual({ type: 'idle' });
+    // the aborted result and the tool_result that follow change nothing
+    t.apply(toolResult('toolu_a', 'user cancelled', true));
+    t.apply(abortedResult);
+    expect(meta(agentTool(t.state, 'toolu_a')).runStatus).toBe('stopped');
+  });
+
+  test('without a stop request a foreground `completed` notification still completes the card', () => {
+    const t = make();
+    t.apply(agentCall('toolu_a'));
+    t.apply(started('ag1', 'toolu_a', { is_backgrounded: false }));
+    t.apply(notification('ag1', 'toolu_a', 'completed', { summary: 'fine' }));
+    expect(agentTool(t.state, 'toolu_a').state.status).toBe('completed');
+    expect(meta(agentTool(t.state, 'toolu_a')).runStatus).toBe('completed');
+  });
+
+  test('a background run reported `completed` while a stop is pending is not rewritten', () => {
+    const t = make();
+    t.apply(agentCall('toolu_a'));
+    t.apply(started('ag1', 'toolu_a', { is_backgrounded: true }));
+    t.mapper.markStopRequested();
+    t.apply(notification('ag1', 'toolu_a', 'completed', { summary: 'finished anyway' }));
+    expect(agentTool(t.state, 'toolu_a').state.status).toBe('completed');
+  });
+
+  test('a `stopped` notification and task_updated killed both end the run', () => {
+    const t = make();
+    t.apply(agentCall('toolu_a'));
+    t.apply(started('ag1', 'toolu_a'));
+    t.apply(agentCall('toolu_b'));
+    t.apply(started('ag2', 'toolu_b'));
+    t.apply(notification('ag1', 'toolu_a', 'stopped', { summary: 'Stopped by user' }));
+    expect(agentTool(t.state, 'toolu_a').state.status).toBe('error');
+    expect(meta(agentTool(t.state, 'toolu_a')).runStatus).toBe('stopped');
+    expect(bucketFor(t.state, 'sub_toolu_a').status).toEqual({ type: 'idle' });
+    t.apply({ type: 'system', subtype: 'task_updated', task_id: 'ag2', run_id: 'run_toolu_b', patch: { status: 'killed' } });
+    expect(meta(agentTool(t.state, 'toolu_b')).runStatus).toBe('stopped');
+    expect(bucketFor(t.state, 'sub_toolu_b').status).toEqual({ type: 'idle' });
+    expect(t.mapper.runningTasks()).toEqual([]);
+    // an unrelated status patch changes nothing
+    t.apply(agentCall('toolu_c'));
+    t.apply(started('ag3', 'toolu_c'));
+    t.apply({ type: 'system', subtype: 'task_updated', task_id: 'ag3', run_id: 'run_toolu_c', patch: { status: 'running', description: 'x' } });
+    expect(t.mapper.runningTasks()).toHaveLength(1);
+  });
+
+  test('a late notification after the aborted result is ignored (SendMessage card stays stopped)', () => {
+    const t = make();
+    t.apply(agentCall('toolu_a'));
+    t.apply(started('ag1', 'toolu_a'));
+    t.apply(notification('ag1', 'toolu_a', 'completed', { summary: 'first' }));
+    t.apply(sendCall('toolu_s', 'ag1'));
+    t.apply(started('ag1', 'toolu_s'));
+    t.apply(abortedResult);
+    const send = () => toolsByName(t.state, 'sendmessage')[0]!;
+    expect(meta(send()).runStatus).toBe('stopped');
+    t.apply(notification('ag1', 'toolu_s', 'completed', { summary: 'late reply' }));
+    expect(meta(send()).runStatus).toBe('stopped');
+    expect(meta(send()).reply).toBeUndefined();
+    expect(bucketFor(t.state, 'sub_toolu_a').status).toEqual({ type: 'idle' });
+  });
+
+  test('interrupt, then a new SendMessage turn: the child runs again and ends idle', () => {
+    const t = make();
+    t.apply(agentCall('toolu_a'));
+    t.apply(started('ag1', 'toolu_a'));
+    t.mapper.markStopRequested();
+    t.apply(abortedResult);
+    expect(bucketFor(t.state, 'sub_toolu_a').status).toEqual({ type: 'idle' });
+    t.turn('continue');
+    t.apply(sendCall('toolu_s', 'ag1'));
+    t.apply(started('ag1', 'toolu_s', { prompt: 'again' }));
+    expect(bucketFor(t.state, 'sub_toolu_a').status).toEqual({ type: 'busy' });
+    expect(t.mapper.runningTasks()).toHaveLength(1);
+    t.apply(notification('ag1', 'toolu_s', 'completed', { summary: 'second' }));
+    t.apply(okResult);
+    expect(bucketFor(t.state, 'sub_toolu_a').status).toEqual({ type: 'idle' });
+    expect(meta(toolsByName(t.state, 'sendmessage')[0]!).runStatus).toBe('completed');
+  });
+
+  test('"[Request interrupted by user" tool results read as an interrupt and mark the run stopped', () => {
+    const t = make();
+    t.apply(agentCall('toolu_a'));
+    t.apply(started('ag1', 'toolu_a'));
+    t.apply(toolResult('toolu_a', '[Request interrupted by user for tool use]', true));
+    const tool = agentTool(t.state, 'toolu_a');
+    expect((tool.state as { error: string }).error).toBe('Interrupted by user');
+    expect(meta(tool).runStatus).toBe('stopped');
+  });
+
+  test('runFixture can skip finish() so a mapper that leaves children busy is caught', () => {
+    const run = runFixture(sub('q2-sendmessage-async'), undefined, { skipFinish: true });
+    for (const bucket of run.state.sessions.values()) expect(bucket.status).toEqual({ type: 'idle' });
+  });
+});
+
+describe('real recordings: interrupting a foreground Agent run', () => {
+  const STOP_LINES = new Set(['task_updated', 'task_notification']);
+  for (const name of ['interrupt-agent-sync', 'interrupt-agent-running']) {
+    const assertStopped = (run: ReturnType<typeof runFixture>) => {
+      const { id: childId, bucket } = childOf(run.state, run.sessionId);
+      const agent = toolsByName(run.state, 'task')[0]!;
+      expect(agent.state.status).toBe('error');
+      expect(meta(agent).runStatus).toBe('stopped');
+      expect(bucket.status).toEqual({ type: 'idle' });
+      expect(run.state.sessions.get(run.sessionId)!.status).toEqual({ type: 'idle' });
+      expect(childId).toBe(`sub_${agent.callID}`);
+      expect(run.mapper.runningTasks()).toEqual([]);
+      expect(run.logs.filter((l) => l.level === 'warn')).toEqual([]);
+    };
+
+    // The CLI reports task_updated killed + task_notification `stopped` for an aborted foreground agent (not `completed`).
+    test(`${name}: the CLI's own stop notifications end the run as stopped (no finish() needed)`, () => {
+      assertStopped(runFixture(sub(name), undefined, { skipFinish: true }));
+    });
+
+    // The mapper must not depend on those notifications: the aborted `result` alone has to settle everything.
+    test(`${name}: without the stop notifications the aborted result still stops the children`, () => {
+      assertStopped(runFixture(sub(name), undefined, { skipFinish: true, filter: (l) => !(l.type === 'system' && STOP_LINES.has(l.subtype)) }));
+    });
+
+    // The worst case the CLI could produce: `completed` instead of `stopped`, after the host asked to stop.
+    test(`${name}: a "completed" notification right after a stop request is still a stop`, () => {
+      const lines = loadNdjson(sub(name));
+      const started = lines.find((l) => l.type === 'system' && l.subtype === 'task_started')!;
+      const mapper = createMapper({ sessionId: 's', cwd: '/w', mode: 'default', model: 'm', now: fakeClock() });
+      const state = createSessionState('s');
+      const feed = (e: ClaudeEvent[]) => reduceEvents(state, e);
+      feed(mapper.startUserMessage({ content: 'go' }).events);
+      const agentCall = lines.find((l) => l.type === 'assistant' && l.parent_tool_use_id == null && l.message.content.some((b: any) => b.name === 'Agent'))!;
+      feed(mapper.apply(agentCall));
+      feed(mapper.apply(started));
+      mapper.markStopRequested();
+      feed(mapper.apply({ ...lines.find((l) => l.type === 'system' && l.subtype === 'task_notification'), status: 'completed' }));
+      feed(mapper.apply(lines.find((l) => l.type === 'result')));
+      const agent = toolsByName(state, 'task')[0]!;
+      expect(agent.state.status).toBe('error');
+      expect(meta(agent).runStatus).toBe('stopped');
+      expect(bucketFor(state, `sub_${agent.callID}`).status).toEqual({ type: 'idle' });
+    });
+  }
 });

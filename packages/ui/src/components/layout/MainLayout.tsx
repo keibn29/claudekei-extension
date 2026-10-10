@@ -9,11 +9,9 @@ import { ContextPanel } from './ContextPanel';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { CommandPalette } from '../ui/CommandPalette';
 import { HelpDialog } from '../ui/HelpDialog';
-import { OpenCodeStatusDialog } from '../ui/OpenCodeStatusDialog';
 import { SessionSidebar } from '@/components/session/SessionSidebar';
 import { SessionDialogs } from '@/components/session/SessionDialogs';
 import { DiffWorkerProvider } from '@/contexts/DiffWorkerProvider';
-import { MultiRunLauncher } from '@/components/multirun';
 import { DrawerProvider } from '@/contexts/DrawerContext';
 
 import { useUIStore } from '@/stores/useUIStore';
@@ -36,7 +34,6 @@ const TerminalView = lazyWithChunkRecovery(() => import('@/components/views/Term
 const FilesView = lazyWithChunkRecovery(() => import('@/components/views/FilesView').then(m => ({ default: m.FilesView })));
 const SettingsView = lazyWithChunkRecovery(() => import('@/components/views/SettingsView').then(m => ({ default: m.SettingsView })));
 const SettingsWindow = lazyWithChunkRecovery(() => import('@/components/views/SettingsWindow').then(m => ({ default: m.SettingsWindow })));
-const MultiRunWindow = lazyWithChunkRecovery(() => import('@/components/views/MultiRunWindow').then(m => ({ default: m.MultiRunWindow })));
 
 // Mobile drawer width as screen percentage
 const MOBILE_DRAWER_WIDTH_PERCENT = 85;
@@ -80,9 +77,6 @@ export const MainLayout: React.FC = () => {
     const isSessionSwitcherOpen = useUIStore((state) => state.isSessionSwitcherOpen);
     const isSettingsDialogOpen = useUIStore((state) => state.isSettingsDialogOpen);
     const setSettingsDialogOpen = useUIStore((state) => state.setSettingsDialogOpen);
-    const isMultiRunLauncherOpen = useUIStore((state) => state.isMultiRunLauncherOpen);
-    const setMultiRunLauncherOpen = useUIStore((state) => state.setMultiRunLauncherOpen);
-    const multiRunLauncherPrefillPrompt = useUIStore((state) => state.multiRunLauncherPrefillPrompt);
 
     const { isMobile } = useDeviceInfo();
     const isDesktopShellRuntime = React.useMemo(() => isDesktopShell(), []);
@@ -395,7 +389,6 @@ export const MainLayout: React.FC = () => {
             >
                 <CommandPalette />
                 <HelpDialog />
-                <OpenCodeStatusDialog />
                 <SessionDialogs />
 
                 {isMobile ? (
@@ -568,17 +561,6 @@ export const MainLayout: React.FC = () => {
                                     <ErrorBoundary>{secondaryView}</ErrorBoundary>
                                 </div>
                             )}
-                            {isMultiRunLauncherOpen && (
-                                <div className="absolute inset-0 z-10 bg-background">
-                                    <ErrorBoundary>
-                                        <MultiRunLauncher
-                                            initialPrompt={multiRunLauncherPrefillPrompt}
-                                            onCreated={() => setMultiRunLauncherOpen(false)}
-                                            onCancel={() => setMultiRunLauncherOpen(false)}
-                                        />
-                                    </ErrorBoundary>
-                                </div>
-                            )}
                         </main>
                     </div>
 
@@ -727,13 +709,6 @@ export const MainLayout: React.FC = () => {
                         <SettingsWindow
                             open={isSettingsDialogOpen}
                             onOpenChange={setSettingsDialogOpen}
-                        />
-                    </React.Suspense>
-                    <React.Suspense fallback={null}>
-                        <MultiRunWindow
-                            open={isMultiRunLauncherOpen}
-                            onOpenChange={setMultiRunLauncherOpen}
-                            initialPrompt={multiRunLauncherPrefillPrompt}
                         />
                     </React.Suspense>
                 </>

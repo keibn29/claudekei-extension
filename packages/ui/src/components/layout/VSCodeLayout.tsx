@@ -14,8 +14,8 @@ import { useI18n } from '@/lib/i18n';
 import { resolveDisplayContextUsage } from '@/lib/contextUsage';
 import { lazyWithChunkRecovery } from '@/lib/chunkLoadRecovery';
 import { useCurrentSessionIsSubtask } from '@/hooks/useCurrentSessionIsSubtask';
-import { RiAddLine, RiArrowLeftLine, RiRobot2Line, RiSettings3Line } from '@remixicon/react';
-import { isFeatureEnabled } from '@/lib/claude/features';
+import { RiAddLine, RiArrowLeftLine, RiSettings3Line, RiTimeLine } from '@remixicon/react';
+import { useUIStore } from '@/stores/useUIStore';
 
 const SettingsView = lazyWithChunkRecovery(() => import('@/components/views/SettingsView').then(m => ({ default: m.SettingsView })));
 
@@ -498,12 +498,11 @@ interface VSCodeHeaderProps {
   onBack?: () => void;
   onNewSession?: () => void;
   onSettings?: () => void;
-  onAgentManager?: () => void;
   showMcp?: boolean;
   showContextUsage?: boolean;
 }
 
-const VSCodeHeader: React.FC<VSCodeHeaderProps> = ({ title, showBack, onBack, onNewSession, onSettings, onAgentManager, showMcp, showContextUsage }) => {
+const VSCodeHeader: React.FC<VSCodeHeaderProps> = ({ title, showBack, onBack, onNewSession, onSettings, showMcp, showContextUsage }) => {
   const { t } = useI18n();
   const getCurrentModel = useConfigStore((s) => s.getCurrentModel);
   const providers = useConfigStore((s) => s.providers);
@@ -569,16 +568,17 @@ const VSCodeHeader: React.FC<VSCodeHeaderProps> = ({ title, showBack, onBack, on
           <RiAddLine className="h-5 w-5" />
         </button>
       )}
-      {onAgentManager && isFeatureEnabled('agentManager') && (
+      {showContextUsage && currentSessionId && !isSubagentSession && (
         <button
-          onClick={onAgentManager}
+          onClick={() => useUIStore.getState().setTimelineDialogOpen(true)}
           className="inline-flex h-9 w-9 items-center justify-center p-2 text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          aria-label={t('vscodeLayout.actions.openAgentManagerAria')}
+          aria-label={t('vscodeLayout.actions.timelineAria')}
+          title={t('vscodeLayout.actions.timelineAria')}
         >
-          <RiRobot2Line className="h-5 w-5" />
+          <RiTimeLine className="h-5 w-5" />
         </button>
       )}
-      {showMcp && isFeatureEnabled('mcp') && (
+      {showMcp && (
         <McpDropdown
           headerIconButtonClass="inline-flex h-9 w-9 items-center justify-center p-2 text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         />

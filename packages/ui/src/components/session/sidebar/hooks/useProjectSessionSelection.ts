@@ -21,7 +21,6 @@ type Args = {
   setActiveMainTab: (tab: 'chat' | 'plan' | 'git' | 'diff' | 'terminal' | 'files') => void;
   setSessionSwitcherOpen: (open: boolean) => void;
   sessions: Session[];
-  worktreeMetadata: Map<string, { path?: string | null }>;
 };
 
 export const useProjectSessionSelection = (args: Args): { currentSessionDirectory: string | null } => {
@@ -38,7 +37,6 @@ export const useProjectSessionSelection = (args: Args): { currentSessionDirector
     setActiveMainTab,
     setSessionSwitcherOpen,
     sessions,
-    worktreeMetadata,
   } = args;
 
   const projectSessionMeta = React.useMemo(() => {
@@ -57,8 +55,7 @@ export const useProjectSessionSelection = (args: Args): { currentSessionDirector
       const projectMap = metaByProject.get(projectId)!;
       nodes.forEach((node) => {
         const sessionDirectory = normalizePath(
-          node.worktree?.path
-          ?? (node.session as Session & { directory?: string | null }).directory
+          (node.session as Session & { directory?: string | null }).directory
           ?? fallbackDirectory
           ?? projectRoot,
         );
@@ -171,16 +168,12 @@ export const useProjectSessionSelection = (args: Args): { currentSessionDirector
     if (!currentSessionId) {
       return null;
     }
-    const metadataPath = worktreeMetadata.get(currentSessionId)?.path;
-    if (metadataPath) {
-      return normalizePath(metadataPath) ?? metadataPath;
-    }
     const activeSession = sessions.find((session) => session.id === currentSessionId);
     if (!activeSession) {
       return null;
     }
     return normalizePath((activeSession as Session & { directory?: string | null }).directory ?? null);
-  }, [currentSessionId, sessions, worktreeMetadata]);
+  }, [currentSessionId, sessions]);
 
   return { currentSessionDirectory };
 };

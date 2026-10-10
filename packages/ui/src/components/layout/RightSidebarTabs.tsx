@@ -44,7 +44,6 @@ const ContextSidebarPanel: React.FC = () => {
   const activeProjectId = useProjectsStore((state) => state.activeProjectId);
   const projects = useProjectsStore((state) => state.projects);
   const homeDirectory = useDirectoryStore((state) => state.homeDirectory);
-  const gitDirectories = useGitStore((state) => state.directories);
 
   const activeProject = React.useMemo(() => {
     if (activeProjectId) {
@@ -72,19 +71,11 @@ const ContextSidebarPanel: React.FC = () => {
       || activeProject.path;
   }, [activeProject, homeDirectory]);
 
-  const canCreateWorktree = React.useMemo(() => {
-    if (!activeProject) {
-      return false;
-    }
-    return gitDirectories.get(activeProject.path)?.isGitRepo === true;
-  }, [activeProject, gitDirectories]);
-
   return (
     <div className="h-full min-h-0 overflow-auto bg-sidebar">
       <ProjectNotesTodoPanel
         projectRef={projectRef}
         projectLabel={projectLabel}
-        canCreateWorktree={canCreateWorktree}
       />
     </div>
   );

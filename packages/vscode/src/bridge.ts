@@ -48,8 +48,6 @@ export interface BridgeContext {
 
 const CLIENT_RELOAD_DELAY_MS = 800;
 
-const GITHUB_BACKEND_DISABLED_ERROR = 'ClaudeKei VS Code backend GitHub integration is disabled. Use native VS Code GitHub integrations.';
-
 
 export async function handleBridgeMessage(message: BridgeRequest, ctx?: BridgeContext): Promise<BridgeResponse> {
   const { id, type, payload } = message;
@@ -98,7 +96,6 @@ export async function handleBridgeMessage(message: BridgeRequest, ctx?: BridgeCo
         saveMagicPromptOverride,
         resetMagicPromptOverride,
         resetAllMagicPromptOverrides,
-              clientReloadDelayMs: CLIENT_RELOAD_DELAY_MS,
       },
     );
     if (configResponse) {
@@ -115,29 +112,7 @@ export async function handleBridgeMessage(message: BridgeRequest, ctx?: BridgeCo
     if (systemResponse) {
       return systemResponse;
     }
-    switch (type) {
-      case 'api:github/auth:status':
-      case 'api:github/auth:start':
-      case 'api:github/auth:complete':
-      case 'api:github/auth:disconnect':
-      case 'api:github/auth:activate':
-      case 'api:github/me':
-      case 'api:github/pr:status':
-      case 'api:github/pr:create':
-      case 'api:github/pr:update':
-      case 'api:github/pr:merge':
-      case 'api:github/pr:ready':
-      case 'api:github/issues:list':
-      case 'api:github/issues:get':
-      case 'api:github/issues:comments':
-      case 'api:github/pulls:list':
-      case 'api:github/pulls:context': {
-        return { id, type, success: false, error: GITHUB_BACKEND_DISABLED_ERROR };
-      }
-
-      default:
-        return { id, type, success: false, error: `Unknown message type: ${type}` };
-    }
+    return { id, type, success: false, error: `Unknown message type: ${type}` };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     return { id, type, success: false, error: errorMessage };

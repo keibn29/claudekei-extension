@@ -31,8 +31,8 @@ import {
   RiSettings3Line,
   RiSunLine,
   RiTerminalBoxLine,
+  RiTimeLine,
 } from '@remixicon/react';
-import { createWorktreeSession } from '@/lib/worktreeSessionCreator';
 import { formatShortcutForDisplay, getEffectiveShortcutCombo } from '@/lib/shortcuts';
 import { isDesktopShell, isVSCodeRuntime, isWebRuntime } from '@/lib/desktop';
 import { SETTINGS_PAGE_METADATA, SETTINGS_GROUP_LABELS, type SettingsRuntimeContext } from '@/lib/settings/metadata';
@@ -44,6 +44,7 @@ export const CommandPalette: React.FC = () => {
   const isCommandPaletteOpen = useUIStore((s) => s.isCommandPaletteOpen);
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const setHelpDialogOpen = useUIStore((s) => s.setHelpDialogOpen);
+  const setTimelineDialogOpen = useUIStore((s) => s.setTimelineDialogOpen);
   const setQuickOpenOpen = useUIStore((s) => s.setQuickOpenOpen);
   const setActiveMainTab = useUIStore((s) => s.setActiveMainTab);
   const setSettingsDialogOpen = useUIStore((s) => s.setSettingsDialogOpen);
@@ -83,10 +84,6 @@ export const CommandPalette: React.FC = () => {
 
   const handleOpenQuickOpen = run(() => setQuickOpenOpen(true));
 
-  const handleCreateWorktreeSession = run(() => {
-    createWorktreeSession();
-  });
-
   const handleOpenSessionList = run(() => {
     if (isMobile) {
       const { isSessionSwitcherOpen } = useUIStore.getState();
@@ -105,6 +102,11 @@ export const CommandPalette: React.FC = () => {
   const handleOpenSettings = run(() => setSettingsDialogOpen(true));
   const handleShowContextUsage = run(() => {
     if (currentDirectory) openContextOverview(currentDirectory);
+  });
+  const handleShowTimeline = run(() => {
+    if (!useSessionUIStore.getState().currentSessionId) return;
+    setActiveMainTab('chat');
+    setTimelineDialogOpen(true);
   });
   const handleShowPlan = run(() => {
     if (currentDirectory) openContextPlan(currentDirectory);
@@ -178,7 +180,6 @@ export const CommandPalette: React.FC = () => {
     sessions: t('commandPalette.settingsPage.sessions'),
     'magic-prompts': t('commandPalette.settingsPage.magicPrompts'),
     notifications: t('commandPalette.settingsPage.notifications'),
-    voice: t('commandPalette.settingsPage.voice'),
     tunnel: t('commandPalette.settingsPage.tunnel'),
   };
 
@@ -198,11 +199,6 @@ export const CommandPalette: React.FC = () => {
             <RiAddLine className="mr-2 h-4 w-4" />
             <span>{t('commandPalette.item.newSession')}</span>
             <CommandShortcut>{shortcut('new_chat')}</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={handleCreateWorktreeSession}>
-            <RiGitBranchLine className="mr-2 h-4 w-4" />
-            <span>{t('commandPalette.item.newWorktreeDraft')}</span>
-            <CommandShortcut>{shortcut('new_chat_worktree')}</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={handleOpenSessionList}>
             <RiLayoutLeftLine className="mr-2 h-4 w-4" />
@@ -232,6 +228,11 @@ export const CommandPalette: React.FC = () => {
           <CommandItem onSelect={handleShowContextUsage}>
             <RiPieChartLine className="mr-2 h-4 w-4" />
             <span>{t('commandPalette.item.showContextUsage')}</span>
+          </CommandItem>
+          <CommandItem onSelect={handleShowTimeline}>
+            <RiTimeLine className="mr-2 h-4 w-4" />
+            <span>{t('commandPalette.item.showTimeline')}</span>
+            <CommandShortcut>{shortcut('open_timeline')}</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={handleShowPlan}>
             <RiClipboardLine className="mr-2 h-4 w-4" />

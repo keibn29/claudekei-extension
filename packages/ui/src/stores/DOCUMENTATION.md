@@ -24,7 +24,6 @@ There are multiple store categories in this directory.
 These are the most performance-sensitive.
 
 - `useGitStore.ts`
-- `useGitHubPrStatusStore.ts`
 - `useFilesViewTabsStore.ts`
 
 These stores act like centralized keyed caches. UI should consume narrow slices from them instead of re-fetching the same data in multiple places.
@@ -50,9 +49,9 @@ Examples:
 
 These stores coordinate persistent project/session metadata across multiple views.
 
-## Git / PR Stores
+## Git Store
 
-The Git and PR stores are the most important stores to understand before editing this directory.
+The Git store is the most important store to understand before editing this directory.
 
 ### `useGitStore.ts`
 
@@ -79,41 +78,16 @@ Important properties:
 - in-flight dedupe exists for status and `ensureAll()`
 - diff data is separately cached and capped with size + count limits
 
-### `useGitHubPrStatusStore.ts`
-
-`useGitHubPrStatusStore` is a centralized PR cache keyed by `directory::branch`.
-
-Core model:
-
-- each entry stores:
-  - current PR status payload
-  - loading / error state
-  - whether initial status was resolved
-  - refresh timestamps
-  - watch count
-  - runtime params
-  - resolved identity
-
-Important properties:
-
-- `ensureEntry()` initializes a key lazily
-- `setParams()` attaches runtime context
-- `startWatching()` / `stopWatching()` are for true live PR consumers only
-- `refreshTargets()` supports one-shot multi-target bootstrap without turning on live watching
-- persisted cache is for page refresh continuity, not for broad background syncing
-
 ## Ownership Rules
 
 These rules are important. Breaking them tends to reintroduce idle CPU churn, stale UI, or rerender fanout.
 
-1. No broad `directories` or `entries` subscriptions in normal UI components.
-2. No root pollers for Git or PR.
+1. No broad `directories` subscriptions in normal UI components.
+2. No root pollers for Git.
 3. No broad idle sweeps across many directories.
 4. Prefer store `ensure*` methods over direct runtime API calls from views.
 5. Visible consumers should drive refresh. Hidden consumers should not.
-6. Header should not depend on PR store.
-7. Closed sidebar should not create live PR work.
-8. File tree Git status should update only when the file tree is visible.
+6. File tree Git status should update only when the file tree is visible.
 
 ## Selector Rules
 
@@ -125,13 +99,10 @@ Good:
 - `useGitBranches(directory)`
 - `useGitBranchLabel(directory)`
 - `useGitRepoStatusMap(directories)`
-- `usePrVisualSummaryByKeys(keys)`
 
 Bad:
 
 - `useGitStore((state) => state.directories)` in feature components
-- `useGitHubPrStatusStore((state) => state.entries)` in feature components
-- render-time scans over every PR entry for a single project/group badge
 
 Why this matters:
 
@@ -151,13 +122,7 @@ Do not add new global `isLoadingWhatever` flags for keyed cache work.
 
 ### 3. Avoid hidden work
 
-If a surface is not visible, it should not keep refreshing Git/PR state.
-
-Examples:
-
-- `PullRequestSection` may watch a PR while visible
-- `SessionSidebar` may bootstrap missing PR data for expanded visible groups
-- hidden sidebar should not watch PRs
+If a surface is not visible, it should not keep refreshing Git state.
 
 ### 4. Prefer one-shot event hints over polling
 
@@ -194,24 +159,11 @@ Expected model:
 - successful file-mutating tools can issue a one-shot Git refresh hint
 - no root-level background Git polling
 
-### PR
-
-Expected model:
-
-- `PullRequestSection` is the only true live PR watcher
-- `SessionSidebar` may do one-shot bootstrap for expanded visible project/worktree groups if PR info is missing
-- no live PR work for header
-- no background PR sweeps outside visible demand
-
 ## Known Intentional Fallbacks
 
 There is still one explicit fallback path worth knowing about:
 
-- `SessionSidebar` may call `checkIsGitRepository(...)` during initial worktree/project discovery when store state is not populated yet
-
-This is currently acceptable as a narrow bootstrap fallback.
-
-Do not widen it into a polling or broad refresh system.
+- no known fallback paths; keep it that way and do not add polling or broad refresh systems
 
 ## When Editing These Stores
 
@@ -225,11 +177,9 @@ Before changing store shape or selectors, ask:
 
 ## Validation Checklist
 
-After meaningful Git/PR store changes, verify manually:
+After meaningful Git store changes, verify manually:
 
 1. Idle desktop app stays quiet on draft/chat screen.
 2. Git view still loads status, branches, log, identity.
 3. Diff view still opens the correct file and stays in sync.
-4. Worktree sessions still show branch labels in header.
-5. Expanded sidebar projects/worktrees can show PR state without requiring prior selection.
-6. Hidden surfaces do not reintroduce live background work.
+4. Hidden surfaces do not reintroduce live background work.

@@ -6,18 +6,24 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import type { BootstrapResponse, ClaudeEvent, LiveSessionState, SessionSnapshot } from '@openchamber/ui/src/lib/claude/protocol';
-import { EFFORT_LEVELS, PERMISSION_MODES, type AccountInfo, type Catalog, type ContextUsage, type EffortLevel, type PermissionMode, type PermissionResponse, type QuestionAnswer, type Session, type SlashCommand, type UsageLimits } from '@openchamber/ui/src/lib/claude/types';
+import { EFFORT_LEVELS, PERMISSION_MODES, type AccountInfo, type Catalog, type ContextUsage, type EffortLevel, type PermissionMode, type PermissionResponse, type QuestionAnswer, type RevertPreview, type RevertResult, type McpServerScope, type McpStatusSnapshot, type McpTransportConfig, type Session, type SlashCommand, type UsageActivity, type UsageLimits } from '@openchamber/ui/src/lib/claude/types';
 import { AgentLog } from './agentLog';
 import { normalizeAgentName, resolveDefaultAgent } from './agentSettings';
 import { readAgentPresets } from './claudekeiConfig';
-import { applyRateLimitEvent, parseUsageReport } from './usageLimits';
+import { applyRateLimitEvent, parseUsageActivity, parseUsageReport } from './usageLimits';
 import type { Broadcaster } from './broadcaster';
 import { buildCatalog, looksLoggedOut, probeCatalog, probeFromInit, type PrimaryAgentSetting, type ProbeResult } from './catalog';
+import { createCliRunner, type CliRunner } from './claudeCli';
+import { listConfig, type ConfigFsOptions } from './claudeConfig';
+import { mapMcpServers, mcpConfigJson, mergeMcpConfig, validateMcpConfig } from './mcpStatus';
+import type { SkillsCatalogOptions } from './skillsCatalog';
 import { ClaudeSession, type ClaudeSessionDeps, type SendInput, type SessionPrefs } from './ClaudeSession';
 import { buildClaudeEnv, resolveClaudeExecutable, resolveLoginShellPath, type ExecutableResolution } from './env';
 import type { InitInfo } from './mapper';
+import { RevertStore } from './revertStore';
 import type { ClaudeQuery, SdkRuntime, SdkSessionInfo } from './sdk';
 import { loadSdkRuntime } from './sdk';
+import { cutUuidBefore } from './transcriptCut';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -56,6 +62,14 @@ export type ClaudeSessionManagerOptions = {
   measureModelWindows?: boolean;
   /** Home directory for `~/.claude/claudekei.jsonc` (tests). */
   home?: string;
+  /** Extension storage directory: file copies for `/redo` live under `<storageDir>/revert/<sessionId>`. Without it revert is unavailable. */
+  storageDir?: string;
+  /** Poll interval while MCP servers are connecting (tests). */
+  mcpPollMs?: number;
+  /** Moves a file or directory to the OS trash (vscode `workspace.fs.delete` with `useTrash`); default: `fs.rm`. */
+  trash?: (absPath: string) => Promise<void>;
+  /** Runs `claude` subcommands (MCP / plugin writes); default: the resolved executable through `execFile`. */
+  cli?: CliRunner;
   baseEnv?: NodeJS.ProcessEnv;
   loginPath?: () => Promise<string | undefined>;
   clientApp?: string;
@@ -78,6 +92,15 @@ const PROBE_MIN_INTERVAL_MS = 5 * 60_000;
 const CATALOG_TTL_MS = 2000;
 /** Non-live sessions kept in memory; older ones are unloaded (they reload from the transcript on demand). */
 const MAX_LOADED_SESSIONS = 20;
+/** MCP status is re-read at most this often unless a refresh is requested. */
+const MCP_CACHE_MS = 30_000;
+/** Servers that are still connecting are waited for this long. */
+const MCP_SETTLE_MS = 10_000;
+const MCP_PROBE_CAP_MS = 12_000;
+const MCP_TOGGLE_MS = 15_000;
+const USAGE_ACTIVITY_MS = 20_000;
+/** No leading '-': a name must never be parsed as an option by `claude mcp`. */
+const MCP_NAME = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,63}$/;
 /** Unsent drafts nobody references are dropped after this long. */
 const DRAFT_TTL_MS = 60 * 60_000;
 
@@ -112,6 +135,12 @@ export class ClaudeSessionManager {
   private windowsMeasuring: Promise<void> | undefined;
   private usage: UsageLimits | undefined;
   private usageRefreshing: Promise<UsageLimits> | undefined;
+  private mcpCache: { value: McpStatusSnapshot; at: number } | undefined;
+  private mcpInFlight: Promise<McpStatusSnapshot> | undefined;
+  private lastKnownMcp: McpStatusSnapshot['servers'] | undefined;
+  /** Stored config of every editable server as the last status probe reported it, keyed `<scope>:<name>`. */
+  private mcpRaw = new Map<string, unknown>();
+  private readonly cli: CliRunner;
   private lastUsageFetchAt = 0;
   private readonly runtimeLoader: () => Promise<SdkRuntime>;
   private probe: ProbeResult | undefined;
@@ -151,6 +180,7 @@ export class ClaudeSessionManager {
       this.status = 'connected';
     }
     this.agentLog = new AgentLog(options.store);
+    this.cli = options.cli ?? createCliRunner(() => this.executable().path ?? findOnPath('claude', (options.baseEnv ?? process.env).PATH));
     this.usage = (options.globalStore ?? options.store).get<UsageLimits | undefined>(USAGE_KEY, undefined);
     this.deps = {
       agentLog: this.agentLog,
@@ -172,7 +202,9 @@ export class ClaudeSessionManager {
       now: this.now,
       timers: this.timers,
       stderr: options.stderr,
+      revertStore: options.storageDir ? new RevertStore(options.store, join(options.storageDir, 'revert')) : undefined,
     };
+    void this.deps.revertStore?.sweep().catch((error) => this.log('warn', 'could not sweep stale revert copies', error instanceof Error ? error.message : String(error)));
   }
 
   // --- config / env ------------------------------------------------------------
@@ -480,18 +512,9 @@ export class ClaudeSessionManager {
     this.usageRefreshing ??= (async () => {
       const empty = (): UsageLimits => this.usage ?? { windows: [], updatedAt: this.now(), source: 'usage' };
       try {
-        const live = [...this.sessions.values()].map((s) => s.liveQuery()).find((q) => q?.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET);
+        const live = this.liveQuery((q) => q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET);
         if (live) return this.applyUsageRaw(await live.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET!({ skipBehaviors: true })) ?? empty();
-        const runtime = await this.runtimeLoader();
-        let raw: unknown;
-        await probeCatalog({
-          queryFactory: runtime.queryFactory,
-          cwd: this.options.cwd,
-          env: await this.buildEnv(),
-          executablePath: this.executable().path,
-          stderr: (d) => this.log('debug', `[probe stderr] ${d.trim()}`),
-          afterInit: async (q) => void (raw = await q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET?.({ skipBehaviors: true })),
-        });
+        const raw = await this.runOnProbe((q) => q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET!({ skipBehaviors: true }), 8000);
         return this.applyUsageRaw(raw) ?? empty();
       } catch (error) {
         this.log('debug', 'usage refresh failed', error instanceof Error ? error.message : String(error));
@@ -501,6 +524,178 @@ export class ClaudeSessionManager {
       }
     })();
     return this.usageRefreshing;
+  }
+
+  /** The query of a live session that supports `has` (host-wide calls that need no turn). */
+  private liveQuery(has: (q: ClaudeQuery) => unknown): ClaudeQuery | undefined {
+    return [...this.sessions.values()].map((s) => s.liveQuery()).find((q) => q && has(q));
+  }
+
+  /**
+   * Runs `fn` on a short-lived probe query (no model turn, no transcript). Resolves `undefined` when `fn` did not finish
+   * within `timeoutMs`; rejects when the probe cannot start or `fn` throws.
+   */
+  private async runOnProbe<T>(fn: (q: ClaudeQuery) => Promise<T>, timeoutMs: number): Promise<T | undefined> {
+    const runtime = await this.runtimeLoader();
+    let result: T | undefined;
+    let failure: { error: unknown } | undefined;
+    await probeCatalog({
+      queryFactory: runtime.queryFactory,
+      cwd: this.options.cwd,
+      env: await this.buildEnv(),
+      executablePath: this.executable().path,
+      stderr: (d) => this.log('debug', `[probe stderr] ${d.trim()}`),
+      afterInitTimeoutMs: timeoutMs,
+      afterInit: async (q) => {
+        try {
+          result = await fn(q);
+        } catch (error) {
+          failure = { error };
+        }
+      },
+    });
+    if (failure) throw failure.error;
+    return result;
+  }
+
+  // --- config (settings pages) -----------------------------------------------------
+
+  /** Paths and trash for `claudeConfig.ts` (agents / commands / skills / plugins on disk). */
+  configFs(): ConfigFsOptions {
+    return { cwd: this.options.cwd, home: this.options.home, trash: this.options.trash };
+  }
+
+  /** Options of the skills catalog (git over HTTPS needs the child environment). */
+  async skillsOptions(): Promise<SkillsCatalogOptions> {
+    return { ...this.configFs(), env: await this.buildEnv() };
+  }
+
+  /**
+   * Agents / skills / plugins / MCP servers changed on disk: live sessions pick them up with a respawn (resume) on their
+   * next idle send, and the catalog (agents, commands) is re-probed.
+   */
+  reloadConfig(): Promise<Catalog> {
+    for (const s of this.sessions.values()) if (s.isLive) s.markConfigStale();
+    this.mcpCache = undefined;
+    return this.refreshCatalog();
+  }
+
+  /** MCP servers with their live status, from a short-lived probe (cached 30 s; concurrent callers share one probe). */
+  mcpStatus(refresh = false): Promise<McpStatusSnapshot> {
+    if (!refresh && this.mcpCache && this.now() - this.mcpCache.at < MCP_CACHE_MS) return Promise.resolve(this.mcpCache.value);
+    this.mcpInFlight ??= (async () => {
+      try {
+        const raw = await this.runOnProbe(async (q) => {
+          if (!q.mcpServerStatus) throw new Error('This Claude Code version cannot report MCP status');
+          // Servers start connecting in the background: wait until none is pending (capped).
+          const deadline = this.now() + MCP_SETTLE_MS;
+          for (;;) {
+            const entries = await q.mcpServerStatus();
+            if (!mapMcpServers(entries).some((m) => m.status === 'pending') || this.now() >= deadline) return entries;
+            await new Promise((resolve) => setTimeout(resolve, this.options.mcpPollMs ?? 250));
+          }
+        }, MCP_PROBE_CAP_MS);
+        if (!raw) throw new Error('Timed out reading MCP server status');
+        const servers = mapMcpServers(raw);
+        this.mcpRaw = new Map(
+          raw.flatMap((entry): Array<[string, unknown]> => {
+            const mapped = mapMcpServers([entry])[0];
+            return mapped?.scope ? [[`${mapped.scope}:${mapped.name}`, (entry as { config?: unknown }).config]] : [];
+          }),
+        );
+        this.lastKnownMcp = servers;
+        const value: McpStatusSnapshot = { servers, updatedAt: this.now() };
+        this.mcpCache = { value, at: this.now() };
+        return value;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.log('warn', 'MCP status probe failed', message);
+        return { servers: this.lastKnownMcp ?? [], updatedAt: this.now(), error: message };
+      } finally {
+        this.mcpInFlight = undefined;
+      }
+    })();
+    return this.mcpInFlight;
+  }
+
+  /** Enables / disables a server; Claude Code persists it (`disabledMcpServers` in `~/.claude.json`, W0 notes section 10). */
+  async toggleMcp(name: string, enabled: boolean): Promise<void> {
+    if (!name) throw new Error('Missing server name');
+    const done = await this.runOnProbe(async (q) => {
+      if (!q.toggleMcpServer) throw new Error('Enabling and disabling MCP servers is not supported by this Claude Code version');
+      await q.toggleMcpServer(name, enabled);
+      return true;
+    }, MCP_TOGGLE_MS);
+    if (!done) throw new Error('Timed out changing the MCP server');
+    await this.reloadConfig();
+  }
+
+  private cliRun(args: string[]): Promise<{ stdout: string; stderr: string }> {
+    return this.buildEnv().then((env) => this.cli(args, { cwd: this.options.cwd, env }));
+  }
+
+  /**
+   * Adds (`create`) or replaces a server through `claude mcp`. Projects servers live in `.mcp.json`, which the user edits.
+   * An update is remove + add-json; when the add fails the previous entry is added back.
+   */
+  async saveMcp(req: { name: string; scope: McpServerScope; config: McpTransportConfig; create: boolean }): Promise<void> {
+    const { name, scope, config, create } = req;
+    if (!MCP_NAME.test(name)) throw new Error('Server names may only contain letters, digits, "-" and "_" (max 64)');
+    if (scope !== 'user' && scope !== 'local' && scope !== 'project') throw new Error('Invalid scope');
+    if (create && scope === 'project') throw new Error('Add project servers in .mcp.json');
+    validateMcpConfig(config);
+    if (create) {
+      await this.cliRun(['mcp', 'add-json', '-s', scope, '--', name, mcpConfigJson(config)]);
+    } else {
+      // The stored config is read fresh (never from the 30 s cache) and the edit is merged onto it, so fields the form
+      // does not show (oauth, headersHelper, timeout, ...) survive the replace and the rollback.
+      const status = await this.mcpStatus(true);
+      if (status.error) throw new Error(`Could not read the current server configuration: ${status.error}`);
+      const key = `${scope}:${name}`;
+      if (!this.mcpRaw.has(key) || !status.servers.some((s) => s.name === name && s.scope === scope)) throw new Error(`MCP server "${name}" was not found in ${scope} scope; refresh the list and try again`);
+      const previousRaw = this.mcpRaw.get(key);
+      const previous = JSON.stringify(previousRaw);
+      const next = JSON.stringify(mergeMcpConfig(previousRaw, config));
+      await this.cliRun(['mcp', 'remove', '-s', scope, '--', name]);
+      try {
+        await this.cliRun(['mcp', 'add-json', '-s', scope, '--', name, next]);
+      } catch (error) {
+        await this.cliRun(['mcp', 'add-json', '-s', scope, '--', name, previous]).catch((restore) => this.log('warn', 'could not restore the previous MCP server entry', { name, error: restore instanceof Error ? restore.message : String(restore) }));
+        throw error;
+      }
+    }
+    await this.reloadConfig();
+  }
+
+  async removeMcp(req: { name: string; scope: McpServerScope }): Promise<void> {
+    if (!MCP_NAME.test(req.name)) throw new Error('Invalid server name');
+    if (req.scope !== 'user' && req.scope !== 'local' && req.scope !== 'project') throw new Error('Invalid scope');
+    await this.cliRun(['mcp', 'remove', '-s', req.scope, '--', req.name]);
+    await this.reloadConfig();
+  }
+
+  /** Plugin on/off in the scope it is installed in (`claude plugin enable|disable <id> -s <scope>`). */
+  async setPluginEnabled(id: string, enabled: boolean): Promise<void> {
+    // The CLI happily "enables" an unknown id by writing it to settings.json (W0 notes section 10): check it is installed.
+    const plugin = (await listConfig(this.configFs())).plugins.find((p) => p.id === id);
+    if (!plugin) throw new Error(`Plugin "${id}" is not installed`);
+    try {
+      await this.cliRun(['plugin', enabled ? 'enable' : 'disable', '-s', plugin.scope, '--json', '--', id]);
+    } catch (error) {
+      // Asking for the state it is already in exits 1; that is the outcome the user wanted.
+      if (!/already (enabled|disabled)/i.test(error instanceof Error ? error.message : String(error))) throw error;
+    }
+    await this.reloadConfig();
+  }
+
+  /** What contributes to the plan limits (24 h / 7 d, local transcripts); also refreshes the limits. Null = unavailable. */
+  async usageActivity(): Promise<UsageActivity | null> {
+    const ask = (q: ClaudeQuery) => q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET!({ skipBehaviors: false });
+    const live = this.liveQuery((q) => q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET);
+    const raw = live ? await ask(live) : await this.runOnProbe(ask, USAGE_ACTIVITY_MS);
+    if (raw === undefined) throw new Error('Timed out reading usage activity');
+    this.applyUsageRaw(raw);
+    return parseUsageActivity(raw, this.now());
   }
 
   async contextUsage(sessionId: string): Promise<ContextUsage> {
@@ -533,12 +728,7 @@ export class ClaudeSessionManager {
    * changed. Existing sessions keep their model/effort; presets apply on new sessions and agent switches.
    */
   reloadAgentPresets(): void {
-    this.catalogCache = undefined;
-    const catalog = this.catalog();
-    const json = JSON.stringify(catalog);
-    if (json === this.lastCatalogJson) return;
-    this.lastCatalogJson = json;
-    this.options.broadcaster.emit([{ type: 'catalog.updated', properties: { catalog } }]);
+    this.announceCatalogIfChanged();
   }
 
   private savePrefs(session: ClaudeSession): void {
@@ -609,7 +799,7 @@ export class ClaudeSessionManager {
     }
     this.trimSessions();
     // Started sessions the transcript listing does not show yet.
-    for (const s of this.sessions.values()) if (s.exists && !seen.has(s.id)) result.unshift(s.info);
+    for (const s of this.sessions.values()) if ((s.exists || s.isLive) && !seen.has(s.id)) result.unshift(s.info);
     return result;
   }
 
@@ -684,8 +874,33 @@ export class ClaudeSessionManager {
     }
   }
 
+  /** Dry run of the file rewind behind a revert to `messageId` (never interrupts). */
+  async revertPreview(sessionId: string, messageId: string): Promise<RevertPreview> {
+    const session = await this.revertSession(sessionId);
+    return session.revertPreview(messageId);
+  }
+
+  /** Restores files and hides `messageId` and everything after it until the next send (commit) or `unrevert`. */
+  async revert(sessionId: string, messageId: string): Promise<RevertResult> {
+    const session = await this.revertSession(sessionId);
+    return session.revert(messageId);
+  }
+
+  async unrevert(sessionId: string): Promise<void> {
+    await (await this.resolve(sessionId)).unrevert();
+  }
+
+  private async revertSession(sessionId: string): Promise<ClaudeSession> {
+    if (sessionId.startsWith('sub_')) throw new Error('Subagent sessions cannot be reverted');
+    const session = await this.resolve(sessionId);
+    if (!session.isLive) await this.makeRoom(session);
+    return session;
+  }
+
   async interrupt(sessionId: string): Promise<void> {
-    await this.sessions.get(sessionId)?.interrupt();
+    // Stop in a subagent view (virtual `sub_` child) stops everything: interrupt the session that owns the child.
+    const owner = this.sessions.get(sessionId) ?? (sessionId.startsWith('sub_') ? [...this.sessions.values()].find((s) => s.state.sessions.has(sessionId)) : undefined);
+    await owner?.interrupt();
   }
 
   async setModel(sessionId: string, model: string): Promise<void> {
@@ -746,11 +961,7 @@ export class ClaudeSessionManager {
       if (index < 0) throw new Error('That message is not part of this session');
       const bucket = source.state.sessions.get(sessionId)!;
       const target = messages[index]!;
-      let at = target.role === 'user' ? index - 1 : index;
-      for (; at >= 0; at--) {
-        upToMessageId = forkUuidOf(messages[at]!, bucket.parts[messages[at]!.id] ?? []);
-        if (upToMessageId) break;
-      }
+      upToMessageId = target.role === 'user' ? cutUuidBefore(messages, bucket.parts, index) : cutUuidBefore(messages, bucket.parts, index + 1);
       if (!upToMessageId) {
         if (target.role === 'user' && index === 0) {
           const fresh = this.create(`${source.info.title} (fork)`);
@@ -798,6 +1009,7 @@ export class ClaudeSessionManager {
       void this.options.store.update(PREFS_KEY, prefs);
     }
     this.agentLog.remove(sessionId);
+    await this.deps.revertStore?.clear(sessionId);
     if (info) this.options.broadcaster.emit([{ type: 'session.deleted', properties: { sessionID: sessionId, info } }]);
   }
 
@@ -851,7 +1063,8 @@ export class ClaudeSessionManager {
   /** Unloads cold sessions beyond the keep limit (LRU) and stale unsent drafts. Live/pending sessions are never touched. */
   private trimSessions(): void {
     const now = this.now();
-    const candidates = [...this.sessions.values()].filter((s) => !s.isLive && s.broker.size === 0 && s.lifecycle !== 'starting' && s.lifecycle !== 'closing');
+    // A session with a pending revert is never unloaded: its marker is resolved against the loaded transcript.
+    const candidates = [...this.sessions.values()].filter((s) => !s.isLive && s.broker.size === 0 && !s.hasRevert && s.lifecycle !== 'starting' && s.lifecycle !== 'closing');
     for (const s of candidates) {
       if (!s.exists && now - s.lastActivity > DRAFT_TTL_MS) this.sessions.delete(s.id);
     }
@@ -926,16 +1139,4 @@ export function findOnPath(name: string, pathValue: string | undefined): string 
     if (existsSync(candidate)) return candidate;
   }
   return undefined;
-}
-
-/** Transcript uuid a fork may cut at for this message (see `ClaudeSessionManager.fork`). */
-function forkUuidOf(message: { role: string; claudeUuid?: string }, parts: Array<{ type: string; metadata?: Record<string, unknown>; state?: { status?: string } }>): string | undefined {
-  if (message.role === 'user') return message.claudeUuid;
-  const last = parts.at(-1);
-  if (last?.type === 'tool') {
-    // The message ends with a tool call: the cut must include its tool_result entry (unknown while still running).
-    const resultUuid = last.metadata?.resultUuid;
-    return typeof resultUuid === 'string' ? resultUuid : undefined;
-  }
-  return message.claudeUuid;
 }

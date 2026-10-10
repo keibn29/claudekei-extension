@@ -2,18 +2,6 @@ import type { Session, Message, Part } from "@/lib/claude/types";
 import type { PermissionRequest, PermissionResponse } from "@/types/permission";
 import type { QuestionRequest } from "@/types/question";
 
-export type SessionWorktreeAttachment = {
-  worktreeRoot: string | null;
-  cwd: string | null;
-  branch: string | null;
-  headState: 'branch' | 'detached' | 'unborn';
-  worktreeStatus: 'ready' | 'missing' | 'invalid' | 'not-a-repo';
-  worktreeSource: 'existing' | 'created-for-session' | null;
-  legacy: boolean;
-  degraded: boolean;
-  attentionReason?: 'merge' | 'rebase' | 'cherry-pick' | 'revert' | 'bisect' | null;
-};
-
 export interface AttachedFile {
     id: string;
     file: File;
@@ -140,9 +128,6 @@ export type NewSessionDraftState = {
     open: boolean;
     selectedProjectId?: string | null;
     directoryOverride: string | null;
-    pendingWorktreeRequestId?: string | null;
-    bootstrapPendingDirectory?: string | null;
-    preserveDirectoryOverride?: boolean;
     parentID: string | null;
     title?: string;
     initialPrompt?: string;
@@ -151,19 +136,9 @@ export type NewSessionDraftState = {
     targetFolderId?: string;
 };
 
-// Voice state types
-export type VoiceStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
-export type VoiceMode = 'idle' | 'speaking' | 'listening';
-
-export interface VoiceState {
-    status: VoiceStatus;
-    mode: VoiceMode;
-}
-
 export interface SessionStore {
 
     sessions: Session[];
-    archivedSessions: Session[];
     sessionsByDirectory: Map<string, Session[]>;
     currentSessionId: string | null;
     lastLoadedDirectory: string | null;
@@ -191,9 +166,6 @@ export interface SessionStore {
     sessionAgentModelSelections: Map<string, Map<string, { providerId: string; modelId: string }>>;
 
     webUICreatedSessions: Set<string>;
-    worktreeMetadata: Map<string, import('@/types/worktree').WorktreeMetadata>;
-    availableWorktrees: import('@/types/worktree').WorktreeMetadata[];
-    availableWorktreesByProject: Map<string, import('@/types/worktree').WorktreeMetadata[]>;
 
     currentAgentContext: Map<string, string>;
 
@@ -220,41 +192,24 @@ export interface SessionStore {
 
     newSessionDraft: NewSessionDraftState;
 
-    // Voice state
-    voiceStatus: VoiceStatus;
-    voiceMode: VoiceMode;
-
-    // Voice actions
-    setVoiceStatus: (status: VoiceStatus) => void;
-    setVoiceMode: (mode: VoiceMode) => void;
-
     getSessionAgentEditMode: (sessionId: string, agentName: string | undefined, defaultMode?: EditPermissionMode) => EditPermissionMode;
     toggleSessionAgentEditMode: (sessionId: string, agentName: string | undefined, defaultMode?: EditPermissionMode) => void;
     setSessionAgentEditMode: (sessionId: string, agentName: string | undefined, mode: EditPermissionMode, defaultMode?: EditPermissionMode) => void;
     loadSessions: () => Promise<void>;
 
-    openNewSessionDraft: (options?: { projectId?: string | null; directoryOverride?: string | null; pendingWorktreeRequestId?: string | null; bootstrapPendingDirectory?: string | null; preserveDirectoryOverride?: boolean; parentID?: string | null; title?: string; initialPrompt?: string; syntheticParts?: SyntheticContextPart[]; targetFolderId?: string }) => void;
-    overrideNewSessionDraftTarget: (options: { projectId?: string | null; directoryOverride?: string | null; pendingWorktreeRequestId?: string | null; bootstrapPendingDirectory?: string | null; preserveDirectoryOverride?: boolean; title?: string; initialPrompt?: string }) => void;
+    openNewSessionDraft: (options?: { projectId?: string | null; directoryOverride?: string | null; parentID?: string | null; title?: string; initialPrompt?: string; syntheticParts?: SyntheticContextPart[]; targetFolderId?: string }) => void;
     setNewSessionDraftTarget: (target: { projectId?: string | null; directoryOverride?: string | null }, options?: { force?: boolean }) => void;
-    setPendingDraftWorktreeRequest: (requestId: string | null) => void;
-    resolvePendingDraftWorktreeTarget: (requestId: string, directory: string | null, options?: { projectId?: string | null; bootstrapPendingDirectory?: string | null; preserveDirectoryOverride?: boolean }) => void;
-    setDraftBootstrapPendingDirectory: (directory: string | null) => void;
-    setDraftPreserveDirectoryOverride: (value: boolean) => void;
     closeNewSessionDraft: () => void;
 
     createSession: (title?: string, directoryOverride?: string | null, parentID?: string | null) => Promise<Session | null>;
     createSessionFromAssistantMessage: (sourceMessageId: string) => Promise<void>;
 
-    deleteSession: (id: string, options?: { archiveWorktree?: boolean; deleteRemoteBranch?: boolean; deleteLocalBranch?: boolean; remoteName?: string }) => Promise<boolean>;
-    deleteSessions: (ids: string[], options?: { archiveWorktree?: boolean; deleteRemoteBranch?: boolean; deleteLocalBranch?: boolean; remoteName?: string; silent?: boolean }) => Promise<{ deletedIds: string[]; failedIds: string[] }>;
-    archiveSession: (id: string) => Promise<boolean>;
-    archiveSessions: (ids: string[], options?: { silent?: boolean }) => Promise<{ archivedIds: string[]; failedIds: string[] }>;
+    deleteSession: (id: string, options?: { deleteRemoteBranch?: boolean; deleteLocalBranch?: boolean; remoteName?: string }) => Promise<boolean>;
+    deleteSessions: (ids: string[], options?: { deleteRemoteBranch?: boolean; deleteLocalBranch?: boolean; remoteName?: string; silent?: boolean }) => Promise<{ deletedIds: string[]; failedIds: string[] }>;
     updateSessionTitle: (id: string, title: string) => Promise<void>;
-    shareSession: (id: string) => Promise<Session | null>;
-    unshareSession: (id: string) => Promise<Session | null>;
     setCurrentSession: (id: string | null) => void;
     loadMessages: (sessionId: string, limit?: number) => Promise<void>;
-    sendMessage: (content: string, providerID: string, modelID: string, agent?: string, attachments?: AttachedFile[], agentMentionName?: string, additionalParts?: Array<{ text: string; attachments?: AttachedFile[]; synthetic?: boolean }>, variant?: string, inputMode?: 'normal' | 'shell') => Promise<void>;
+    sendMessage: (content: string, providerID: string, modelID: string, agent?: string, attachments?: AttachedFile[], agentMentionName?: string, additionalParts?: Array<{ text: string; attachments?: AttachedFile[]; synthetic?: boolean }>, variant?: string) => Promise<void>;
     abortCurrentOperation: (sessionIdOverride?: string) => Promise<void>;
     acknowledgeSessionAbort: (sessionId: string) => void;
     armAbortPrompt: (durationMs?: number) => number | null;
@@ -313,8 +268,6 @@ export interface SessionStore {
 
     initializeNewOpenChamberSession: (sessionId: string, agents: Array<{ name: string; [key: string]: unknown }>) => void;
 
-    setWorktreeMetadata: (sessionId: string, metadata: import('@/types/worktree').WorktreeMetadata | null) => void;
-    getWorktreeMetadata: (sessionId: string) => import('@/types/worktree').WorktreeMetadata | undefined;
 
     getContextUsage: (contextLimit: number, outputLimit: number, sessionIdOverride?: string) => SessionContextUsage | null;
 

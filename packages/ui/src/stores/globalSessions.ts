@@ -63,17 +63,14 @@ export const isMissingGlobalSessionsEndpointError = (error: unknown): boolean =>
 
 /**
  * List sessions for the workspace via `claude:session.list`. The host returns the whole list in
- * one call, and Claude sessions cannot be archived, so the archived list is always empty.
+ * one call.
  */
 export async function listGlobalSessionPages(
     options: {
-        archived: boolean;
         pageSize: number;
         onPage?: (sessions: GlobalSessionRecord[]) => void;
     },
 ): Promise<GlobalSessionRecord[]> {
-    if (options.archived) return [];
-
     const sessions = await retry(
         () => claudeClient.listSessions(),
         { attempts: 3, delay: 500, retryIf: () => true },

@@ -46,6 +46,8 @@ rec --name plan-exit-accept --mode plan --exit-plan-mode acceptEdits --prompt "P
 
 # --- interrupts
 rec --name interrupt --env CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 --interrupt-after-ms 8000 --prompt "Use the Bash tool to run exactly: ping -c 40 127.0.0.1. Then reply 'finished'."
+rec --name interrupt-agent-sync --out-dir subagents --env CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 --forward-subagent-text --interrupt-after-ms 25000 --timeout 90000 --prompt "Use the Agent tool with subagent_type general-purpose. Tell the subagent to use the Bash tool to run exactly: ping -c 60 127.0.0.1, and then report 'finished'. Wait for it, then reply 'done'."
+rec --name interrupt-agent-running --out-dir subagents --mode bypassPermissions --env CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 --forward-subagent-text --interrupt-after-ms 25000 --timeout 90000 --prompt "Use the Agent tool with subagent_type general-purpose. Tell the subagent to use the Bash tool to run exactly: ping -c 60 127.0.0.1, and then report 'finished'. Wait for it, then reply 'done'."
 rec --name interrupt-text --interrupt-after-ms 5500 --prompt "Write a detailed 600-word essay about the history of the bicycle. No preamble."
 
 # --- UserPromptSubmit hook answering decision:block (no model call expected)

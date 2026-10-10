@@ -1,0 +1,128 @@
+{
+  "userUuids": {
+    "u1": "32b2a2cf-9cee-4aa9-9c1d-c4553fb43591",
+    "u2": "3b4494d5-66d3-4791-a9e3-7f9515a724d6",
+    "u3": "debfff9a-14ff-400f-b577-5e638ef1d979"
+  },
+  "cutBeforeU3": {
+    "uuid": "5a4ecb8c-047b-442b-a25d-d0df2392d869",
+    "type": "assistant"
+  },
+  "filesAfterP1": {
+    "docs/one.txt": "one",
+    "docs/three.txt": "three",
+    "appHasHi": true
+  },
+  "S1": {
+    "pass": true,
+    "dryU1": {
+      "canRewind": true,
+      "filesChanged": [
+        "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/docs/one.txt",
+        "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/app.ts",
+        "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/docs/three.txt"
+      ],
+      "insertions": 1,
+      "deletions": 3
+    },
+    "dryU2": {
+      "canRewind": true,
+      "filesChanged": [
+        "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/app.ts",
+        "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/docs/three.txt"
+      ],
+      "insertions": 1,
+      "deletions": 2
+    },
+    "dryU3": {
+      "canRewind": true,
+      "filesChanged": [
+        "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/docs/three.txt"
+      ],
+      "insertions": 0,
+      "deletions": 1
+    },
+    "initSessionIdSeen": null,
+    "filesUntouchedByDryRun": {
+      "docs/three.txt": "three",
+      "appHasHi": true
+    }
+  },
+  "S2": {
+    "pass": true,
+    "initSessionId": "63558204-0f66-425b-92e4-547bd5bc756d",
+    "sameId": true,
+    "u4ParentUuidIsCut": true,
+    "u4ParentUuid": "5a4ecb8c-047b-442b-a25d-d0df2392d869",
+    "u3StillInJsonl": true,
+    "historyKeepsU1U2": true,
+    "historyHasU3": false,
+    "historyHasU4": true,
+    "historyUserTexts": [
+      "Use the Write tool to create docs/one.txt with the content \"",
+      "",
+      "Use the Edit tool in src/app.ts to change \"Hello, \" to \"Hi, ",
+      "",
+      "",
+      "Reply with exactly: branch"
+    ],
+    "fileSizeEntries": 68
+  },
+  "S3": {
+    "pass": true,
+    "dryLive": {
+      "canRewind": true,
+      "filesChanged": [
+        "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/app.ts",
+        "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/docs/three.txt"
+      ],
+      "insertions": 1,
+      "deletions": 2
+    },
+    "dryCold": {
+      "canRewind": true,
+      "filesChanged": [
+        "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/src/app.ts"
+      ],
+      "insertions": 1,
+      "deletions": 1
+    },
+    "dryDeadBranch": {
+      "canRewind": false,
+      "error": "No file checkpoint found for this message."
+    },
+    "real": {
+      "canRewind": true,
+      "skippedLinks": 0
+    },
+    "afterReal": {
+      "docs/one.txt": "one",
+      "docs/three.txt": "three",
+      "appHasHi": false,
+      "appHasHello": true
+    }
+  },
+  "S4": {
+    "pass": true,
+    "existsAfterDelete": false,
+    "initSessionId": "63558204-0f66-425b-92e4-547bd5bc756d",
+    "historyAfter": [
+      "user:1055d627:[\"Use the Write tool to create docs/five.txt with the content \\\"five\\\"",
+      "assistant:8733cae9:[\"Write\"]",
+      "user:37097c66:[\"tool_result\"]",
+      "assistant:0257bae1:[\"done\"]"
+    ],
+    "dryNewMessage": {
+      "canRewind": true,
+      "filesChanged": [
+        "/private/tmp/claude-501/-Users-kei-Projects-claudekei-extension/a3f52df8-2dd5-4163-80a6-cde5dd3922c2/scratchpad/fixture-sandbox/docs/five.txt"
+      ],
+      "insertions": 0,
+      "deletions": 1
+    },
+    "dryOldUuidFromDeletedTranscript": {
+      "canRewind": false,
+      "error": "No file checkpoint found for this message."
+    }
+  }
+}

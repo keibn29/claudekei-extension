@@ -1,4 +1,3 @@
-import { isFeatureEnabled } from '@/lib/claude/features';
 import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import type { SidebarSection } from '@/constants/sidebar';
@@ -13,7 +12,6 @@ export type MermaidRenderingMode = 'svg' | 'ascii';
 export type UserMessageRenderingMode = 'markdown' | 'plain';
 export type ChatRenderMode = 'sorted' | 'live';
 export type ActivityRenderMode = 'collapsed' | 'summary';
-export type SessionRetentionAction = 'archive' | 'delete';
 export type TimeFormatPreference = 'auto' | '12h' | '24h';
 export type WeekStartPreference = 'auto' | 'sunday' | 'monday';
 
@@ -461,8 +459,6 @@ const clampContextPanelRoots = (
 interface UIStore {
 
   theme: 'light' | 'dark' | 'system';
-  isMultiRunLauncherOpen: boolean;
-  multiRunLauncherPrefillPrompt: string;
   isSidebarOpen: boolean;
   sidebarWidth: number;
   hasManuallyResizedLeftSidebar: boolean;
@@ -488,10 +484,7 @@ interface UIStore {
   isCommandPaletteOpen: boolean;
   isHelpDialogOpen: boolean;
   isAboutDialogOpen: boolean;
-  isOpenCodeStatusDialogOpen: boolean;
-  openCodeStatusText: string;
   isSessionCreateDialogOpen: boolean;
-  isScheduledTasksDialogOpen: boolean;
   isSettingsDialogOpen: boolean;
   isModelSelectorOpen: boolean;
   sidebarSection: SidebarSection;
@@ -509,7 +502,6 @@ interface UIStore {
   showDeletionDialog: boolean;
   autoDeleteEnabled: boolean;
   autoDeleteAfterDays: number;
-  sessionRetentionAction: SessionRetentionAction;
   autoDeleteLastRunAt: number | null;
   messageLimit: number;
   fontSize: number;
@@ -612,10 +604,7 @@ interface UIStore {
   toggleHelpDialog: () => void;
   setHelpDialogOpen: (open: boolean) => void;
   setAboutDialogOpen: (open: boolean) => void;
-  setOpenCodeStatusDialogOpen: (open: boolean) => void;
-  setOpenCodeStatusText: (text: string) => void;
   setSessionCreateDialogOpen: (open: boolean) => void;
-  setScheduledTasksDialogOpen: (open: boolean) => void;
   setSettingsDialogOpen: (open: boolean) => void;
   setModelSelectorOpen: (open: boolean) => void;
   applyTheme: () => void;
@@ -630,7 +619,6 @@ interface UIStore {
   setShowDeletionDialog: (value: boolean) => void;
   setAutoDeleteEnabled: (value: boolean) => void;
   setAutoDeleteAfterDays: (days: number) => void;
-  setSessionRetentionAction: (value: SessionRetentionAction) => void;
   setAutoDeleteLastRunAt: (timestamp: number | null) => void;
   setMessageLimit: (value: number) => void;
   setFontSize: (size: number) => void;
@@ -657,7 +645,6 @@ interface UIStore {
   setDiffWrapLines: (wrap: boolean) => void;
   setDiffViewMode: (mode: 'single' | 'stacked') => void;
   setGitChangesViewMode: (mode: 'flat' | 'tree') => void;
-  setMultiRunLauncherOpen: (open: boolean) => void;
   setTimelineDialogOpen: (open: boolean) => void;
   setImagePreviewOpen: (open: boolean) => void;
   setNativeNotificationsEnabled: (value: boolean) => void;
@@ -688,8 +675,6 @@ interface UIStore {
   setViewPagerPage: (page: 'left' | 'center' | 'right') => void;
   toggleExpandedInput: () => void;
   setExpandedInput: (value: boolean) => void;
-  openMultiRunLauncher: () => void;
-  openMultiRunLauncherWithPrompt: (prompt: string) => void;
   setReportUsage: (value: boolean) => void;
   setShortcutOverride: (actionId: string, combo: ShortcutCombo) => void;
   clearShortcutOverride: (actionId: string) => void;
@@ -703,8 +688,6 @@ export const useUIStore = create<UIStore>()(
       (set, get) => ({
 
         theme: 'system',
-        isMultiRunLauncherOpen: false,
-        multiRunLauncherPrefillPrompt: '',
         isSidebarOpen: true,
         sidebarWidth: LEFT_SIDEBAR_MIN_WIDTH,
         hasManuallyResizedLeftSidebar: false,
@@ -730,10 +713,7 @@ export const useUIStore = create<UIStore>()(
         isCommandPaletteOpen: false,
         isHelpDialogOpen: false,
         isAboutDialogOpen: false,
-        isOpenCodeStatusDialogOpen: false,
-        openCodeStatusText: '',
         isSessionCreateDialogOpen: false,
-        isScheduledTasksDialogOpen: false,
         isSettingsDialogOpen: false,
         isModelSelectorOpen: false,
         sidebarSection: 'sessions',
@@ -749,7 +729,6 @@ export const useUIStore = create<UIStore>()(
         showDeletionDialog: true,
         autoDeleteEnabled: false,
         autoDeleteAfterDays: 30,
-        sessionRetentionAction: 'archive',
         autoDeleteLastRunAt: null,
         messageLimit: 200,
         fontSize: 90,
@@ -1268,22 +1247,8 @@ export const useUIStore = create<UIStore>()(
           set({ isAboutDialogOpen: open });
         },
 
-        setOpenCodeStatusDialogOpen: (open) => {
-          if (open && !isFeatureEnabled('openCodeStatus')) return;
-          set({ isOpenCodeStatusDialogOpen: open });
-        },
-
-        setOpenCodeStatusText: (text) => {
-          set({ openCodeStatusText: text });
-        },
-
         setSessionCreateDialogOpen: (open) => {
           set({ isSessionCreateDialogOpen: open });
-        },
-
-        setScheduledTasksDialogOpen: (open) => {
-          if (open && !isFeatureEnabled('scheduledTasks')) return;
-          set({ isScheduledTasksDialogOpen: open });
         },
 
         setSettingsDialogOpen: (open) => {
@@ -1348,10 +1313,6 @@ export const useUIStore = create<UIStore>()(
         setAutoDeleteAfterDays: (days) => {
           const clampedDays = Math.max(1, Math.min(365, days));
           set({ autoDeleteAfterDays: clampedDays });
-        },
-
-        setSessionRetentionAction: (value) => {
-          set({ sessionRetentionAction: value });
         },
 
         setAutoDeleteLastRunAt: (timestamp) => {
@@ -1651,34 +1612,7 @@ export const useUIStore = create<UIStore>()(
           }
         },
 
-        setMultiRunLauncherOpen: (open) => {
-          if (open && !isFeatureEnabled('multiRun')) return;
-          set((state) => ({
-            isMultiRunLauncherOpen: open,
-            multiRunLauncherPrefillPrompt: open ? state.multiRunLauncherPrefillPrompt : '',
-          }));
-        },
-
-        openMultiRunLauncher: () => {
-          if (!isFeatureEnabled('multiRun')) return;
-          set({
-            isMultiRunLauncherOpen: true,
-            multiRunLauncherPrefillPrompt: '',
-            isSessionSwitcherOpen: false,
-          });
-        },
-
-        openMultiRunLauncherWithPrompt: (prompt) => {
-          if (!isFeatureEnabled('multiRun')) return;
-          set({
-            isMultiRunLauncherOpen: true,
-            multiRunLauncherPrefillPrompt: prompt,
-            isSessionSwitcherOpen: false,
-          });
-        },
-
         setTimelineDialogOpen: (open) => {
-          if (open && !isFeatureEnabled('revert')) return;
           set({ isTimelineDialogOpen: open });
         },
 
@@ -1901,7 +1835,6 @@ export const useUIStore = create<UIStore>()(
           showDeletionDialog: state.showDeletionDialog,
           autoDeleteEnabled: state.autoDeleteEnabled,
           autoDeleteAfterDays: state.autoDeleteAfterDays,
-          sessionRetentionAction: state.sessionRetentionAction,
           autoDeleteLastRunAt: state.autoDeleteLastRunAt,
           messageLimit: state.messageLimit,
           fontSize: state.fontSize,

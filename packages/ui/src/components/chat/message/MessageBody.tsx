@@ -16,18 +16,13 @@ import { FadeInOnReveal } from './FadeInOnReveal';
 import { Button } from '@/components/ui/button';
 import { SaveProjectPlanDialog } from '@/components/session/SaveProjectPlanDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { RiCheckLine, RiFileCopyLine, RiChatNewLine, RiArrowGoBackLine, RiGitBranchLine, RiHourglassLine, RiTimeLine, RiVolumeUpLine, RiStopLine, RiImageDownloadLine, RiLoader4Line, RiErrorWarningLine, RiBookletLine } from '@remixicon/react';
-import { ArrowsMerge } from '@/components/icons/ArrowsMerge';
+import { RiCheckLine, RiFileCopyLine, RiChatNewLine, RiArrowGoBackLine, RiGitBranchLine, RiHourglassLine, RiTimeLine, RiImageDownloadLine, RiLoader4Line, RiErrorWarningLine, RiBookletLine } from '@remixicon/react';
 import type { ContentChangeReason } from '@/hooks/useChatScrollManager';
 
 import { SimpleMarkdownRenderer } from '../MarkdownRenderer';
 import { useSessionUIStore } from '@/sync/session-ui-store';
 import { useUIStore } from '@/stores/useUIStore';
 import { flattenAssistantTextParts, suggestPlanTitleFromText } from '@/lib/messages/messageText';
-import { MULTIRUN_EXECUTION_FORK_PROMPT_META_TEXT } from '@/lib/messages/executionMeta';
-import { useMessageTTS } from '@/hooks/useMessageTTS';
-import { isFeatureEnabled } from '@/lib/claude/features';
-import { useConfigStore } from '@/stores/useConfigStore';
 import { useProjectsStore } from '@/stores/useProjectsStore';
 import { TextSelectionMenu } from './TextSelectionMenu';
 import { copyTextToClipboard } from '@/lib/clipboard';
@@ -42,7 +37,7 @@ import SubagentGroup from './parts/SubagentGroup';
 import { collectSubagentRun, isSubagentTool } from '@/lib/claude/subagents';
 import TurnActivity from '../components/TurnActivity';
 import { createProjectPlanFile } from '@/lib/openchamberConfig';
-import { resolveProjectForSessionDirectory } from '@/lib/projectResolution';
+import { resolveProjectForDirectory } from '@/lib/projectResolution';
 import { useEffectiveDirectory } from '@/hooks/useEffectiveDirectory';
 import { useSessionDirectory, useSessions } from '@/sync/sync-context';
 import { useI18n } from '@/lib/i18n';
@@ -733,7 +728,6 @@ const AssistantMessageBody = React.memo(({
 
     const createSessionFromAssistantMessage = useSessionUIStore((state) => state.createSessionFromAssistantMessage);
     const currentSessionId = useSessionUIStore((state) => state.currentSessionId);
-    const openMultiRunLauncherWithPrompt = useUIStore((state) => state.openMultiRunLauncherWithPrompt);
     const projects = useProjectsStore((state) => state.projects);
     const effectiveDirectory = useEffectiveDirectory();
     const sessions = useSessions();
@@ -745,19 +739,6 @@ const AssistantMessageBody = React.memo(({
     const isLastAssistantInTurn = turnGroupingContext?.isLastAssistantInTurn ?? false;
     const hasStopFinish = messageFinish === 'stop';
 
-    // TTS for message playback
-    const { isPlaying: isTTSPlaying, play: playTTS, stop: stopTTS } = useMessageTTS();
-    const showMessageTTSButtons = useConfigStore((state) => state.showMessageTTSButtons);
-    const voiceProvider = useConfigStore((state) => state.voiceProvider);
-
-    const readAloudTooltip = React.useMemo(() => {
-        if (isTTSPlaying) {
-            return t('chat.messageBody.tts.stopSpeaking');
-        }
-        const providerLabel = voiceProvider === 'browser' ? 'Browser' : voiceProvider === 'openai' ? 'OpenAI' : voiceProvider === 'openai-compatible' ? 'Custom' : 'Say';
-        return t('chat.messageBody.tts.readAloudWithProvider', { provider: providerLabel });
-    }, [isTTSPlaying, t, voiceProvider]);
-
     const currentSession = React.useMemo(() => {
         if (!currentSessionId) {
             return null;
@@ -765,13 +746,12 @@ const AssistantMessageBody = React.memo(({
         return sessions.find((session) => session.id === currentSessionId) ?? null;
     }, [currentSessionId, sessions]);
 
-    const availableWorktreesByProject = useSessionUIStore((state) => state.availableWorktreesByProject);
     const currentProjectRef = React.useMemo(() => {
         const directory = effectiveDirectory
             ?? (typeof currentSession?.directory === 'string' ? currentSession.directory : '');
-        const resolved = resolveProjectForSessionDirectory(projects, availableWorktreesByProject, directory);
+        const resolved = resolveProjectForDirectory(projects, directory);
         return resolved ? { id: resolved.id, path: resolved.path } : null;
-    }, [availableWorktreesByProject, currentSession?.directory, effectiveDirectory, projects]);
+    }, [currentSession?.directory, effectiveDirectory, projects]);
 
 
     const hasTools = toolParts.length > 0;
@@ -950,38 +930,6 @@ const AssistantMessageBody = React.memo(({
             void createSessionFromAssistantMessage(messageId);
         },
         [createSessionFromAssistantMessage, messageId]
-    );
-
-    const handleForkMultiRunClick = React.useCallback(
-        (event: React.MouseEvent<HTMLButtonElement>) => {
-            event.stopPropagation();
-            event.preventDefault();
-
-            if (!assistantPlanText.trim()) {
-                return;
-            }
-
-            const prefilledPrompt = `${MULTIRUN_EXECUTION_FORK_PROMPT_META_TEXT}\n\n${assistantPlanText}`;
-            openMultiRunLauncherWithPrompt(prefilledPrompt);
-        },
-        [assistantPlanText, openMultiRunLauncherWithPrompt]
-    );
-
-    const handleTTSClick = React.useCallback(
-        (event: React.MouseEvent<HTMLButtonElement>) => {
-            event.stopPropagation();
-            event.preventDefault();
-            
-            if (isTTSPlaying) {
-                stopTTS();
-                return;
-            }
-            
-            if (assistantPlanText.trim()) {
-                void playTTS(assistantPlanText);
-            }
-        },
-        [assistantPlanText, isTTSPlaying, playTTS, stopTTS]
     );
 
     const handleSaveAsPlanClick = React.useCallback(
@@ -1577,49 +1525,6 @@ const AssistantMessageBody = React.memo(({
                    </TooltipTrigger>
                    <TooltipContent sideOffset={6}>{t('chat.messageBody.actions.startNewSession')}</TooltipContent>
                </Tooltip>
-              {isFeatureEnabled('multiRun') ? (
-              <Tooltip delayDuration={1000}>
-                  <TooltipTrigger asChild>
-                      <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-muted-foreground bg-transparent hover:text-foreground hover:!bg-transparent active:!bg-transparent focus-visible:!bg-transparent focus-visible:ring-2 focus-visible:ring-primary/50"
-                          onPointerDown={(event) => event.stopPropagation()}
-                          onClick={handleForkMultiRunClick}
-                      >
-                          <ArrowsMerge className="h-4 w-4" />
-                      </Button>
-                  </TooltipTrigger>
-                  <TooltipContent sideOffset={6}>{t('chat.messageBody.actions.startNewMultiRun')}</TooltipContent>
-              </Tooltip>
-              ) : null}
-
-              {isFeatureEnabled('voice') && showMessageTTSButtons && hasCopyableText && (
-                  <Tooltip delayDuration={1000}>
-                      <TooltipTrigger asChild>
-                         <Button
-                             type="button"
-                             variant="ghost"
-                             size="icon"
-                             className={cn(
-                                 'h-8 w-8 bg-transparent hover:!bg-transparent active:!bg-transparent focus-visible:!bg-transparent focus-visible:ring-2 focus-visible:ring-primary/50',
-                                 isTTSPlaying ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'
-                             )}
-                             aria-label={isTTSPlaying ? t('chat.messageBody.tts.stopSpeaking') : t('chat.messageBody.tts.readAloud')}
-                             onPointerDown={(event) => event.stopPropagation()}
-                             onClick={handleTTSClick}
-                         >
-                             {isTTSPlaying ? (
-                                 <RiStopLine className="h-3.5 w-3.5" />
-                             ) : (
-                                 <RiVolumeUpLine className="h-3.5 w-3.5" />
-                             )}
-                         </Button>
-                     </TooltipTrigger>
-                       <TooltipContent sideOffset={6}>{readAloudTooltip}</TooltipContent>
-                   </Tooltip>
-               )}
           </>
       );
  

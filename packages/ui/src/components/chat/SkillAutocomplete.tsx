@@ -1,7 +1,8 @@
 import React from 'react';
 import { cn, fuzzyMatch } from '@/lib/utils';
-import { useSkillsStore } from '@/stores/useSkillsStore';
+import { useClaudeConfigStore, useSkillSuggestions } from '@/stores/useClaudeConfigStore';
 import { ScrollableOverlay } from '@/components/ui/ScrollableOverlay';
+import { COMPOSER_POPUP_ID, composerPopupOptionId } from './autocompletePopupIds';
 
 interface SkillInfo {
   name: string;
@@ -10,7 +11,8 @@ interface SkillInfo {
 }
 
 export interface SkillAutocompleteHandle {
-  handleKeyDown: (key: string) => void;
+  /** Returns true when the key was consumed; false lets the editor handle it (e.g. Enter sends when nothing matches). */
+  handleKeyDown: (key: string) => boolean;
 }
 
 interface SkillAutocompleteProps {
@@ -30,13 +32,15 @@ export const SkillAutocomplete = React.forwardRef<SkillAutocompleteHandle, Skill
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const [filteredSkills, setFilteredSkills] = React.useState<SkillInfo[]>([]);
   const itemRefs = React.useRef<(HTMLDivElement | null)[]>([]);
-  const skills = useSkillsStore((s) => s.skills);
-  const loadSkills = useSkillsStore((s) => s.loadSkills);
+  const skills = useSkillSuggestions();
+  const loadConfig = useClaudeConfigStore((s) => s.load);
+  // Enter accepts a fuzzy (non-prefix) match only after the user moved through the list: "/tmp" stays literal.
+  const navigatedRef = React.useRef(false);
 
   React.useEffect(() => {
-    // Always trigger loadSkills when autocomplete opens to ensure project context is fresh
-    void loadSkills();
-  }, [loadSkills]);
+    // Loads the config snapshot once (shared with the settings pages).
+    void loadConfig();
+  }, [loadConfig]);
 
   React.useEffect(() => {
     const normalizedQuery = searchQuery.trim();
@@ -53,6 +57,7 @@ export const SkillAutocomplete = React.forwardRef<SkillAutocompleteHandle, Skill
 
     setFilteredSkills(sorted);
     setSelectedIndex(0);
+    navigatedRef.current = false;
   }, [skills, searchQuery]);
 
   React.useEffect(() => {
@@ -83,31 +88,39 @@ export const SkillAutocomplete = React.forwardRef<SkillAutocompleteHandle, Skill
     handleKeyDown: (key: string) => {
       if (key === 'Escape') {
         onClose();
-        return;
+        return true;
       }
 
       if (!filteredSkills.length) {
-        return;
+        return false;
       }
 
       if (key === 'ArrowDown') {
+        navigatedRef.current = true;
         setSelectedIndex((prev) => (prev + 1) % filteredSkills.length);
-        return;
+        return true;
       }
 
       if (key === 'ArrowUp') {
+        navigatedRef.current = true;
         setSelectedIndex((prev) => (prev - 1 + filteredSkills.length) % filteredSkills.length);
-        return;
+        return true;
       }
 
       if (key === 'Enter' || key === 'Tab') {
         const skill = filteredSkills[selectedIndex];
-        if (skill) {
-          onSkillSelect(skill.name);
+        if (!skill) {
+          return false;
         }
+        if (key === 'Enter' && !navigatedRef.current && !skill.name.toLowerCase().startsWith(searchQuery.trim().toLowerCase())) {
+          return false;
+        }
+        onSkillSelect(skill.name);
+        return true;
       }
+      return false;
     },
-  }), [filteredSkills, onSkillSelect, onClose, selectedIndex]);
+  }), [filteredSkills, onSkillSelect, onClose, selectedIndex, searchQuery]);
 
   const renderSkill = (skill: SkillInfo, index: number) => {
     const isProject = skill.scope === 'project';
@@ -117,6 +130,9 @@ export const SkillAutocomplete = React.forwardRef<SkillAutocompleteHandle, Skill
         ref={(el) => {
           itemRefs.current[index] = el;
         }}
+        id={composerPopupOptionId(index)}
+        role="option"
+        aria-selected={index === selectedIndex}
           className={cn(
             'flex items-start gap-2 px-3 py-1.5 cursor-pointer rounded-lg typography-ui-label',
           index === selectedIndex && 'bg-interactive-selection'
@@ -149,6 +165,8 @@ export const SkillAutocomplete = React.forwardRef<SkillAutocompleteHandle, Skill
   return (
     <div
       ref={containerRef}
+      id={COMPOSER_POPUP_ID}
+      role="listbox"
       className="absolute z-[100] min-w-0 w-full max-w-[360px] max-h-60 bg-background border-2 border-border/60 rounded-xl shadow-none bottom-full mb-2 left-0 flex flex-col"
       style={style}
     >

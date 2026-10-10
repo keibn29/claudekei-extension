@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { BranchSelector } from './BranchSelector';
-import { WorktreeBranchDisplay } from './WorktreeBranchDisplay';
 import { SyncActions } from './SyncActions';
 import type { GitStatus, GitIdentityProfile, GitRemote } from '@/lib/api/types';
 import { useUIStore } from '@/stores/useUIStore';
@@ -43,12 +42,10 @@ interface GitHeaderProps {
   removingRemoteName: string | null;
   onCheckoutBranch: (branch: string) => void;
   onCreateBranch: (name: string, remote?: GitRemote) => Promise<void>;
-  onRenameBranch?: (oldName: string, newName: string) => Promise<void>;
   activeIdentityProfile: GitIdentityProfile | null;
   availableIdentities: GitIdentityProfile[];
   onSelectIdentity: (profile: GitIdentityProfile) => void;
   isApplyingIdentity: boolean;
-  isWorktreeMode: boolean;
   onOpenHistory?: () => void;
 }
 
@@ -204,12 +201,10 @@ export const GitHeader: React.FC<GitHeaderProps> = ({
   removingRemoteName,
   onCheckoutBranch,
   onCreateBranch,
-  onRenameBranch,
   activeIdentityProfile,
   availableIdentities,
   onSelectIdentity,
   isApplyingIdentity,
-  isWorktreeMode,
   onOpenHistory,
 }) => {
   const { t } = useI18n();
@@ -273,23 +268,16 @@ export const GitHeader: React.FC<GitHeaderProps> = ({
     <header className="@container/git-header px-3 py-2 bg-transparent">
       <div className="flex items-center justify-between gap-2 min-w-0">
         <div className="min-w-0 flex-1">
-          {isWorktreeMode ? (
-            <WorktreeBranchDisplay
-              currentBranch={status.current}
-              onRename={onRenameBranch}
-            />
-          ) : (
-            <BranchSelector
-              currentBranch={status.current}
-              localBranches={localBranches}
-              remoteBranches={remoteBranches}
-              branchInfo={branchInfo}
-              onCheckout={onCheckoutBranch}
-              onCreate={onCreateBranch}
-              remotes={remotes}
-              tooltipDelayMs={useTwoRowHeader ? 300 : 1000}
-            />
-          )}
+          <BranchSelector
+            currentBranch={status.current}
+            localBranches={localBranches}
+            remoteBranches={remoteBranches}
+            branchInfo={branchInfo}
+            onCheckout={onCheckoutBranch}
+            onCreate={onCreateBranch}
+            remotes={remotes}
+            tooltipDelayMs={useTwoRowHeader ? 300 : 1000}
+          />
         </div>
       </div>
 

@@ -516,7 +516,7 @@ exports[`golden: every fixture maps cleanly compact 1`] = `
       },
       {
         "apiMessageId": "notice:17000000000160000",
-        "cost": 0.00116449,
+        "cost": 0.0008501100000000001,
         "id": "m7",
         "modelID": "claude-haiku-5-5",
         "parentID": "m5",
@@ -1646,7 +1646,7 @@ exports[`golden: every fixture maps cleanly multi-turn 1`] = `
       {
         "apiMessageId": "msg_011CfrjZ8AhewyxvNiijbeL2",
         "claudeUuid": "7b54a1e5-3474-49fc-baea-07dde913fbea",
-        "cost": 0.00055711,
+        "cost": 0.00024584,
         "finish": "end_turn",
         "id": "m7",
         "modelID": "claude-haiku-5-5",
@@ -3973,7 +3973,7 @@ exports[`golden: every fixture maps cleanly task 1`] = `
       {
         "apiMessageId": "msg_011Cfrjfuozj6LZ2b8EET7hf",
         "claudeUuid": "3c060927-f816-4c77-8cf4-3ec6b883ef88",
-        "cost": 0.002645695,
+        "cost": 0.0007306050000000001,
         "finish": "end_turn",
         "id": "m8",
         "modelID": "claude-haiku-5-5",
@@ -4272,7 +4272,7 @@ exports[`golden: every fixture maps cleanly task-forward 1`] = `
       {
         "apiMessageId": "msg_011CfrjgSVUKQphwCjhjDD34",
         "claudeUuid": "0303a67f-a21b-4034-a69d-d867af8fea53",
-        "cost": 0.0025399000000000003,
+        "cost": 0.001125735,
         "finish": "end_turn",
         "id": "m8",
         "modelID": "claude-haiku-5-5",

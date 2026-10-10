@@ -10,7 +10,7 @@ import {
 const session = (id, directory, updated, extra = {}) => ({
   id,
   title: `${id}-title`,
-  time: { created: updated - 1, updated, archived: undefined },
+  time: { created: updated - 1, updated },
   directory,
   ...extra,
 })

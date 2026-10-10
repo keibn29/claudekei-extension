@@ -1,4 +1,5 @@
 import { revertToMessage } from '@/sync/session-actions';
+import type { RevertPreview } from '@/lib/claude/types';
 
 export interface RevertConfirmTarget {
     sessionId: string;
@@ -109,4 +110,72 @@ export function handleTimelineRevertSuccess({
 
     onResetTarget();
     return closed;
+}
+
+// ---------------------------------------------------------------------------
+// File preview (dry run) state
+// ---------------------------------------------------------------------------
+
+export type RevertPreviewState =
+    | { status: 'idle' }
+    | { status: 'loading' }
+    | { status: 'ready'; preview: RevertPreview }
+    | { status: 'error'; error: string };
+
+/** Number of file paths listed in the dialog before collapsing the rest into "and N more". */
+export const REVERT_PREVIEW_MAX_FILES = 8;
+
+/** Confirm stays disabled until the dry run settles; a failed preview request does not block the revert. */
+export function isRevertConfirmDisabled(isPending: boolean, state: RevertPreviewState): boolean {
+    return isPending || state.status === 'loading';
+}
+
+/** Files cannot be restored: the confirm button reverts the conversation only. */
+export function isConversationOnlyPreview(state: RevertPreviewState): boolean {
+    return state.status === 'ready' && Boolean(state.preview.filesError);
+}
+
+export function splitPreviewFiles(files: string[], max: number = REVERT_PREVIEW_MAX_FILES): { shown: string[]; more: number } {
+    return { shown: files.slice(0, max), more: Math.max(0, files.length - max) };
+}
+
+/** Stale-response guard: only the most recently started request may settle the state. */
+export function createLatestRequestGuard() {
+    let latest = 0;
+    return {
+        start: (): number => {
+            latest += 1;
+            return latest;
+        },
+        isCurrent: (id: number): boolean => id === latest,
+        /** Marks every in-flight request stale (dialog closed / unmounted). */
+        invalidate: (): void => {
+            latest += 1;
+        },
+    };
+}
+
+export interface LoadRevertPreviewOptions {
+    target: RevertConfirmTarget | null;
+    fetchPreview: (sessionId: string, messageId: string) => Promise<RevertPreview>;
+    guard: ReturnType<typeof createLatestRequestGuard>;
+    setState: (state: RevertPreviewState) => void;
+}
+
+/** Runs the dry run for `target` and reports loading/ready/error, ignoring responses that became stale. */
+export async function loadRevertPreview({ target, fetchPreview, guard, setState }: LoadRevertPreviewOptions): Promise<void> {
+    const requestId = guard.start();
+    if (!target?.sessionId || !target?.messageId) {
+        setState({ status: 'idle' });
+        return;
+    }
+    setState({ status: 'loading' });
+    try {
+        const preview = await fetchPreview(target.sessionId, target.messageId);
+        if (guard.isCurrent(requestId)) setState({ status: 'ready', preview });
+    } catch (err: unknown) {
+        if (guard.isCurrent(requestId)) {
+            setState({ status: 'error', error: err instanceof Error ? err.message : String(err) });
+        }
+    }
 }

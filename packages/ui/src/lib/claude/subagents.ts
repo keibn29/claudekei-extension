@@ -207,17 +207,25 @@ export const deriveSubagentStatus = (input: SubagentStatusInput): SubagentStatus
   return 'done';
 };
 
+/**
+ * Safety net for a child the host left `busy` after the turn ended (the run's end was never reported): a busy child is
+ * ignored when the parent session is idle, the tool part is settled and the host does not say the run is still going.
+ */
+export const isStaleBusyChild = (input: { childPhase: string | undefined; parentIdle: boolean; toolStatus: string | undefined; runStatus: string | undefined }): boolean =>
+  input.childPhase === 'busy' && input.parentIdle && (input.toolStatus === 'completed' || input.toolStatus === 'error') && input.runStatus !== 'running';
+
 export const isActiveSubagentStatus = (status: SubagentStatus): boolean => status === 'preparing' || status === 'running';
 
-export type SubagentStatusCounts = { total: number; running: number; done: number; failed: number };
+export type SubagentStatusCounts = { total: number; running: number; done: number; failed: number; stopped: number };
 
-/** Counters for the group header: running (incl. preparing), done (incl. delivered), failed (incl. not delivered). */
+/** Counters for the group header: running (incl. preparing), done (incl. delivered), failed (incl. not delivered), stopped. */
 export const summarizeSubagentStatuses = (statuses: readonly SubagentStatus[]): SubagentStatusCounts => {
-  const counts: SubagentStatusCounts = { total: statuses.length, running: 0, done: 0, failed: 0 };
+  const counts: SubagentStatusCounts = { total: statuses.length, running: 0, done: 0, failed: 0, stopped: 0 };
   for (const status of statuses) {
     if (status === 'preparing' || status === 'running') counts.running += 1;
     else if (status === 'done' || status === 'sent') counts.done += 1;
     else if (status === 'failed' || status === 'not-delivered') counts.failed += 1;
+    else if (status === 'stopped') counts.stopped += 1;
   }
   return counts;
 };

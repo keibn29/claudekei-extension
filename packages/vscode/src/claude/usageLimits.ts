@@ -5,7 +5,7 @@
  * behind `/usage`), which needs no model turn. Secondary: the `rate_limit_event` the CLI emits during a turn, which
  * describes only the window that changed. API-key and third-party providers have no plan limits: `windows: []`.
  */
-import type { AccountInfo, UsageLimits, UsageWindow } from '@openchamber/ui/src/lib/claude/types';
+import type { AccountInfo, UsageActivity, UsageActivityWindow, UsageLimits, UsageShare, UsageWindow } from '@openchamber/ui/src/lib/claude/types';
 
 type Rec = Record<string, unknown>;
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -127,4 +127,33 @@ export function applyRateLimitEvent(previous: UsageLimits | undefined, info: unk
   const order = ['session', 'weekly'];
   windows.sort((a, b) => (order.indexOf(a.id) + 1 || 99) - (order.indexOf(b.id) + 1 || 99));
   return { ...previous, windows, updatedAt: now, source: previous?.source ?? 'rate_limit_event' };
+}
+
+const shares = (v: unknown): UsageShare[] =>
+  (Array.isArray(v) ? v : [])
+    .flatMap((e): UsageShare[] => (isRec(e) && str(e.name) && num(e.pct) !== undefined ? [{ name: e.name as string, pct: num(e.pct)! }] : []))
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 5);
+
+function activityWindow(v: unknown): UsageActivityWindow {
+  const w = isRec(v) ? v : {};
+  return {
+    requests: num(w.request_count) ?? 0,
+    sessions: num(w.session_count) ?? 0,
+    behaviors: (Array.isArray(w.behaviors) ? w.behaviors : []).flatMap((b): Array<{ key: string; pct: number }> => (isRec(b) && str(b.key) && num(b.pct) !== undefined ? [{ key: b.key as string, pct: num(b.pct)! }] : [])).sort((a, b) => b.pct - a.pct),
+    agents: shares(w.agents),
+    skills: shares(w.skills),
+    plugins: shares(w.plugins),
+    mcpServers: shares(w.mcp_servers),
+  };
+}
+
+/**
+ * "What is contributing to limits usage" (24 h / 7 d) from the SDK usage response fetched with `skipBehaviors: false`.
+ * Null when the scan was skipped or failed (`behaviors: null`: API-key sessions, no subscription).
+ */
+export function parseUsageActivity(raw: unknown, now: number): UsageActivity | null {
+  const behaviors = isRec(raw) && isRec(raw.behaviors) ? raw.behaviors : undefined;
+  if (!behaviors) return null;
+  return { day: activityWindow(behaviors.day), week: activityWindow(behaviors.week), updatedAt: now };
 }

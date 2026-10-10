@@ -43,7 +43,6 @@ const FOLDERS_STORAGE_KEY = 'oc.sessions.folders';
 const COLLAPSED_STORAGE_KEY = 'oc.sessions.folderCollapse';
 const SESSION_FOLDERS_API_PATH = '/api/session-folders';
 const DISK_WRITE_DEBOUNCE_MS = 250;
-const ARCHIVED_SCOPE_PREFIX = '__archived__:';
 
 const safeStorage = getSafeStorage();
 let diskWriteTimer: ReturnType<typeof setTimeout> | null = null;
@@ -229,14 +228,6 @@ const syncCollapsedAfterFolderCleanup = (
   }
 
   return nextCollapsed;
-};
-
-const pruneEmptyArchivedFolders = (scopeKey: string, folders: SessionFolder[]): SessionFolder[] => {
-  if (!scopeKey.startsWith(ARCHIVED_SCOPE_PREFIX)) {
-    return folders;
-  }
-
-  return folders.filter((folder) => folder.sessionIds.length > 0);
 };
 
 // --- Store ---
@@ -458,14 +449,9 @@ export const useSessionFoldersStore = create<SessionFoldersStore>()(
           return folder;
         });
 
-        const nextFolders = pruneEmptyArchivedFolders(scopeKey, filteredFolders);
-        if (nextFolders.length !== filteredFolders.length) {
-          changed = true;
-        }
-
         if (!changed) return;
-        const nextMap: SessionFoldersMap = { ...current, [scopeKey]: nextFolders };
-        const nextCollapsed = syncCollapsedAfterFolderCleanup(scopeFolders, nextFolders, get().collapsedFolderIds);
+        const nextMap: SessionFoldersMap = { ...current, [scopeKey]: filteredFolders };
+        const nextCollapsed = syncCollapsedAfterFolderCleanup(scopeFolders, filteredFolders, get().collapsedFolderIds);
 
         set(nextCollapsed
           ? { foldersMap: nextMap, collapsedFolderIds: nextCollapsed }

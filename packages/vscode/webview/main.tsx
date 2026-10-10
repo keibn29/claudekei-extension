@@ -9,7 +9,6 @@ import {
 } from '@openchamber/ui/lib/theme/vscode/adapter';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'disconnected';
-type PanelType = 'chat' | 'agentManager';
 
 declare const __OPENCHAMBER_WEBVIEW_BUILD_TIME__: string;
 
@@ -22,7 +21,6 @@ declare global {
       theme: string;
       connectionStatus: string;
       cliAvailable?: boolean;
-      panelType?: PanelType;
       viewMode?: 'sidebar' | 'editor';
       initialSessionId?: string | null;
     };
@@ -30,7 +28,6 @@ declare global {
     __OPENCHAMBER_VSCODE_SHIKI_THEMES__?: { light?: Record<string, unknown>; dark?: Record<string, unknown> } | null;
     __OPENCHAMBER_CONNECTION__?: { status: ConnectionStatus; error?: string; cliAvailable?: boolean };
     __OPENCHAMBER_HOME__?: string;
-    __OPENCHAMBER_PANEL_TYPE__?: PanelType;
   }
 }
 
@@ -83,11 +80,7 @@ if (useClaudeMock) {
     globalWithApi.acquireVsCodeApi = () => ({
       postMessage: (message: { id?: string; type?: string }) => {
         if (!message?.id) return;
-        // Sending a prompt waits for worktree bootstrap; the mock workspace is always ready.
-        const reply = message.type === 'api:git/worktrees/bootstrap-status'
-          ? { success: true, data: { status: 'ready', error: null, updatedAt: Date.now() } }
-          : { success: false, error: 'Not available in mock mode' };
-        window.postMessage({ id: message.id, type: message.type, ...reply }, '*');
+        window.postMessage({ id: message.id, type: message.type, success: false, error: 'Not available in mock mode' }, '*');
       },
       getState: () => undefined,
       setState: () => undefined,
@@ -108,9 +101,6 @@ const bootstrapConnectionStatus = () => {
 };
 
 bootstrapConnectionStatus();
-
-// Expose panel type globally for App.tsx to conditionally render
-window.__OPENCHAMBER_PANEL_TYPE__ = (window.__VSCODE_CONFIG__?.panelType as PanelType) || 'chat';
 
 const handleConnectionMessage = (event: MessageEvent) => {
   const msg = event.data;

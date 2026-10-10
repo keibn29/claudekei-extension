@@ -5,7 +5,8 @@
 
 import { toast } from "sonner"
 import { claudeClient } from "@/lib/claude/client"
-import type { EffortLevel, PermissionMode, PermissionResponse, Part, Session } from "@/lib/claude/types"
+import type { EffortLevel, PermissionMode, PermissionResponse, Part, RevertResult, Session } from "@/lib/claude/types"
+import { formatMessage, useI18nStore, type I18nKey, type I18nParams } from "@/lib/i18n/store"
 import type { State } from "./types"
 import { Binary } from "./binary"
 import { useSessionUIStore } from "./session-ui-store"
@@ -235,21 +236,9 @@ export async function deleteSession(sessionId: string, options?: Record<string, 
   return result.deletedIds.includes(sessionId)
 }
 
-/** Delete a session specifying which directory it lives in (agent groups). The workspace is fixed, so the directory is ignored. */
-export async function deleteSessionInDirectory(sessionId: string, _directory: string): Promise<boolean> {
-  void _directory
-  return deleteSession(sessionId)
-}
-
-const phase2Toast = (feature: string) => {
-  toast.info(`${feature} is not available yet`, { description: "Planned for a later ClaudeKei release." })
-}
-
-/** Archiving is not supported by Claude sessions (Phase 2). */
-export async function archiveSession(_sessionId: string): Promise<boolean> {
-  void _sessionId
-  phase2Toast("Archiving sessions")
-  return false
+/** Translate outside React (toasts); follows the active locale. */
+export function translate(key: I18nKey, params?: I18nParams): string {
+  return formatMessage(useI18nStore.getState().dictionary, key, params)
 }
 
 export async function updateSessionTitle(sessionId: string, title: string): Promise<void> {
@@ -264,20 +253,6 @@ export async function updateSessionTitle(sessionId: string, title: string): Prom
     store.setState({ session: sessions })
     useGlobalSessionsStore.getState().upsertSession(updated)
   }
-}
-
-/** Sharing is not supported (Phase 2). */
-export async function shareSession(_sessionId: string): Promise<Session | null> {
-  void _sessionId
-  phase2Toast("Sharing sessions")
-  return null
-}
-
-/** Sharing is not supported (Phase 2). */
-export async function unshareSession(_sessionId: string): Promise<Session | null> {
-  void _sessionId
-  phase2Toast("Sharing sessions")
-  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -349,20 +324,45 @@ export async function rejectQuestion(sessionId: string, requestId: string): Prom
 }
 
 // ---------------------------------------------------------------------------
-// Revert (Phase 2)
+// Revert
 // ---------------------------------------------------------------------------
 
-/** Undo/revert is not supported yet (Phase 2). */
-export async function revertToMessage(_sessionId: string, _messageId: string): Promise<void> {
-  void _sessionId
-  void _messageId
-  phase2Toast("Reverting to a message")
+/** Plain text of a user message (non-synthetic text parts); empty for other roles or unknown messages. */
+function userMessageText(sessionId: string, messageId: string): string {
+  const state = dirStore().getState()
+  const sourceMessage = (state.message[sessionId] ?? []).find((message) => message.id === messageId)
+  if (sourceMessage?.role !== "user") return ""
+  // Only non-synthetic text parts are restored into the input.
+  return (state.part[messageId] ?? [])
+    .filter((p) => p.type === "text" && !isSyntheticPart(p))
+    .map((p: Part) => ((p as Record<string, unknown>).text as string) || "")
+    .join("\n")
+    .trim()
 }
 
-/** Undo/redo is not supported yet (Phase 2). */
-export async function unrevertSession(_sessionId: string): Promise<void> {
-  void _sessionId
-  phase2Toast("Restoring reverted messages")
+/**
+ * Revert to before a user message: the host rewinds files (when possible), hides the message and everything
+ * after it, and the message text goes back into the composer when that session is the current one.
+ * The hidden messages arrive through `session.updated` (`revert.messageID`); nothing is patched optimistically.
+ */
+export async function revertToMessage(sessionId: string, messageId: string): Promise<RevertResult> {
+  await waitForConnectionOrThrow()
+  const text = userMessageText(sessionId, messageId)
+  const result = await claudeClient.revert(sessionId, messageId)
+
+  if (useSessionUIStore.getState().currentSessionId === sessionId && text) {
+    useInputStore.setState({ pendingInputText: text, pendingInputMode: "replace" as const })
+  }
+  if (result.filesError) {
+    toast.warning(translate("chat.revert.toast.filesNotRestored"), { description: result.filesError })
+  }
+  return result
+}
+
+/** Restore the files saved by the last revert and show the hidden messages again. */
+export async function unrevertSession(sessionId: string): Promise<void> {
+  await waitForConnectionOrThrow()
+  await claudeClient.unrevert(sessionId)
 }
 
 // ---------------------------------------------------------------------------
@@ -381,20 +381,7 @@ export async function unrevertSession(_sessionId: string): Promise<void> {
  * 3. Switch to the new session and, for user messages, set the pending input text
  */
 export async function forkFromMessage(sessionId: string, messageId: string): Promise<void> {
-  const store = dirStore()
-  const state = store.getState()
-
-  const sourceMessage = (state.message[sessionId] ?? []).find((message) => message.id === messageId)
-  let messageText = ""
-  if (sourceMessage?.role === "user") {
-    // Only non-synthetic text parts are restored into the input.
-    const parts = state.part[messageId] ?? []
-    messageText = parts
-      .filter((p) => p.type === "text" && !isSyntheticPart(p))
-      .map((p: Part) => ((p as Record<string, unknown>).text as string) || "")
-      .join("\n")
-      .trim()
-  }
+  const messageText = userMessageText(sessionId, messageId)
 
   const forkedSession = await claudeClient.fork(sessionId, messageId)
   if (!forkedSession) return

@@ -38,7 +38,7 @@ Keep `bridge.ts` as a thin orchestration layer that delegates message handling t
     - models metadata fetch helper
 
 - `bridge-config-runtime.ts`
-  - UI settings, magic prompts and read-only stubs for hidden config sections (`api:config/*`).
+  - UI settings and magic prompts (`api:config/settings`, `api:magic-prompts/*`). Agents, commands, skills, MCP servers, plugins and usage activity are typed `claude:*` routes in `bridge-claude-runtime.ts` (docs/SETTINGS_USAGE_SPEC.md).
 
 - `bridge-settings-runtime.ts`
   - Settings read/write for bridge consumers.

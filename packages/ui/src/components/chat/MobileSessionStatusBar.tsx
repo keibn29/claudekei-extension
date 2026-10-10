@@ -36,7 +36,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { SessionContextUsage } from '@/stores/types/sessionTypes';
-import { PROJECT_ICON_MAP, PROJECT_COLOR_MAP, getProjectIconImageUrl } from '@/lib/projectMeta';
+import { PROJECT_ICON_MAP, PROJECT_COLOR_MAP } from '@/lib/projectMeta';
 import { useDirectoryStore } from '@/stores/useDirectoryStore';
 import { toast } from '@/components/ui';
 import { isTauriShell, isDesktopLocalOriginActive, requestDirectoryAccess } from '@/lib/desktop';
@@ -54,7 +54,6 @@ import { ProjectEditDialog } from '@/components/layout/ProjectEditDialog';
 import { useDrawerSwipe } from '@/hooks/useDrawerSwipe';
 import { MobileOverlayPanel } from '@/components/ui/MobileOverlayPanel';
 import { resolveDisplayContextUsage } from '@/lib/contextUsage';
-import { useThemeSystem } from '@/contexts/useThemeSystem';
 import { useNotificationStore } from '@/sync/notification-store';
 import { useI18n } from '@/lib/i18n';
 
@@ -212,7 +211,6 @@ function useProjectStatus(
   sessionStatus: Record<string, { type: string }> | undefined,
   currentSessionId: string | null
 ) {
-  const availableWorktreesByProject = useSessionUIStore((state) => state.availableWorktreesByProject);
   const getSessionsByDirectory = useSessionUIStore((state) => state.getSessionsByDirectory);
   const notifUnseenCounts = useNotificationStore((s) => s.index.session.unseenCount);
 
@@ -229,16 +227,6 @@ function useProjectStatus(
     }
 
     const dirs: string[] = [projectRoot];
-    const worktrees = availableWorktreesByProject.get(projectRoot) ?? [];
-    for (const meta of worktrees) {
-      const p = (meta && typeof meta === 'object' && 'path' in meta) ? (meta as { path?: unknown }).path : null;
-      if (typeof p === 'string' && p.trim()) {
-        const normalized = normalize(p);
-        if (normalized && normalized !== projectRoot) {
-          dirs.push(normalized);
-        }
-      }
-    }
 
     const seen = new Set<string>();
     let hasRunning = false;
@@ -271,7 +259,7 @@ function useProjectStatus(
     }
 
     return { hasRunning, hasUnread };
-  }, [getSessionsByDirectory, availableWorktreesByProject, sessionStatus, notifUnseenCounts, currentSessionId]);
+  }, [getSessionsByDirectory, sessionStatus, notifUnseenCounts, currentSessionId]);
 
   return projectStatusMap;
 }
@@ -411,8 +399,6 @@ interface SessionStatusHeaderProps {
   currentSessionTitle: string;
   currentProjectLabel?: string;
   currentProjectIcon?: string | null;
-  currentProjectIconImageUrl?: string | null;
-  currentProjectIconBackground?: string | null;
   currentProjectColor?: string | null;
   onToggle: () => void;
   isExpanded?: boolean;
@@ -423,22 +409,14 @@ function SessionStatusHeader({
   currentSessionTitle,
   currentProjectLabel,
   currentProjectIcon,
-  currentProjectIconImageUrl,
-  currentProjectIconBackground,
   currentProjectColor,
   onToggle,
   isExpanded = false,
   childIndicators = []
 }: SessionStatusHeaderProps) {
-  const [imageFailed, setImageFailed] = React.useState(false);
   const ProjectIcon = currentProjectIcon ? PROJECT_ICON_MAP[currentProjectIcon] : null;
-  const imageUrl = !imageFailed ? currentProjectIconImageUrl : null;
   const projectColorVar = currentProjectColor ? (PROJECT_COLOR_MAP[currentProjectColor] ?? null) : null;
   const extraCount = childIndicators.length > 3 ? childIndicators.length - 3 : 0;
-
-  React.useEffect(() => {
-    setImageFailed(false);
-  }, [currentProjectIconImageUrl]);
 
   return (
     <button
@@ -449,20 +427,7 @@ function SessionStatusHeader({
       {!isExpanded && currentProjectLabel && (
         <div className="flex flex-col items-start">
           <div className="flex items-center gap-1 leading-none">
-            {imageUrl ? (
-              <span
-                className="inline-flex h-2.5 w-2.5 items-center justify-center overflow-hidden rounded-[1px]"
-                style={currentProjectIconBackground ? { backgroundColor: currentProjectIconBackground } : undefined}
-              >
-                <img
-                  src={imageUrl}
-                  alt=""
-                  className="h-full w-full object-contain"
-                  draggable={false}
-                  onError={() => setImageFailed(true)}
-                />
-              </span>
-            ) : ProjectIcon && (
+            {ProjectIcon && (
               <ProjectIcon
                 className="h-2.5 w-2.5"
                 style={projectColorVar ? { color: projectColorVar } : undefined}
@@ -611,7 +576,6 @@ function SortableProjectItem({
   onDelete,
   formatProjectLabel,
 }: SortableProjectItemProps) {
-  const { currentTheme } = useThemeSystem();
   const {
     attributes,
     listeners,
@@ -627,14 +591,7 @@ function SortableProjectItem({
     zIndex: isDragging ? 10 : 1,
   };
 
-  const [imageFailed, setImageFailed] = React.useState(false);
   const ProjectIcon = project.icon ? PROJECT_ICON_MAP[project.icon] : null;
-  const projectIconImageUrl = !imageFailed
-    ? getProjectIconImageUrl(project, {
-      themeVariant: currentTheme.metadata.variant,
-      iconColor: currentTheme.colors.surface.foreground,
-    })
-    : null;
   const projectColorVar = project.color ? (PROJECT_COLOR_MAP[project.color] ?? null) : null;
 
   return (
@@ -658,20 +615,7 @@ function SortableProjectItem({
 
       {/* Project info */}
       <div className="flex-1 flex items-center gap-2 min-w-0">
-        {projectIconImageUrl ? (
-          <span
-            className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-[2px] flex-shrink-0"
-            style={project.iconBackground ? { backgroundColor: project.iconBackground } : undefined}
-          >
-            <img
-              src={projectIconImageUrl}
-              alt=""
-              className="h-full w-full object-contain"
-              draggable={false}
-              onError={() => setImageFailed(true)}
-            />
-          </span>
-        ) : ProjectIcon ? (
+        {ProjectIcon ? (
           <ProjectIcon
             className="h-5 w-5 flex-shrink-0"
             style={projectColorVar ? { color: projectColorVar } : undefined}
@@ -864,19 +808,7 @@ function ProjectButton({
   onOpenEditPanel,
   formatProjectLabel,
 }: ProjectButtonProps) {
-  const { currentTheme } = useThemeSystem();
-  const [imageFailed, setImageFailed] = React.useState(false);
   const ProjectIcon = project.icon ? PROJECT_ICON_MAP[project.icon] : null;
-  const projectIconImageUrl = !imageFailed
-    ? getProjectIconImageUrl(project, {
-      themeVariant: currentTheme.metadata.variant,
-      iconColor: currentTheme.colors.surface.foreground,
-    })
-    : null;
-
-  React.useEffect(() => {
-    setImageFailed(false);
-  }, [project.id, project.iconImage?.updatedAt]);
 
   const longPressHandlers = useLongPress(
     () => {
@@ -911,20 +843,7 @@ function ProjectButton({
       </div>
 
       {/* Icon */}
-      {projectIconImageUrl ? (
-        <span
-          className="inline-flex h-3.5 w-3.5 items-center justify-center overflow-hidden rounded-[2px]"
-          style={project.iconBackground ? { backgroundColor: project.iconBackground } : undefined}
-        >
-          <img
-            src={projectIconImageUrl}
-            alt=""
-            className="h-full w-full object-contain"
-            draggable={false}
-            onError={() => setImageFailed(true)}
-          />
-        </span>
-      ) : ProjectIcon && (
+      {ProjectIcon && (
         <ProjectIcon
           className="h-3.5 w-3.5"
           style={projectColorVar ? { color: projectColorVar } : undefined}
@@ -994,7 +913,7 @@ function ProjectBar({
     setEditingProject(project);
   };
 
-  const handleSaveProjectEdit = (data: { label: string; icon: string | null; color: string | null; iconBackground: string | null }) => {
+  const handleSaveProjectEdit = (data: { label: string; icon: string | null; color: string | null }) => {
     if (editingProject) {
       updateProjectMeta(editingProject.id, data);
     }
@@ -1141,12 +1060,10 @@ function ProjectBar({
           onOpenChange={(open) => {
             if (!open) setEditingProject(null);
           }}
-          projectId={editingProject.id}
           projectName={editingProject.label || formatDirectoryName(editingProject.path, homeDirectory)}
           projectPath={editingProject.path}
           initialIcon={editingProject.icon}
           initialColor={editingProject.color}
-          initialIconBackground={editingProject.iconBackground}
           onSave={handleSaveProjectEdit}
         />
       )}
@@ -1160,8 +1077,6 @@ function CollapsedView({
   currentSessionTitle,
   currentProjectLabel,
   currentProjectIcon,
-  currentProjectIconImageUrl,
-  currentProjectIconBackground,
   currentProjectColor,
   onToggle,
   onNewSession,
@@ -1173,8 +1088,6 @@ function CollapsedView({
   currentSessionTitle: string;
   currentProjectLabel?: string;
   currentProjectIcon?: string | null;
-  currentProjectIconImageUrl?: string | null;
-  currentProjectIconBackground?: string | null;
   currentProjectColor?: string | null;
   onToggle: () => void;
   onNewSession: () => void;
@@ -1200,8 +1113,6 @@ function CollapsedView({
           currentSessionTitle={currentSessionTitle}
           currentProjectLabel={currentProjectLabel}
           currentProjectIcon={currentProjectIcon}
-          currentProjectIconImageUrl={currentProjectIconImageUrl}
-          currentProjectIconBackground={currentProjectIconBackground}
           currentProjectColor={currentProjectColor}
           onToggle={onToggle}
           childIndicators={childIndicators}
@@ -1240,8 +1151,6 @@ function ExpandedView({
   currentSessionTitle,
   currentProjectLabel,
   currentProjectIcon,
-  currentProjectIconImageUrl,
-  currentProjectIconBackground,
   currentProjectColor,
   isExpanded,
   onToggleCollapse,
@@ -1268,8 +1177,6 @@ function ExpandedView({
   currentSessionTitle: string;
   currentProjectLabel?: string;
   currentProjectIcon?: string | null;
-  currentProjectIconImageUrl?: string | null;
-  currentProjectIconBackground?: string | null;
   currentProjectColor?: string | null;
   isExpanded: boolean;
   onToggleCollapse: () => void;
@@ -1294,7 +1201,6 @@ function ExpandedView({
   const [collapsedHeight, setCollapsedHeight] = React.useState<number | null>(null);
   const [hasMeasured, setHasMeasured] = React.useState(false);
   const { handleTouchStart, handleTouchMove, handleTouchEnd } = useDrawerSwipe();
-  const availableWorktreesByProject = useSessionUIStore((state) => state.availableWorktreesByProject);
 
   React.useEffect(() => {
     if (containerRef.current && !hasMeasured && !isExpanded) {
@@ -1311,23 +1217,12 @@ function ExpandedView({
     if (!activeProject) return sessions;
 
     const projectRoot = normalize(activeProject.path);
-    const projectDirs = new Set<string>([projectRoot]);
-    
-    // Add worktrees
-    const worktrees = availableWorktreesByProject.get(projectRoot) ?? [];
-    for (const meta of worktrees) {
-      const p = (meta && typeof meta === 'object' && 'path' in meta) ? (meta as { path?: unknown }).path : null;
-      if (typeof p === 'string' && p.trim()) {
-        const normalized = normalize(p);
-        if (normalized) projectDirs.add(normalized);
-      }
-    }
 
     return sessions.filter(session => {
       const sessionDir = normalize((session as { directory?: string | null }).directory ?? '');
-      return projectDirs.has(sessionDir);
+      return sessionDir === projectRoot;
     });
-  }, [sessions, activeProjectId, projects, availableWorktreesByProject]);
+  }, [sessions, activeProjectId, projects]);
 
   const previewHeight = collapsedHeight ?? undefined;
   const displaySessions = hasMeasured || isExpanded
@@ -1352,8 +1247,6 @@ function ExpandedView({
             currentSessionTitle={currentSessionTitle}
             currentProjectLabel={currentProjectLabel}
             currentProjectIcon={currentProjectIcon}
-            currentProjectIconImageUrl={currentProjectIconImageUrl}
-            currentProjectIconBackground={currentProjectIconBackground}
             currentProjectColor={currentProjectColor}
             onToggle={onToggleCollapse}
             isExpanded={true}
@@ -1432,7 +1325,6 @@ export const MobileSessionStatusBar: React.FC<MobileSessionStatusBarProps> = ({
   onSessionSwitch,
 }) => {
   const { t } = useI18n();
-  const { currentTheme } = useThemeSystem();
   const sessions = useSessions();
   const currentSessionId = useSessionUIStore((state) => state.currentSessionId);
   const sessionStatus = useAllSessionStatuses();
@@ -1474,13 +1366,6 @@ export const MobileSessionStatusBar: React.FC<MobileSessionStatusBarProps> = ({
   const activeProject = getActiveProject();
   const currentProjectLabel = activeProject?.label || formatDirectoryName(activeProject?.path || '', homeDirectory);
   const currentProjectIcon = activeProject?.icon;
-  const currentProjectIconImageUrl = activeProject
-    ? getProjectIconImageUrl(activeProject, {
-      themeVariant: currentTheme.metadata.variant,
-      iconColor: currentTheme.colors.surface.foreground,
-    })
-    : null;
-  const currentProjectIconBackground = activeProject?.iconBackground ?? null;
   const currentProjectColor = activeProject?.color;
 
   // Calculate token usage for current session
@@ -1565,8 +1450,6 @@ export const MobileSessionStatusBar: React.FC<MobileSessionStatusBarProps> = ({
         currentSessionTitle={currentSessionTitle}
         currentProjectLabel={currentProjectLabel}
         currentProjectIcon={currentProjectIcon}
-        currentProjectIconImageUrl={currentProjectIconImageUrl}
-        currentProjectIconBackground={currentProjectIconBackground}
         currentProjectColor={currentProjectColor}
         onToggle={() => setIsMobileSessionStatusBarCollapsed(false)}
         onNewSession={handleCreateSession}
@@ -1585,8 +1468,6 @@ export const MobileSessionStatusBar: React.FC<MobileSessionStatusBarProps> = ({
       currentSessionTitle={currentSessionTitle}
       currentProjectLabel={currentProjectLabel}
       currentProjectIcon={currentProjectIcon}
-      currentProjectIconImageUrl={currentProjectIconImageUrl}
-      currentProjectIconBackground={currentProjectIconBackground}
       currentProjectColor={currentProjectColor}
       isExpanded={isExpanded}
       onToggleCollapse={() => {

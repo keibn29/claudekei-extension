@@ -28,76 +28,12 @@ type PromptPageConfig = {
 };
 
 const PROMPT_PAGE_MAP: Record<string, PromptPageConfig> = {
-  'git.commit.generate': {
-    titleKey: 'settings.magicPrompts.page.group.gitCommitGenerate.title',
-    descriptionKey: 'settings.magicPrompts.page.group.gitCommitGenerate.description',
-    blocks: [
-      { id: 'git.commit.generate.visible', titleKey: 'settings.magicPrompts.page.block.visiblePrompt' },
-      { id: 'git.commit.generate.instructions', titleKey: 'settings.magicPrompts.page.block.instructions' },
-    ],
-  },
-  'git.pr.generate': {
-    titleKey: 'settings.magicPrompts.page.group.gitPrGenerate.title',
-    descriptionKey: 'settings.magicPrompts.page.group.gitPrGenerate.description',
-    blocks: [
-      { id: 'git.pr.generate.visible', titleKey: 'settings.magicPrompts.page.block.visiblePrompt' },
-      { id: 'git.pr.generate.instructions', titleKey: 'settings.magicPrompts.page.block.instructions' },
-    ],
-  },
-  'github.pr.review': {
-    titleKey: 'settings.magicPrompts.page.group.githubPrReview.title',
-    descriptionKey: 'settings.magicPrompts.page.group.githubPrReview.description',
-    blocks: [
-      { id: 'github.pr.review.visible', titleKey: 'settings.magicPrompts.page.block.visiblePrompt' },
-      { id: 'github.pr.review.instructions', titleKey: 'settings.magicPrompts.page.block.instructions' },
-    ],
-  },
-  'github.issue.review': {
-    titleKey: 'settings.magicPrompts.page.group.githubIssueReview.title',
-    descriptionKey: 'settings.magicPrompts.page.group.githubIssueReview.description',
-    blocks: [
-      { id: 'github.issue.review.visible', titleKey: 'settings.magicPrompts.page.block.visiblePrompt' },
-      { id: 'github.issue.review.instructions', titleKey: 'settings.magicPrompts.page.block.instructions' },
-    ],
-  },
-  'github.pr.checks.review': {
-    titleKey: 'settings.magicPrompts.page.group.githubPrFailedChecksReview.title',
-    descriptionKey: 'settings.magicPrompts.page.group.githubPrFailedChecksReview.description',
-    blocks: [
-      { id: 'github.pr.checks.review.visible', titleKey: 'settings.magicPrompts.page.block.visiblePrompt' },
-      { id: 'github.pr.checks.review.instructions', titleKey: 'settings.magicPrompts.page.block.instructions' },
-    ],
-  },
-  'github.pr.comments.review': {
-    titleKey: 'settings.magicPrompts.page.group.githubPrCommentsReview.title',
-    descriptionKey: 'settings.magicPrompts.page.group.githubPrCommentsReview.description',
-    blocks: [
-      { id: 'github.pr.comments.review.visible', titleKey: 'settings.magicPrompts.page.block.visiblePrompt' },
-      { id: 'github.pr.comments.review.instructions', titleKey: 'settings.magicPrompts.page.block.instructions' },
-    ],
-  },
-  'github.pr.comment.single': {
-    titleKey: 'settings.magicPrompts.page.group.githubSinglePrCommentReview.title',
-    descriptionKey: 'settings.magicPrompts.page.group.githubSinglePrCommentReview.description',
-    blocks: [
-      { id: 'github.pr.comment.single.visible', titleKey: 'settings.magicPrompts.page.block.visiblePrompt' },
-      { id: 'github.pr.comment.single.instructions', titleKey: 'settings.magicPrompts.page.block.instructions' },
-    ],
-  },
   'git.conflict.resolve': {
     titleKey: 'settings.magicPrompts.page.group.gitConflictResolve.title',
     descriptionKey: 'settings.magicPrompts.page.group.gitConflictResolve.description',
     blocks: [
       { id: 'git.conflict.resolve.visible', titleKey: 'settings.magicPrompts.page.block.visiblePrompt' },
       { id: 'git.conflict.resolve.instructions', titleKey: 'settings.magicPrompts.page.block.instructions' },
-    ],
-  },
-  'git.integrate.cherrypick.resolve': {
-    titleKey: 'settings.magicPrompts.page.group.gitCherrypickConflictResolve.title',
-    descriptionKey: 'settings.magicPrompts.page.group.gitCherrypickConflictResolve.description',
-    blocks: [
-      { id: 'git.integrate.cherrypick.resolve.visible', titleKey: 'settings.magicPrompts.page.block.visiblePrompt' },
-      { id: 'git.integrate.cherrypick.resolve.instructions', titleKey: 'settings.magicPrompts.page.block.instructions' },
     ],
   },
   'plan.improve': {
@@ -179,7 +115,7 @@ export const MagicPromptsPage: React.FC = () => {
     };
   }, [t]);
 
-  const pageConfig = PROMPT_PAGE_MAP[selectedPromptId] ?? PROMPT_PAGE_MAP['git.commit.generate'];
+  const pageConfig = PROMPT_PAGE_MAP[selectedPromptId] ?? PROMPT_PAGE_MAP['git.conflict.resolve'];
   const getBaseline = React.useCallback((id: MagicPromptId) => {
     return hasOwn(overrides, id) ? overrides[id] : getDefaultMagicPromptTemplate(id);
   }, [overrides]);

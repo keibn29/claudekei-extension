@@ -181,3 +181,48 @@ describe('replay details', () => {
     expect(bucketFor(snap.state, 's').messages).toEqual([]);
   });
 });
+
+describe('dead-branch subagent transcripts (revert leaves them on disk)', () => {
+  const ts = (n: number) => `2026-01-01T00:00:0${n}.000Z`;
+  const agentCall = (uuid: string, n: number, toolUseId: string, parent?: string): HistoryEntry => ({
+    type: 'assistant', uuid, timestamp: ts(n), ...(parent ? { parent_tool_use_id: parent } : {}),
+    message: { id: `msg_${uuid}`, model: 'm', stop_reason: 'tool_use', content: [{ type: 'tool_use', id: toolUseId, name: 'Agent', input: { description: 'd', prompt: 'p', subagent_type: 'helper' } }] },
+  });
+  const transcript = (owner: string, n: number, extra: HistoryEntry[] = []): HistoryEntry[] => [
+    { type: 'user', uuid: `${owner}-u`, parent_tool_use_id: owner, timestamp: ts(n), message: { role: 'user', content: [{ type: 'text', text: 'p' }] } },
+    ...extra,
+    { type: 'assistant', uuid: `${owner}-a`, parent_tool_use_id: owner, timestamp: ts(n + 1), message: { id: `msg_${owner}`, model: 'm', content: [{ type: 'text', text: `reply of ${owner}` }] } },
+  ];
+
+  test('only transcripts owned by a tool_use of the kept chain (or of a kept transcript, nested) are replayed', async () => {
+    const main: HistoryEntry[] = [
+      { type: 'user', uuid: 'u1', timestamp: ts(0), message: { role: 'user', content: 'go' } },
+      agentCall('a1', 1, 'toolu_live'),
+    ];
+    const subagents: Record<string, HistoryEntry[]> = {
+      live: transcript('toolu_live', 2, [agentCall('n1', 3, 'toolu_nested', 'toolu_live')]),
+      nested: transcript('toolu_nested', 4),
+      // the dead branch: its Agent call is not in the kept chain, and it spawned a nested agent of its own
+      dead: transcript('toolu_dead', 2, [agentCall('d1', 3, 'toolu_dead_nested', 'toolu_dead')]),
+      deadNested: transcript('toolu_dead_nested', 4),
+    };
+    const sdk: HistorySdk = {
+      getSessionMessages: async () => main,
+      listSubagents: async () => Object.keys(subagents),
+      getSubagentMessages: async (_id, agent) => subagents[agent]!,
+    };
+    const logs: string[] = [];
+    const snap = await loadHistory({ ...opts('s', '/x'), sdk, now: fakeClock(), log: (l, m) => l === 'debug' && logs.push(m) });
+    const ids = childrenOf(snap.state, 's').map((c) => c.id).sort();
+    expect(ids).toEqual(['sub_toolu_live', 'sub_toolu_nested']);
+    expect(logs.filter((m) => m.includes('discarded branch'))).toHaveLength(2);
+    // without the filter the dead ones would exist: check the reasoning is the owner, not the position
+    const all = await loadHistory({ ...opts('s', '/x'), sdk: { ...sdk, getSessionMessages: async () => [...main, agentCall('a9', 5, 'toolu_dead')] }, now: fakeClock() });
+    expect(childrenOf(all.state, 's').map((c) => c.id)).toContain('sub_toolu_dead');
+  });
+
+  test('a session without Agent calls ignores stray transcripts', () => {
+    const snap = replayEntries([{ type: 'user', uuid: 'u', timestamp: ts(0), message: { role: 'user', content: 'hi' } }], { ...opts('s', '/x'), now: fakeClock() }, [{ agentId: 'x', entries: transcript('toolu_gone', 1) }]);
+    expect(childrenOf(snap.state, 's')).toEqual([]);
+  });
+});

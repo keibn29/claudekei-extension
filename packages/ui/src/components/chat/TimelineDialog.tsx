@@ -12,6 +12,7 @@ import { useSessionMessageRecords } from '@/sync/sync-context';
 import { RiLoader4Line, RiSearchLine, RiTimeLine, RiGitBranchLine, RiArrowGoBackLine } from '@remixicon/react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Part } from '@/lib/claude/types';
+import { isRevertTargetMessage } from '@/lib/claude/revertTarget';
 import { useI18n } from '@/lib/i18n';
 import { RevertConfirmDialog } from './RevertConfirmDialog';
 import {
@@ -163,26 +164,28 @@ export const TimelineDialog: React.FC<TimelineDialogProps> = ({
                                         </span>
 
                                         <div className="hidden group-hover:flex gap-1">
-                                            <Tooltip delayDuration={1000}>
-                                                <TooltipTrigger asChild>
-                                                    <button
-                                                        type="button"
-                                                        className="h-5 w-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            const targetSessionId = message.info.sessionID || currentSessionId;
-                                                            if (!targetSessionId || !message.info.id) return;
-                                                            setRevertTarget({
-                                                                sessionId: targetSessionId,
-                                                                messageId: message.info.id,
-                                                            });
-                                                        }}
-                                                    >
-                                                        <RiArrowGoBackLine className="h-4 w-4" />
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent sideOffset={6}>{t('chat.timeline.actions.revertFromHere')}</TooltipContent>
-                                            </Tooltip>
+                                            {isRevertTargetMessage(message.info, currentSessionId) ? (
+                                                <Tooltip delayDuration={1000}>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            type="button"
+                                                            className="h-5 w-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const targetSessionId = message.info.sessionID || currentSessionId;
+                                                                if (!targetSessionId || !message.info.id) return;
+                                                                setRevertTarget({
+                                                                    sessionId: targetSessionId,
+                                                                    messageId: message.info.id,
+                                                                });
+                                                            }}
+                                                        >
+                                                            <RiArrowGoBackLine className="h-4 w-4" />
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent sideOffset={6}>{t('chat.timeline.actions.revertFromHere')}</TooltipContent>
+                                                </Tooltip>
+                                            ) : null}
 
                                             <Tooltip delayDuration={1000}>
                                                 <TooltipTrigger asChild>

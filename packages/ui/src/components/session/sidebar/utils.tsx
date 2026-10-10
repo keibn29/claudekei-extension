@@ -158,46 +158,6 @@ export const dedupeSessionsById = (sessions: Session[]): Session[] => {
   return Array.from(byId.values());
 };
 
-export const getArchivedScopeKey = (projectRoot: string): string => `__archived__:${projectRoot}`;
-
-export const resolveArchivedFolderName = (session: Session, projectRoot: string | null): string => {
-  const sessionDirectory = normalizePath((session as Session & { directory?: string | null }).directory ?? null);
-  const projectWorktree = normalizePath((session as Session & { project?: { worktree?: string | null } | null }).project?.worktree ?? null);
-  const resolved = sessionDirectory ?? projectWorktree;
-  if (!resolved) {
-    return 'unassigned';
-  }
-  if (projectRoot && resolved === projectRoot) {
-    return 'project root';
-  }
-  const source = projectRoot && resolved.startsWith(`${projectRoot}/`)
-    ? resolved.slice(projectRoot.length + 1)
-    : resolved;
-  const segments = source.split('/').filter(Boolean);
-  return segments[segments.length - 1] ?? 'unassigned';
-};
-
-export const isSessionRelatedToProject = (
-  session: Session,
-  projectRoot: string,
-  validDirectories?: Set<string>,
-): boolean => {
-  const sessionDirectory = normalizePath((session as Session & { directory?: string | null }).directory ?? null);
-  const projectWorktree = normalizePath((session as Session & { project?: { worktree?: string | null } | null }).project?.worktree ?? null);
-
-  if (projectWorktree && (projectWorktree === projectRoot || projectWorktree.startsWith(`${projectRoot}/`))) {
-    return true;
-  }
-
-  if (!sessionDirectory) {
-    return false;
-  }
-  if (validDirectories && validDirectories.has(sessionDirectory)) {
-    return true;
-  }
-  return sessionDirectory === projectRoot || sessionDirectory.startsWith(`${projectRoot}/`);
-};
-
 const parseSummaryCount = (value: number | string | null | undefined): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;

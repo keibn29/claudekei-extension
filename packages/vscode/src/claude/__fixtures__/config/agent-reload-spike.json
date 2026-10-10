@@ -1,0 +1,10 @@
+{
+  "beforeHasSpike": false,
+  "afterHasSpike": true,
+  "afterRemovalHasSpike": false,
+  "agentCounts": [
+    16,
+    17,
+    16
+  ]
+}

@@ -2,16 +2,11 @@ import * as vscode from 'vscode';
 import { getThemeKindName } from './theme';
 import type { ConnectionStatus } from './claude/ClaudeSessionManager';
 
-export type PanelType = 'chat' | 'agentManager';
-
 export interface WebviewHtmlOptions {
   webview: vscode.Webview;
   extensionUri: vscode.Uri;
   workspaceFolder: string;
   initialStatus: ConnectionStatus;
-  panelType?: PanelType;
-  initialSessionId?: string;
-  viewMode?: 'sidebar' | 'editor';
   devServerUrl?: string | null;
 }
 
@@ -44,9 +39,6 @@ export function getWebviewHtml(options: WebviewHtmlOptions): string {
     extensionUri,
     workspaceFolder,
     initialStatus,
-    panelType = 'chat',
-    initialSessionId,
-    viewMode = 'sidebar',
     devServerUrl,
   } = options;
 
@@ -140,10 +132,7 @@ export function getWebviewHtml(options: WebviewHtmlOptions): string {
       workspaceFolder: "${workspaceFolder.replace(/\\/g, '\\\\')}",
       theme: "${themeKind}",
       connectionStatus: "${initialStatus}",
-      panelType: "${panelType}",
-      viewMode: "${viewMode}",
       brandIcon: "${appIconUri}",
-      initialSessionId: ${initialSessionId ? `"${initialSessionId.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : 'null'},
     };
     window.__OPENCHAMBER_HOME__ = "${workspaceFolder.replace(/\\/g, '\\\\')}";
     

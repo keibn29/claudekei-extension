@@ -1,6 +1,4 @@
 import React from 'react';
-import { getRootBranch } from '@/lib/worktrees/worktreeStatus';
-import { mapWithConcurrency } from '@/lib/concurrency';
 import { useGitStore } from '@/stores/useGitStore';
 import { useRuntimeAPIs } from '@/hooks/useRuntimeAPIs';
 
@@ -46,38 +44,17 @@ export const useProjectRepoStatus = (args: Args): void => {
     setProjectRepoStatus(next);
   }, [normalizedProjects, gitRepoStatus, setProjectRepoStatus]);
 
-  const projectGitBranchesKey = React.useMemo(() => {
-    return normalizedProjects
-      .map((project) => {
-        const branch = gitRepoStatus.get(project.normalizedPath)?.branch ?? '';
-        return `${project.id}:${branch}`;
-      })
-      .join('|');
-  }, [normalizedProjects, gitRepoStatus]);
-
+  // The project root branch is the branch the project directory itself has checked out.
   React.useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      const entries = await mapWithConcurrency(normalizedProjects, 2, async (project) => {
-        const branch = await getRootBranch(project.normalizedPath).catch(() => null);
-        return { id: project.id, branch };
+    setProjectRootBranches((prev) => {
+      const next = new Map(prev);
+      normalizedProjects.forEach((project) => {
+        const branch = gitRepoStatus.get(project.normalizedPath)?.branch;
+        if (branch) {
+          next.set(project.id, branch);
+        }
       });
-      if (cancelled) {
-        return;
-      }
-      setProjectRootBranches((prev) => {
-        const next = new Map(prev);
-        entries.forEach(({ id, branch }) => {
-          if (branch) {
-            next.set(id, branch);
-          }
-        });
-        return next;
-      });
-    };
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [normalizedProjects, projectGitBranchesKey, setProjectRootBranches]);
+      return next;
+    });
+  }, [normalizedProjects, gitRepoStatus, setProjectRootBranches]);
 };

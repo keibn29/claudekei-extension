@@ -694,3 +694,75 @@ describe('ClaudeSessionManager', () => {
     expect(d.catalog.primaryAgents).toContain('claudekei:planner');
   });
 });
+
+describe('stopping a turn stops the subagents (docs/STOP_SUBAGENTS_FIX.md)', () => {
+  const child = (h: Harness, id: string) => h.manager['sessions'].get(id)!.state.sessions.get('sub_toolu_stop1');
+  const agentPart = (h: Harness, id: string) => {
+    const main = h.manager['sessions'].get(id)!.state.sessions.get(id)!;
+    return Object.values(main.parts).flat().find((p) => p.type === 'tool' && p.callID === 'toolu_stop1') as any;
+  };
+  const startHung = async () => {
+    const h = createHarness('subagents/stop-hang');
+    await h.manager.bootstrap();
+    const { id } = h.manager.create();
+    await h.manager.send(id, { text: 'go' });
+    await until(() => child(h, id)?.status.type === 'busy');
+    return { h, id, session: h.manager['sessions'].get(id)!, query: h.queries[1]! };
+  };
+
+  test('an aborted turn ends with the subagent child idle and its tool stopped', async () => {
+    const h = createHarness('subagents/stop-aborted');
+    await h.manager.bootstrap();
+    const { id } = h.manager.create();
+    await sendAndSettle(h, id);
+    expect(child(h, id)!.status).toEqual({ type: 'idle' });
+    const tool = agentPart(h, id);
+    expect(tool.state.status).toBe('error');
+    expect(tool.state.error).toBe('Interrupted by user');
+    expect(tool.state.metadata.runStatus).toBe('stopped');
+    expect((await h.manager.load(id)).children.map((c) => c.id)).toEqual(['sub_toolu_stop1']);
+  });
+
+  test('interrupt asks the CLI to cancel queued prompts too', async () => {
+    const { h, id } = await startHung();
+    await h.manager.interrupt(id);
+    expect(h.queries[1]!.interruptOptions).toEqual([{ cancelQueued: true }]);
+  });
+
+  test('interrupting from a subagent view (sub_ id) interrupts the owning session', async () => {
+    const { h, query } = await startHung();
+    await h.manager.interrupt('sub_toolu_stop1');
+    expect(query.interrupts).toBe(1);
+    await h.manager.interrupt('sub_unknown'); // no owner: silent no-op
+    expect(query.interrupts).toBe(1);
+  });
+
+  test('watchdog: tasks that outlive the interrupt are stopped one by one, then the process is closed', async () => {
+    const { h, id, session, query } = await startHung();
+    await h.manager.interrupt(id);
+    expect(query.stopped).toEqual([]);
+    h.timers.advance(3999);
+    expect(query.stopped).toEqual([]);
+    h.timers.advance(1);
+    expect(query.stopped).toEqual(['agentstop1']);
+    expect(query.closed).toBe(false);
+    h.timers.advance(4000);
+    await until(() => query.closed && session.lifecycle !== 'live-busy' && session.lifecycle !== 'closing');
+    // closing the process idles every child and ends the tool
+    expect(child(h, id)!.status).toEqual({ type: 'idle' });
+    expect(agentPart(h, id).state.status).toBe('error');
+    expect(session.status).toEqual({ type: 'idle' });
+  });
+
+  test('watchdog does nothing once the turn is over', async () => {
+    const h = createHarness('subagents/stop-aborted');
+    await h.manager.bootstrap();
+    const { id } = h.manager.create();
+    await sendAndSettle(h, id);
+    const query = h.queries[1]!;
+    await h.manager.interrupt(id);
+    h.timers.advance(20_000);
+    expect(query.stopped).toEqual([]);
+    expect(query.closed).toBe(false);
+  });
+});

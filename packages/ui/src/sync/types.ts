@@ -3,7 +3,6 @@ import type {
   Command,
   Config,
   LspStatus,
-  McpStatus,
   Message,
   Part,
   Path,
@@ -56,7 +55,6 @@ export type State = {
   todo: Record<string, Todo[]>
   permission: Record<string, PermissionRequest[]>
   question: Record<string, QuestionRequest[]>
-  mcp: Record<string, McpStatus>
   lsp: LspStatus[]
   vcs: VcsInfo | undefined
   limit: number
@@ -130,7 +128,6 @@ export const INITIAL_STATE: State = {
   todo: {},
   permission: {},
   question: {},
-  mcp: {},
   lsp: [],
   vcs: undefined,
   limit: 5,

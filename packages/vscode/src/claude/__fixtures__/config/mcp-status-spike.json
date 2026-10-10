@@ -1,0 +1,327 @@
+{
+  "S1": {
+    "ms": 1528,
+    "samples": 7,
+    "timedOut": false,
+    "servers": [
+      {
+        "name": "plugin:claudekei:context7",
+        "status": "connected",
+        "serverInfo": {
+          "name": "Context7",
+          "icons": [
+            {
+              "src": "https://context7.com/context7-icon-green.png",
+              "mimeType": "image/png"
+            }
+          ],
+          "version": "4.3.0",
+          "websiteUrl": "https://context7.com",
+          "description": "Context7 provides up-to-date documentation and code examples for libraries and frameworks."
+        },
+        "config": {
+          "type": "http",
+          "url": "https://mcp.context7.com/mcp"
+        },
+        "scope": "dynamic",
+        "source": "plugin",
+        "tools": [
+          "resolve-library-id",
+          "query-docs"
+        ]
+      },
+      {
+        "name": "plugin:claudekei:grep_app",
+        "status": "connected",
+        "serverInfo": {
+          "name": "mcp-typescript server on vercel",
+          "version": "0.1.0"
+        },
+        "config": {
+          "type": "http",
+          "url": "https://mcp.grep.app"
+        },
+        "scope": "dynamic",
+        "source": "plugin",
+        "tools": [
+          "searchGitHub"
+        ]
+      },
+      {
+        "name": "plugin:claudekei:websearch",
+        "status": "connected",
+        "serverInfo": {
+          "name": "exa-search-server",
+          "title": "Exa",
+          "icons": [
+            {
+              "src": "https://exa.ai/images/favicon-32x32.png",
+              "mimeType": "image/png",
+              "sizes": [
+                "32x32"
+              ]
+            }
+          ],
+          "version": "3.4.2",
+          "websiteUrl": "https://exa.ai",
+          "description": "Exa web search, page fetching and research-agent tools for AI agents over MCP."
+        },
+        "config": {
+          "type": "http",
+          "url": "https://mcp.exa.ai/mcp?tools=web_search_exa"
+        },
+        "scope": "dynamic",
+        "source": "plugin",
+        "tools": [
+          "web_search_exa"
+        ]
+      },
+      {
+        "name": "claude.ai Claude Docs",
+        "status": "connected",
+        "serverInfo": {
+          "name": "Claude Docs",
+          "version": "0.1.0"
+        },
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://api.anthropic.com/v1/pages/mcp",
+          "id": "mcpsrv_014Fj7srWvLMyCuRCS8J9W3d"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": [
+          "create",
+          "read",
+          "update",
+          "delete",
+          "query",
+          "batch",
+          "guide",
+          "export"
+        ]
+      },
+      {
+        "name": "claude.ai Google Slides",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://slidesmcp.googleapis.com/mcp/v1",
+          "id": "mcpsrv_016eiz5puRoZnp8T5WH43zC9"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Google Sheets",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://sheetsmcp.googleapis.com/mcp/v1",
+          "id": "mcpsrv_01VvgiJ6iQd2Dhzr6DnZey2J"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Google Docs",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://docsmcp.googleapis.com/mcp/v1",
+          "id": "mcpsrv_01KCf4ZZrffSseoii32sXU5w"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Google Calendar",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://calendarmcp.googleapis.com/mcp/v1",
+          "id": "mcpsrv_01REqrULvyeuYSsrWsbC7nZ4"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Gmail",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://gmailmcp.googleapis.com/mcp/v1",
+          "id": "mcpsrv_01Nrihc5jXwgx4JmqqP8XTy1"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Google Drive",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://drivemcp.googleapis.com/mcp/v1",
+          "id": "mcpsrv_013Q9xiUvcFSAYMEswb6n2fn"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Slack",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://mcp.slack.com/mcp",
+          "id": "mcpsrv_01UCbkTH8EWTWef31vCxRMcY"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Notion",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://mcp.notion.com/mcp",
+          "id": "mcpsrv_01CSg56aZxHJxwb8627MEx5G"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai monday.com",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://mcp.monday.com/mcp",
+          "id": "mcpsrv_01CS1RgjrF265xuTNuRiXzNT"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Linear",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://mcp.linear.app/mcp",
+          "id": "mcpsrv_01HVa2gJSZZvY8ghGkvwxYcH"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Intercom",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://mcp.intercom.com/mcp",
+          "id": "mcpsrv_01LV7qZ9mLdY6MeCt1vtWkkr"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai HubSpot",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://mcp.hubspot.com/anthropic",
+          "id": "mcpsrv_01W3StzSQEz8UhkAuR2BYuJP"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Figma",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://mcp.figma.com/mcp",
+          "id": "mcpsrv_01VrE5FxkqqhTaf6FZCDtEUX"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Canva",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://mcp.canva.com/mcp",
+          "id": "mcpsrv_01KocR7RFtmUnnDuRFJme8uX"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Box",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://mcp.box.com",
+          "id": "mcpsrv_01RApC1XpcfV1rv4oZjivwTd"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Atlassian",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://mcp.atlassian.com/v2/mcp",
+          "id": "mcpsrv_01JBeR9tzZVj2C1aTNP9FCBg"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      },
+      {
+        "name": "claude.ai Asana",
+        "status": "needs-auth",
+        "config": {
+          "type": "claudeai-proxy",
+          "url": "https://mcp.asana.com/v2/mcp",
+          "id": "mcpsrv_019VEWsVBuCryc7MiMQCyoMh"
+        },
+        "scope": "claudeai",
+        "source": "claudeai",
+        "tools": []
+      }
+    ]
+  },
+  "S2": {
+    "target": "plugin:claudekei:grep_app",
+    "claudeJsonBefore": null,
+    "afterToggleSameProbe": "connected",
+    "claudeJsonAfterDisable": {
+      "disabledMcpServers": [
+        "plugin:claudekei:grep_app"
+      ],
+      "disabledMcpjsonServers": []
+    },
+    "probeB": "disabled",
+    "claudeJsonAfterEnable": {
+      "disabledMcpServers": [],
+      "disabledMcpjsonServers": []
+    },
+    "probeC": "connected"
+  }
+}

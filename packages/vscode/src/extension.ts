@@ -1,19 +1,12 @@
 import * as vscode from 'vscode';
 import { ChatViewProvider } from './ChatViewProvider';
-import { AgentManagerPanelProvider } from './AgentManagerPanelProvider';
-import { SessionEditorPanelProvider } from './SessionEditorPanelProvider';
 import { createClaudeHost, resolveTerminalClaude, type ClaudeHost } from './claude/vscodeHost';
 import { readdirSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 
 let chatViewProvider: ChatViewProvider | undefined;
-let agentManagerProvider: AgentManagerPanelProvider | undefined;
-let sessionEditorProvider: SessionEditorPanelProvider | undefined;
 let claudeHost: ClaudeHost | undefined;
 let outputChannel: vscode.OutputChannel | undefined;
-
-let activeSessionId: string | null = null;
-let activeSessionTitle: string | null = null;
 
 const SETTINGS_KEY = 'claudekei.settings';
 
@@ -140,69 +133,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
   void maybeMoveChatToRightSidebarOnStartup();
 
-  // Create Agent Manager panel provider
-  agentManagerProvider = new AgentManagerPanelProvider(context, context.extensionUri, manager, broadcaster);
-  sessionEditorProvider = new SessionEditorPanelProvider(context, context.extensionUri, manager, broadcaster);
-
   context.subscriptions.push(
     vscode.commands.registerCommand('claudekei.internal.settingsSynced', (settings: unknown) => {
       chatViewProvider?.notifySettingsSynced(settings);
-      sessionEditorProvider?.notifySettingsSynced(settings);
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('claudekei.openAgentManager', () => {
-      agentManagerProvider?.createOrShow();
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('claudekei.setActiveSession', (sessionId: unknown, title?: unknown) => {
-      if (typeof sessionId === 'string' && sessionId.trim().length > 0) {
-        activeSessionId = sessionId.trim();
-        activeSessionTitle = typeof title === 'string' && title.trim().length > 0 ? title.trim() : null;
-        return;
-      }
-
-      activeSessionId = null;
-      activeSessionTitle = null;
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('claudekei.openActiveSessionInEditor', () => {
-      if (!activeSessionId) {
-        vscode.window.showInformationMessage('ClaudeKei: No active session');
-        return;
-      }
-      sessionEditorProvider?.createOrShow(activeSessionId, activeSessionTitle ?? undefined);
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('claudekei.openSessionInEditor', (sessionId: string, title?: string) => {
-      if (typeof sessionId !== 'string' || sessionId.trim().length === 0) {
-        return;
-      }
-      sessionEditorProvider?.createOrShow(sessionId.trim(), title);
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('claudekei.openNewSessionInEditor', () => {
-      sessionEditorProvider?.createOrShowNewSession();
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('claudekei.openCurrentOrNewSessionInEditor', () => {
-      if (activeSessionId) {
-        sessionEditorProvider?.createOrShow(activeSessionId, activeSessionTitle ?? undefined);
-      } else {
-        sessionEditorProvider?.createOrShowNewSession();
-      }
-    })
+    // Kept for the webview's "remember the active session" call; the host no longer tracks it.
+    vscode.commands.registerCommand('claudekei.setActiveSession', () => undefined)
   );
 
   context.subscriptions.push(
@@ -488,8 +427,6 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.onDidChangeActiveColorTheme((theme) => {
       chatViewProvider?.updateTheme(theme.kind);
-      agentManagerProvider?.updateTheme(theme.kind);
-      sessionEditorProvider?.updateTheme(theme.kind);
     })
   );
 
@@ -504,8 +441,6 @@ export async function activate(context: vscode.ExtensionContext) {
         event.affectsConfiguration('workbench.preferredDarkColorTheme')
       ) {
         chatViewProvider?.updateTheme(vscode.window.activeColorTheme.kind);
-        agentManagerProvider?.updateTheme(vscode.window.activeColorTheme.kind);
-        sessionEditorProvider?.updateTheme(vscode.window.activeColorTheme.kind);
       }
     })
   );
@@ -514,8 +449,6 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     manager.onStatusChange((status, error) => {
       chatViewProvider?.updateConnectionStatus(status, error);
-      agentManagerProvider?.updateConnectionStatus(status, error);
-      sessionEditorProvider?.updateConnectionStatus(status, error);
     })
   );
 
@@ -531,8 +464,6 @@ export async function deactivate() {
   await claudeHost?.manager.dispose();
   claudeHost = undefined;
   chatViewProvider = undefined;
-  agentManagerProvider = undefined;
-  sessionEditorProvider = undefined;
   outputChannel?.dispose();
   outputChannel = undefined;
 }

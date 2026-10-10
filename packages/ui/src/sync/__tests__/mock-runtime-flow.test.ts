@@ -4,6 +4,9 @@ import type { ClaudeEvent, ClaudeEventsPush } from '@/lib/claude/protocol'
 import { createClaudeEventSource } from '../claude-event-source'
 import { applyDirectoryEvent } from '../event-reducer'
 import { INITIAL_STATE, type State } from '../types'
+import { buildSessionMessageRecordsSnapshot } from '../sync-context'
+import { computeSlashRedoAction, computeSlashUndoTarget } from '../session-ui-store'
+import { isRevertTargetMessage } from '@/lib/claude/revertTarget'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -316,4 +319,79 @@ describe('mock Claude runtime -> event source -> reducer', () => {
     await waitFor(() => pushes.some((push) => push.events.some((event) => event.type === 'usage.updated')))
     await runtime.request('claude:session.interrupt', { sessionId: session.id })
   })
+
+  it('revert hides messages via the visible-messages snapshot; /undo twice then /redo step the marker; a send commits', async () => {
+    const runtime = createMockClaudeRuntime()
+    const state: State = structuredClone(INITIAL_STATE)
+    const source = createClaudeEventSource({
+      subscribe: (listener) => runtime.subscribe(listener as (push: ClaudeEventsPush) => void),
+      onEvents: (events) => events.forEach((event) => applyDirectoryEvent(state, event)),
+      onGap: () => undefined,
+    })
+    source.setBaseline((await runtime.request('claude:bootstrap', {})).eventSeq)
+    const session = await runtime.request('claude:session.create', {})
+    const sessionId = session.id
+
+    const idle = () => state.session_status[sessionId]?.type === 'idle'
+    for (const text of ['one [mock:bash]', 'two [mock:bash]', 'three [mock:bash]']) {
+      const before = state.message[sessionId]?.length ?? 0
+      await runtime.request('claude:session.send', { sessionId, text })
+      await waitFor(() => idle() && (state.message[sessionId]?.length ?? 0) === before + 2)
+    }
+
+    const allUsers = () => (state.message[sessionId] ?? []).filter((m) => isRevertTargetMessage(m))
+    const marker = () => state.session.find((s) => s.id === sessionId)?.revert?.messageID
+    const visibleUserIds = () => buildSessionMessageRecordsSnapshot(state, sessionId).list.filter((r) => r.info.role === 'user').map((r) => r.info.id)
+    const users = allUsers().map((m) => m.id)
+    expect(users).toHaveLength(3)
+    expect(visibleUserIds()).toEqual(users)
+
+    // /undo -> hides the last message; /undo again -> hides the previous one (same steps as handleSlashUndo).
+    const undo = async () => {
+      const target = computeSlashUndoTarget(allUsers(), marker())
+      if (!target) return undefined
+      await runtime.request('claude:session.revert', { sessionId, messageId: target.id })
+      await waitFor(() => marker() === target.id)
+      return target.id
+    }
+    // First undo has no marker yet: the target is the last user message.
+    expect(await undo()).toBe(users[2])
+    expect(visibleUserIds()).toEqual([users[0], users[1]])
+    expect(await undo()).toBe(users[1])
+    expect(visibleUserIds()).toEqual([users[0]])
+
+    // /redo steps the marker forward, then fully unreverts.
+    const redo = async () => {
+      const action = computeSlashRedoAction(allUsers(), marker())
+      if (action?.type === 'revert') {
+        await runtime.request('claude:session.revert', { sessionId, messageId: action.target.id })
+        await waitFor(() => marker() === action.target.id)
+      } else if (action?.type === 'unrevert') {
+        await runtime.request('claude:session.unrevert', { sessionId })
+        await waitFor(() => marker() === undefined)
+      }
+      return action?.type
+    }
+    expect(await redo()).toBe('revert')
+    expect(marker()).toBe(users[2])
+    expect(visibleUserIds()).toEqual([users[0], users[1]])
+    expect(await redo()).toBe('unrevert')
+    expect(marker()).toBeUndefined()
+    expect(visibleUserIds()).toEqual(users)
+
+    // Revert from the middle message, then send: hidden messages are removed and the marker cleared.
+    await runtime.request('claude:session.revert', { sessionId, messageId: users[1] })
+    await waitFor(() => marker() === users[1])
+    expect(visibleUserIds()).toEqual([users[0]])
+    const before = state.message[sessionId]?.length ?? 0
+    await runtime.request('claude:session.send', { sessionId, text: 'four [mock:bash]' })
+    await waitFor(() => idle() && marker() === undefined && (state.message[sessionId]?.length ?? 0) === 4)
+    expect(before).toBe(6)
+    const after = allUsers().map((m) => m.id)
+    expect(after).toHaveLength(2)
+    expect(after[0]).toBe(users[0])
+    expect(after).not.toContain(users[1])
+    expect(visibleUserIds()).toEqual(after)
+    source.cleanup()
+  }, 40000)
 })

@@ -15,7 +15,7 @@ import { useThemeSystem } from '@/contexts/useThemeSystem';
 import { generateSyntaxTheme } from '@/lib/theme/syntaxThemeGenerator';
 import { cn } from '@/lib/utils';
 import { RevertConfirmDialog } from './RevertConfirmDialog';
-import { isFeatureEnabled } from '@/lib/claude/features';
+import { isRevertTargetMessage } from '@/lib/claude/revertTarget';
 import { labelForMessageModel, effortLabel } from '@/lib/claude/modelNames';
 import { EFFORT_LEVELS, type EffortLevel } from '@/lib/claude/types';
 import { useCatalog } from './hooks/useComposerModel';
@@ -760,6 +760,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     const handleRevert = React.useCallback(() => {
         handleRevertClick();
     }, [handleRevertClick]);
+    const canRevert = !isInstructionMessage && isRevertTargetMessage(message.info, sessionId);
 
     // NEW: Fork handler
     const handleFork = React.useCallback(() => {
@@ -1048,7 +1049,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                                                 showReasoningTraces={showReasoningTraces}
                                                 onAuxiliaryContentComplete={handleAuxiliaryContentComplete}
                                                 agentMention={agentMention}
-                                                onRevert={isFeatureEnabled('revert') ? handleRevert : undefined}
+                                                onRevert={canRevert ? handleRevert : undefined}
                                                 onFork={isUser ? handleFork : undefined}
                                                 errorMessage={assistantErrorText}
                                                 userActionsMode={useExternalUserActionsRow ? 'external-content' : 'inline'}
@@ -1080,7 +1081,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                                                 showReasoningTraces={showReasoningTraces}
                                                 onAuxiliaryContentComplete={handleAuxiliaryContentComplete}
                                                 agentMention={agentMention}
-                                                onRevert={isFeatureEnabled('revert') ? handleRevert : undefined}
+                                                onRevert={canRevert ? handleRevert : undefined}
                                                 onFork={isUser ? handleFork : undefined}
                                                 errorMessage={assistantErrorText}
                                                 userActionsMode="external-actions"

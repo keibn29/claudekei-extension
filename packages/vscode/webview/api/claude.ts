@@ -11,6 +11,14 @@ const LONG_REQUEST_TYPES: ReadonlySet<ClaudeRequestType> = new Set([
   'claude:bootstrap',
   'claude:catalog.refresh',
   'claude:session.load',
+  // Probe / CLI / git backed requests.
+  'claude:config.reload',
+  'claude:mcp.status',
+  'claude:mcp.toggle',
+  'claude:mcp.save',
+  'claude:skills.catalog',
+  'claude:skills.install',
+  'claude:usage.activity',
 ]);
 const LONG_REQUEST_TIMEOUT_MS = 120_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;

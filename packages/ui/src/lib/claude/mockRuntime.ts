@@ -25,6 +25,7 @@ import type {
   SessionSnapshot,
 } from './protocol';
 import { CLAUDE_EVENTS_PUSH_TYPE } from './protocol';
+import { createMockConfigHandlers } from './mockConfig';
 import {
   ANTHROPIC_PROVIDER_ID,
   type AssistantMessage,
@@ -938,6 +939,36 @@ export function createMockClaudeRuntime(): ClaudeRuntimeAPI {
     emit([{ type: 'message.updated', properties: { sessionID, info: completed } }]);
   };
 
+  /** Files edited / written by the tool parts of messages from `messageId` on (the mock's "rewind" list). */
+  const revertedFiles = (entry: MockSession, messageId: string): string[] => {
+    const files = new Set<string>();
+    for (const message of entry.messages) {
+      if (message.id < messageId) continue;
+      for (const part of entry.parts[message.id] ?? []) {
+        if (part.type !== 'tool' || (part.tool !== 'edit' && part.tool !== 'write')) continue;
+        const input = part.state.input as Record<string, unknown>;
+        const path = input.filePath ?? input.path;
+        if (typeof path === 'string') files.add(path.startsWith(`${MOCK_CWD}/`) ? path.slice(MOCK_CWD.length + 1) : path);
+      }
+    }
+    return [...files];
+  };
+
+  /** The next send makes a revert permanent: hidden messages (and their parts) are removed first, in the same batch. */
+  const commitMockRevert = (entry: MockSession): ClaudeEvent[] => {
+    const from = entry.session.revert?.messageID;
+    if (!from) return [];
+    const events: ClaudeEvent[] = [];
+    for (const message of entry.messages.filter((m) => m.id >= from)) {
+      delete entry.parts[message.id];
+      events.push({ type: 'message.removed', properties: { sessionID: entry.session.id, messageID: message.id } });
+    }
+    entry.messages = entry.messages.filter((m) => m.id < from);
+    entry.session = { ...entry.session, revert: undefined };
+    events.push({ type: 'session.updated', properties: { sessionID: entry.session.id, info: entry.session } });
+    return events;
+  };
+
   const send = async (payload: ClaudeRequestMap['claude:session.send']['payload']): Promise<{ messageId: string }> => {
     const entry = requireSession(payload.sessionId);
     if (payload.model) entry.model = payload.model;
@@ -951,12 +982,14 @@ export function createMockClaudeRuntime(): ClaudeRuntimeAPI {
     });
 
     const text = payload.command ? `/${payload.command.name} ${payload.command.args}`.trim() : payload.text;
+    const committed = commitMockRevert(entry);
     const userId = nextId('message');
     const user: UserMessage = {
       id: userId,
       sessionID: entry.session.id,
       role: 'user',
       time: { created: Date.now() },
+      claudeUuid: globalThis.crypto.randomUUID(),
       agent: entry.agent,
       // Proposed host contract: the effort the turn runs with travels as `model.variant` (the header shows it).
       model: { providerID: ANTHROPIC_PROVIDER_ID, modelID: entry.model, ...(entry.effort ? { variant: entry.effort } : {}) },
@@ -968,6 +1001,7 @@ export function createMockClaudeRuntime(): ClaudeRuntimeAPI {
       entry.session = { ...entry.session, title: text.slice(0, 48) || 'New session' };
     }
     emit([
+      ...committed,
       { type: 'message.updated', properties: { sessionID: entry.session.id, info: user } },
       { type: 'message.part.updated', properties: { part: textPart } },
     ]);
@@ -1039,6 +1073,24 @@ export function createMockClaudeRuntime(): ClaudeRuntimeAPI {
       emit([{ type: 'session.created', properties: { sessionID: forked.session.id, info: forked.session } }]);
       return forked.session;
     },
+    'claude:session.revertPreview': (payload) => {
+      const files = revertedFiles(requireSession(payload.sessionId), payload.messageId);
+      return { files, insertions: files.length * 3, deletions: files.length };
+    },
+    'claude:session.revert': (payload) => {
+      const entry = requireSession(payload.sessionId);
+      const files = revertedFiles(entry, payload.messageId);
+      entry.abort?.abort();
+      entry.session = { ...entry.session, revert: { messageID: payload.messageId } };
+      emit([{ type: 'session.updated', properties: { sessionID: payload.sessionId, info: entry.session } }]);
+      return { files };
+    },
+    'claude:session.unrevert': (payload) => {
+      const entry = requireSession(payload.sessionId);
+      if (!entry.session.revert) return;
+      entry.session = { ...entry.session, revert: undefined };
+      emit([{ type: 'session.updated', properties: { sessionID: payload.sessionId, info: entry.session } }]);
+    },
     'claude:session.delete': (payload) => {
       const entry = sessions.get(payload.sessionId);
       entry?.abort?.abort();
@@ -1097,6 +1149,7 @@ export function createMockClaudeRuntime(): ClaudeRuntimeAPI {
       console.info('[mock-claude] terminal.run', payload.command);
     },
     'claude:catalog.refresh': () => MOCK_CATALOG,
+    ...createMockConfigHandlers({ cwd: MOCK_CWD, getCatalog: () => MOCK_CATALOG }),
   };
 
   return {

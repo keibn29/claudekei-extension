@@ -31,7 +31,6 @@ import {
 import { useGitIdentitiesStore, type GitIdentityProfile, type DiscoveredGitCredential } from '@/stores/useGitIdentitiesStore';
 import { useShallow } from 'zustand/react/shallow';
 import { GitSettings } from '@/components/sections/openchamber/GitSettings';
-import { GitHubSettings } from '@/components/sections/openchamber/GitHubSettings';
 import { GitIdentityEditorDialog } from './GitIdentityEditorDialog';
 import { ScrollableOverlay } from '@/components/ui/ScrollableOverlay';
 import { cn } from '@/lib/utils';
@@ -128,10 +127,8 @@ export const GitPage: React.FC = () => {
     <>
       <ScrollableOverlay outerClassName="h-full" className="w-full bg-background">
         <div className="mx-auto w-full max-w-3xl space-y-6 p-3 sm:p-6 sm:pt-8">
-          <GitHubSettings />
-
           {/* Identities Section */}
-          <div className="border-t border-border/40 pt-6">
+          <div>
             <div className="mb-3 px-1 flex items-start justify-between gap-4">
               <div className="flex items-center gap-2">
                 <h3 className="typography-ui-header font-semibold text-foreground">{t('settings.gitIdentities.page.section.title')}</h3>

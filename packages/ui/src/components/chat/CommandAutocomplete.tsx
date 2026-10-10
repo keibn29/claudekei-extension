@@ -4,9 +4,10 @@ import { cn, fuzzyMatch } from '@/lib/utils';
 import { useSessionUIStore } from '@/sync/session-ui-store';
 import { useSessionMessages } from '@/sync/sync-context';
 import { useCommandsStore } from '@/stores/useCommandsStore';
-import { useSkillsStore } from '@/stores/useSkillsStore';
+import { useClaudeConfigStore, useSkillSuggestions } from '@/stores/useClaudeConfigStore';
 import { ScrollableOverlay } from '@/components/ui/ScrollableOverlay';
 import { useI18n } from '@/lib/i18n';
+import { COMPOSER_POPUP_ID, composerPopupOptionId } from './autocompletePopupIds';
 
 type CommandSource = 'openchamber' | 'opencode';
 
@@ -23,8 +24,26 @@ export interface CommandInfo {
   scope?: string;
 }
 
+/**
+ * Client-side commands only; Claude's own commands (compact, review, plugin skills...) come from the catalog.
+ * `/undo` and `/redo` need a session that already has messages.
+ */
+function getBuiltInCommands(hasMessages: boolean): CommandInfo[] {
+  const commands: CommandInfo[] = [
+    { id: 'claudekei:clear', name: 'clear', source: 'openchamber' as const, description: 'Start a new session', isBuiltIn: true },
+  ];
+  if (hasMessages) {
+    commands.push(
+      { id: 'claudekei:undo', name: 'undo', source: 'openchamber' as const, description: 'Revert the last message and its file changes', isBuiltIn: true },
+      { id: 'claudekei:redo', name: 'redo', source: 'openchamber' as const, description: 'Restore what /undo reverted', isBuiltIn: true },
+    );
+  }
+  return commands;
+}
+
 export interface CommandAutocompleteHandle {
-  handleKeyDown: (key: string) => void;
+  /** Returns true when the key was consumed; false lets the editor handle it (e.g. Enter sends when nothing matches). */
+  handleKeyDown: (key: string) => boolean;
 }
 
 type AutocompleteTab = 'commands' | 'agents' | 'files';
@@ -58,11 +77,12 @@ export const CommandAutocomplete = React.forwardRef<CommandAutocompleteHandle, C
   const [loading, setLoading] = React.useState(false);
   const commandsWithMetadata = useCommandsStore((s) => s.commands);
   const refreshCommands = useCommandsStore((s) => s.loadCommands);
-  const skills = useSkillsStore((s) => s.skills);
-  const refreshSkills = useSkillsStore((s) => s.loadSkills);
+  const skills = useSkillSuggestions();
+  const refreshSkills = useClaudeConfigStore((s) => s.load);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const itemRefs = React.useRef<(HTMLDivElement | null)[]>([]);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const navigatedRef = React.useRef(false);
   const ignoreClickRef = React.useRef(false);
   const pointerStartRef = React.useRef<{ x: number; y: number } | null>(null);
   const pointerMovedRef = React.useRef(false);
@@ -109,10 +129,7 @@ export const CommandAutocomplete = React.forwardRef<CommandAutocompleteHandle, C
           scope: cmd.scope,
         }));
 
-        const builtInCommands: CommandInfo[] = [
-          // Client-side commands only; Claude's own commands (compact, review, plugin skills...) come from the catalog.
-          { id: 'claudekei:clear', name: 'clear', source: 'openchamber' as const, description: 'Start a new session', isBuiltIn: true },
-        ];
+        const builtInCommands = getBuiltInCommands(hasMessagesInCurrentSession);
         const allCommands = [...builtInCommands, ...customCommands];
 
         const allowInitCommand = !hasMessagesInCurrentSession;
@@ -135,10 +152,7 @@ export const CommandAutocomplete = React.forwardRef<CommandAutocompleteHandle, C
       } catch {
 
         const allowInitCommand = !hasMessagesInCurrentSession;
-        const builtInCommands: CommandInfo[] = [
-          // Client-side commands only; Claude's own commands (compact, review, plugin skills...) come from the catalog.
-          { id: 'claudekei:clear', name: 'clear', source: 'openchamber' as const, description: 'Start a new session', isBuiltIn: true },
-        ];
+        const builtInCommands = getBuiltInCommands(hasMessagesInCurrentSession);
 
         const filtered = (searchQuery
           ? builtInCommands.filter(cmd =>
@@ -158,6 +172,7 @@ export const CommandAutocomplete = React.forwardRef<CommandAutocompleteHandle, C
 
   React.useEffect(() => {
     setSelectedIndex(0);
+    navigatedRef.current = false;
   }, [commands]);
 
   React.useEffect(() => {
@@ -172,32 +187,41 @@ export const CommandAutocomplete = React.forwardRef<CommandAutocompleteHandle, C
       const total = commands.length;
       if (key === 'Escape') {
         onClose();
-        return;
+        return true;
       }
 
       if (total === 0) {
-        return;
+        return false;
       }
 
       if (key === 'ArrowDown') {
+        navigatedRef.current = true;
         setSelectedIndex((prev) => (prev + 1) % total);
-        return;
+        return true;
       }
 
       if (key === 'ArrowUp') {
+        navigatedRef.current = true;
         setSelectedIndex((prev) => (prev - 1 + total) % total);
-        return;
+        return true;
       }
 
       if (key === 'Enter' || key === 'Tab') {
         const safeIndex = ((selectedIndex % total) + total) % total;
         const command = commands[safeIndex];
-        if (command) {
-          onCommandSelect(command);
+        if (!command) {
+          return false;
         }
+        // A fuzzy match (e.g. "/tmp/x" -> "tmp-skill") is only taken by Enter after navigating the list.
+        if (key === 'Enter' && !navigatedRef.current && !command.name.toLowerCase().startsWith(searchQuery.trim().toLowerCase())) {
+          return false;
+        }
+        onCommandSelect(command);
+        return true;
       }
+      return false;
     }
-  }), [commands, selectedIndex, onClose, onCommandSelect]);
+  }), [commands, selectedIndex, onClose, onCommandSelect, searchQuery]);
 
   const getCommandIcon = (command: CommandInfo) => {
 
@@ -227,6 +251,8 @@ export const CommandAutocomplete = React.forwardRef<CommandAutocompleteHandle, C
   return (
     <div
       ref={containerRef}
+      id={COMPOSER_POPUP_ID}
+      role="listbox"
       className="absolute z-[100] min-w-0 w-full max-w-[450px] max-h-64 bg-background border-2 border-border/60 rounded-xl shadow-none bottom-full mb-2 left-0 flex flex-col"
       style={style}
     >
@@ -286,6 +312,9 @@ export const CommandAutocomplete = React.forwardRef<CommandAutocompleteHandle, C
                 <div
                   key={command.id}
                   ref={(el) => { itemRefs.current[index] = el; }}
+                  id={composerPopupOptionId(index)}
+                  role="option"
+                  aria-selected={index === selectedIndex}
                   className={cn(
                     "flex items-start gap-2 px-3 py-2 cursor-pointer rounded-lg",
                     index === selectedIndex && "bg-interactive-selection"

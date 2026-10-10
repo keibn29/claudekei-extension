@@ -13,7 +13,27 @@ import type {
   ClaudeRequestType,
   SessionSnapshot,
 } from './protocol';
-import type { Catalog, ContextUsage, EffortLevel, PermissionMode, PermissionResponse, QuestionAnswer, Session, UsageLimits } from './types';
+import type {
+  Catalog,
+  ConfigItem,
+  ConfigItemDetail,
+  ConfigScope,
+  ConfigSnapshot,
+  ContextUsage,
+  EffortLevel,
+  McpServerScope,
+  McpStatusSnapshot,
+  McpTransportConfig,
+  PermissionMode,
+  PermissionResponse,
+  QuestionAnswer,
+  RevertPreview,
+  RevertResult,
+  Session,
+  SkillCatalogItem,
+  UsageActivity,
+  UsageLimits,
+} from './types';
 
 const resolveRuntime = (): ClaudeRuntimeAPI => {
   const apis =
@@ -34,6 +54,7 @@ const request = <T extends ClaudeRequestType>(
 ): Promise<ClaudeRequestResponse<T>> => resolveRuntime().request(type, payload);
 
 type SendPayload = ClaudeRequestPayload<'claude:session.send'>;
+type ConfigSavePayload = ClaudeRequestPayload<'claude:config.save'>;
 
 export const claudeClient = {
   bootstrap: (): Promise<BootstrapResponse> => request('claude:bootstrap', {}),
@@ -50,6 +71,14 @@ export const claudeClient = {
 
   fork: (sessionId: string, atMessageId?: string): Promise<Session> =>
     request('claude:session.fork', { sessionId, atMessageId }),
+
+  revertPreview: (sessionId: string, messageId: string): Promise<RevertPreview> =>
+    request('claude:session.revertPreview', { sessionId, messageId }),
+
+  revert: (sessionId: string, messageId: string): Promise<RevertResult> =>
+    request('claude:session.revert', { sessionId, messageId }),
+
+  unrevert: (sessionId: string): Promise<void> => request('claude:session.unrevert', { sessionId }),
 
   deleteSession: (sessionId: string): Promise<void> => request('claude:session.delete', { sessionId }),
 
@@ -89,6 +118,41 @@ export const claudeClient = {
   refreshUsage: (): Promise<UsageLimits> => request('claude:usage.refresh', {}),
 
   refreshCatalog: (): Promise<Catalog> => request('claude:catalog.refresh', {}),
+
+  // Settings: config files (agents / commands / skills), plugins, MCP, skills catalog, usage activity.
+  listConfig: (): Promise<ConfigSnapshot> => request('claude:config.list', {}),
+
+  readConfig: (path: string): Promise<ConfigItemDetail> => request('claude:config.read', { path }),
+
+  saveConfig: (payload: ConfigSavePayload): Promise<ConfigItem> => request('claude:config.save', payload),
+
+  deleteConfig: (path: string): Promise<void> => request('claude:config.delete', { path }),
+
+  reloadConfig: (): Promise<Catalog> => request('claude:config.reload', {}),
+
+  setPluginEnabled: (id: string, enabled: boolean): Promise<void> => request('claude:plugin.setEnabled', { id, enabled }),
+
+  mcpStatus: (refresh?: boolean): Promise<McpStatusSnapshot> => request('claude:mcp.status', { refresh }),
+
+  saveMcp: (name: string, scope: McpServerScope, config: McpTransportConfig, create: boolean): Promise<void> =>
+    request('claude:mcp.save', { name, scope, config, create }),
+
+  removeMcp: (name: string, scope: McpServerScope): Promise<void> => request('claude:mcp.remove', { name, scope }),
+
+  toggleMcp: (name: string, enabled: boolean): Promise<void> => request('claude:mcp.toggle', { name, enabled }),
+
+  skillsCatalog: (source?: string, refresh?: boolean): Promise<{ source: string; items: SkillCatalogItem[] }> =>
+    request('claude:skills.catalog', { source, refresh }),
+
+  installSkills: (
+    source: string,
+    dirs: string[],
+    scope: ConfigScope,
+    overwrite: boolean,
+  ): Promise<{ installed: string[]; skipped: Array<{ name: string; reason: string }> }> =>
+    request('claude:skills.install', { source, dirs, scope, overwrite }),
+
+  usageActivity: (): Promise<UsageActivity | null> => request('claude:usage.activity', {}),
 
   subscribe: (listener: (push: ClaudeEventsPush) => void): (() => void) => resolveRuntime().subscribe(listener),
 };

@@ -353,10 +353,6 @@ export const debugUtils = {
         directorySamples: Array.from(sessionDirectories).slice(0, 5),
         directoryCounts: sessionDirectoryCounts,
       },
-      worktrees: {
-        available: sessionState.availableWorktrees.length,
-        metadataEntries: sessionState.worktreeMetadata.size,
-      },
       git: gitCheck,
       localStorage: localStorageSnapshot,
       opencode: {

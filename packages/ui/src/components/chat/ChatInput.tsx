@@ -4,16 +4,11 @@ import {
     RiAddCircleLine,
     RiAiAgentLine,
     RiAttachment2,
-    RiCloseLine,
     RiCommandLine,
-    RiExternalLinkLine,
     RiFolderLine,
     RiFullscreenLine,
-    RiGitPullRequestLine,
-    RiGithubLine,
     RiSendPlane2Line,
 } from '@remixicon/react';
-import { BrowserVoiceButton } from '@/components/voice';
 // sessionStore removed — currentSessionId comes from useSessionUIStore
 import { useConfigStore } from '@/stores/useConfigStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -31,6 +26,7 @@ import { QueuedMessageChips } from './QueuedMessageChips';
 import { FileMentionAutocomplete, type FileMentionHandle } from './FileMentionAutocomplete';
 import { CommandAutocomplete, type CommandAutocompleteHandle, type CommandInfo } from './CommandAutocomplete';
 import { SkillAutocomplete, type SkillAutocompleteHandle } from './SkillAutocomplete';
+import { COMPOSER_POPUP_ID } from './autocompletePopupIds';
 import { cn, formatDirectoryName, isMacOS } from '@/lib/utils';
 import { ModelControls } from './ModelControls';
 import { UnifiedControlsDrawer } from './UnifiedControlsDrawer';
@@ -54,24 +50,19 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useThemeSystem } from '@/contexts/useThemeSystem';
-import { GitHubIssuePickerDialog } from '@/components/session/GitHubIssuePickerDialog';
-import { GitHubPrPickerDialog } from '@/components/session/GitHubPrPickerDialog';
 import { useChatSearchDirectory } from '@/hooks/useChatSearchDirectory';
 import { claudeHost } from '@/lib/claude/host';
 import { useProjectsStore } from '@/stores/useProjectsStore';
-import { PROJECT_COLOR_MAP, PROJECT_ICON_MAP, getProjectIconImageUrl } from '@/lib/projectMeta';
+import { PROJECT_COLOR_MAP, PROJECT_ICON_MAP } from '@/lib/projectMeta';
 import { useGitBranches, useGitStore, useIsGitRepo } from '@/stores/useGitStore';
 import { useDirectoryStore } from '@/stores/useDirectoryStore';
 import { useRuntimeAPIs } from '@/hooks/useRuntimeAPIs';
-import { createWorktreeDraft } from '@/lib/worktreeSessionCreator';
-import { buildSessionTargetOptions } from '@/sync/session-worktree-contract';
 import { extractGitChangedFiles } from './changedFiles';
 import { useI18n } from '@/lib/i18n';
 import { PermissionModeSelector } from './PermissionModeSelector';
 import { ClaudeStatusBanner } from './ClaudeStatusBanner';
-import { isFeatureEnabled } from '@/lib/claude/features';
 import { useCurrentSessionIsSubtask } from '@/hooks/useCurrentSessionIsSubtask';
 import { PendingAgentSwitchNotice } from './PendingAgentSwitchNotice';
 
@@ -231,7 +222,6 @@ const getProjectIconColor = (projectColor?: string | null): string | undefined =
 
 const MemoModelControls = React.memo(ModelControls);
 const MemoUnifiedControlsDrawer = React.memo(UnifiedControlsDrawer);
-const MemoBrowserVoiceButton = React.memo(BrowserVoiceButton);
 const MemoMobileAgentButton = React.memo(MobileAgentButton);
 const MemoMobileModelButton = React.memo(MobileModelButton);
 const MemoStatusRow = React.memo(StatusRow);
@@ -245,8 +235,6 @@ type ComposerAttachmentControlsProps = {
     handleLocalFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void | Promise<void>;
     handlePickLocalFiles: () => void;
     handleOpenCommandMenu: () => void;
-    openIssuePicker: () => void;
-    openPrPicker: () => void;
     onOpenSettings?: () => void;
 };
 
@@ -261,8 +249,6 @@ const ComposerAttachmentControls = React.memo(function ComposerAttachmentControl
         handleLocalFileSelect,
         handlePickLocalFiles,
         handleOpenCommandMenu,
-        openIssuePicker,
-        openPrPicker,
         onOpenSettings,
     } = props;
 
@@ -330,26 +316,6 @@ const ComposerAttachmentControls = React.memo(function ComposerAttachmentControl
                                 <RiAttachment2 />
                                 {t('chat.chatInput.actions.attachFiles')}
                             </DropdownMenuItem>
-                            {isFeatureEnabled('github') ? (
-                                <>
-                                    <DropdownMenuItem
-                                        onSelect={() => {
-                                            requestAnimationFrame(openIssuePicker);
-                                        }}
-                                    >
-                                        <RiGithubLine />
-                                        {t('chat.chatInput.actions.linkGithubIssue')}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onSelect={() => {
-                                            requestAnimationFrame(openPrPicker);
-                                        }}
-                                    >
-                                        <RiGitPullRequestLine />
-                                        {t('chat.chatInput.actions.linkGithubPr')}
-                                    </DropdownMenuItem>
-                                </>
-                            ) : null}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )}
@@ -730,7 +696,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         (text: string): boolean => text.includes('/') || text.includes('\\') || text.includes('.') || confirmedMentionsRef.current.has(text),
         [],
     );
-    const [inputMode, setInputMode] = React.useState<'normal' | 'shell'>('normal');
     const [isDragging, setIsDragging] = React.useState(false);
     const [isInternalDrag, setIsInternalDrag] = React.useState(false);
     const [showFileMention, setShowFileMention] = React.useState(false);
@@ -746,6 +711,15 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     // Message history navigation state (up/down arrow to recall previous messages)
     const [historyIndex, setHistoryIndex] = React.useState(-1); // -1 = not browsing, 0+ = index from most recent
     const [draftMessage, setDraftMessage] = React.useState(''); // Preserves input when entering history mode
+    // Mirrors of the two states above for code that must not wait for a render (session switch, unmount)
+    const historyIndexRef = React.useRef(-1);
+    const draftMessageRef = React.useRef('');
+    const setHistory = React.useCallback((index: number, draft: string) => {
+        historyIndexRef.current = index;
+        draftMessageRef.current = draft;
+        setHistoryIndex(index);
+        setDraftMessage(draft);
+    }, []);
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const cursorPosRef = React.useRef(0);
     const previousMessageLengthRef = React.useRef(message.length);
@@ -778,7 +752,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     const newSessionDraft = useSessionUIStore((s) => s.newSessionDraft);
     const newSessionDraftOpen = Boolean(newSessionDraft?.open);
     const setNewSessionDraftTarget = useSessionUIStore((s) => s.setNewSessionDraftTarget);
-    const availableWorktreesByProject = useSessionUIStore((s) => s.availableWorktreesByProject);
     const abortPromptSessionId = useSessionUIStore((s) => s.abortPromptSessionId);
     const clearAbortPrompt = useSessionUIStore((s) => s.clearAbortPrompt);
     const attachedFiles = useInputStore((s) => s.attachedFiles);
@@ -854,7 +827,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     knownAgentNamesRef.current = knownAgentNames;
 
     const hasInlineMentionForHighlight = React.useMemo(() => {
-        if (!message || !message.includes('@') || inputMode === 'shell') {
+        if (!message || !message.includes('@')) {
             return false;
         }
         const mentionRegex = /@([^\s]+)/g;
@@ -877,7 +850,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             }
         }
         return false;
-    }, [inputMode, isConfirmedFilePath, message, knownAgentNames]);
+    }, [isConfirmedFilePath, message, knownAgentNames]);
 
     const highlightedComposerContent = React.useMemo(() => {
         if (!hasInlineMentionForHighlight) {
@@ -1026,28 +999,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     const abortTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const prevWasAbortedRef = React.useRef(false);
 
-    // Issue linking state
-    const [issuePickerOpen, setIssuePickerOpen] = React.useState(false);
-    const [prPickerOpen, setPrPickerOpen] = React.useState(false);
-    const [linkedIssue, setLinkedIssue] = React.useState<{ 
-        number: number; 
-        title: string; 
-        url: string; 
-        contextText: string;
-        author?: { login: string; avatarUrl?: string };
-    } | null>(null);
-    const [linkedPr, setLinkedPr] = React.useState<{
-        number: number;
-        title: string;
-        url: string;
-        head: string;
-        base: string;
-        includeDiff: boolean;
-        instructionsText: string;
-        contextText: string;
-        author?: { login: string; avatarUrl?: string };
-    } | null>(null);
-
     // Message queue
     const queueModeEnabled = useMessageQueueStore((state) => state.queueModeEnabled);
     const queuedMessages = useMessageQueueStore(
@@ -1084,6 +1035,12 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     React.useEffect(() => {
         messageRef.current = message;
     }, [message]);
+
+    // While browsing history the textarea shows a recalled message; the real draft is what must be persisted.
+    const getDraftToPersist = React.useCallback(
+        () => (historyIndexRef.current >= 0 ? draftMessageRef.current : messageRef.current),
+        [],
+    );
 
     React.useEffect(() => {
         currentSessionIdForDraftRef.current = currentSessionId;
@@ -1148,13 +1105,16 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         if (prevSessionIdRef.current !== currentSessionId) {
             const oldSessionId = prevSessionIdRef.current;
             prevSessionIdRef.current = currentSessionId;
-            setInputMode('normal');
             clearPendingDraftPersist();
             skipNextDraftPersistRef.current = true;
 
+            const leavingDraft = getDraftToPersist();
+            // History browsing belongs to the session we are leaving
+            setHistory(-1, '');
+
             if (persistChatDraft) {
                 // Save current draft for the session we're leaving
-                persistDraftImmediately(oldSessionId, messageRef.current);
+                persistDraftImmediately(oldSessionId, leavingDraft);
                 // Restore draft for the session we're entering
                 const newDraft = getStoredDraft(currentSessionId);
                 setMessage(newDraft);
@@ -1170,7 +1130,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                 confirmedMentionsRef.current = new Set();
             }
         }
-    }, [clearPendingDraftPersist, currentSessionId, persistChatDraft, persistDraftImmediately]);
+    }, [clearPendingDraftPersist, currentSessionId, getDraftToPersist, persistChatDraft, persistDraftImmediately, setHistory]);
 
     // Focus textarea when new session draft is opened
     const prevNewSessionDraftOpenRef = React.useRef(newSessionDraftOpen);
@@ -1203,7 +1163,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         }
 
         clearPendingDraftPersist();
-        const draftSnapshot = message;
+        const draftSnapshot = historyIndex >= 0 ? draftMessage : message;
         const sessionSnapshot = currentSessionId;
         draftPersistTimerRef.current = setTimeout(() => {
             draftPersistTimerRef.current = null;
@@ -1213,16 +1173,16 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         return () => {
             clearPendingDraftPersist();
         };
-    }, [clearPendingDraftPersist, currentSessionId, message, persistChatDraft, persistDraftImmediately]);
+    }, [clearPendingDraftPersist, currentSessionId, draftMessage, historyIndex, message, persistChatDraft, persistDraftImmediately]);
 
     React.useEffect(() => {
         return () => {
             clearPendingDraftPersist();
             if (persistChatDraft) {
-                persistDraftImmediately(currentSessionIdForDraftRef.current, messageRef.current);
+                persistDraftImmediately(currentSessionIdForDraftRef.current, getDraftToPersist());
             }
         };
-    }, [clearPendingDraftPersist, persistChatDraft, persistDraftImmediately]);
+    }, [clearPendingDraftPersist, getDraftToPersist, persistChatDraft, persistDraftImmediately]);
 
     // Session activity for queue availability and controls
     const { phase: sessionPhase } = useCurrentSessionActivity();
@@ -1408,14 +1368,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         setExpandedInput(!isExpandedInput);
     }, [isExpandedInput, setExpandedInput]);
 
-    const openIssuePicker = React.useCallback(() => {
-        setIssuePickerOpen(true);
-    }, []);
-
-    const openPrPicker = React.useCallback(() => {
-        setPrPickerOpen(true);
-    }, []);
-
     const handleSubmit = async (options?: SubmitOptions) => {
         const queuedOnly = options?.queuedOnly ?? false;
 
@@ -1538,26 +1490,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             }
         }
 
-        // Add linked issue as synthetic part (only the parts with synthetic: true)
-        // The text part (synthetic: false) is completely dropped per requirements
-        if (linkedIssue) {
-            additionalParts.push({
-                text: linkedIssue.contextText,
-                synthetic: true,
-            });
-        }
-
-        if (linkedPr) {
-            additionalParts.push({
-                text: linkedPr.instructionsText,
-                synthetic: true,
-            });
-            additionalParts.push({
-                text: linkedPr.contextText,
-                synthetic: true,
-            });
-        }
-
         if (!primaryText && additionalParts.length === 0) return;
 
         // Clear queue and input
@@ -1572,8 +1504,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             saveStoredDraft(currentSessionId, '');
             saveConfirmedMentions(currentSessionId, confirmedMentionsRef.current);
             // Reset message history navigation state
-            setHistoryIndex(-1);
-            setDraftMessage('');
+            setHistory(-1, '');
             if (attachedFiles.length > 0) {
                 clearAttachedFiles();
             }
@@ -1585,9 +1516,9 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             textareaRef.current?.blur();
         }
 
-        // Handle local slash commands only in normal mode
+        // Handle local slash commands
         const normalizedCommand = primaryText.trimStart();
-        if (inputMode === 'normal' && normalizedCommand.startsWith('/')) {
+        if (normalizedCommand.startsWith('/')) {
             const commandName = normalizedCommand
                 .slice(1)
                 .trim()
@@ -1597,6 +1528,17 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             // `/clear` is client-side: it starts a fresh session (Claude has no in-place clear).
             if (commandName === 'clear') {
                 useSessionUIStore.getState().openNewSessionDraft();
+                return;
+            }
+            // `/undo` and `/redo` step the revert marker (no confirmation); the composer is refilled by revertToMessage.
+            else if ((commandName === 'undo' || commandName === 'redo') && currentSessionId) {
+                try {
+                    const store = useSessionUIStore.getState();
+                    await (commandName === 'undo' ? store.handleSlashUndo(currentSessionId) : store.handleSlashRedo(currentSessionId));
+                } catch (error) {
+                    toast.error(error instanceof Error ? error.message : t('chat.revertDialog.toast.failed'));
+                }
+                scrollToBottom?.({ instant: true, force: true });
                 return;
             }
             else if (commandName === 'compact' && currentSessionId) {
@@ -1631,8 +1573,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             primaryAttachments,
             agentMentionName,
             additionalParts.length > 0 ? additionalParts : undefined,
-            currentVariant,
-            inputMode
+            currentVariant
         );
 
         if (typeof window === 'undefined') {
@@ -1643,15 +1584,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             });
         }
 
-        void sendPromise.then(() => {
-            // Clear linked issue after successful message send
-            if (linkedIssue) {
-                setLinkedIssue(null);
-            }
-            if (linkedPr) {
-                setLinkedPr(null);
-            }
-        }).catch((error: unknown) => {
+        void sendPromise.catch((error: unknown) => {
             const rawMessage =
                 error instanceof Error
                     ? error.message
@@ -1704,31 +1637,24 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     handleSubmitRef.current = handleSubmit;
 
     // Primary action for send button - respects queue mode setting
-    const handlePrimaryAction = React.useCallback(() => {
-        const canQueue = !composerInteractionDisabled && inputMode === 'normal' && hasContent && currentSessionId && sessionPhase !== 'idle';
-        if (queueModeEnabled && canQueue) {
+    // Enter sends; Cmd/Ctrl+Enter (`alternate`) is the other action. Queue mode swaps the two.
+    // Queueing only works with an existing, busy session; everything else sends immediately.
+    const sendOrQueue = React.useCallback((alternate: boolean) => {
+        const canQueue = !composerInteractionDisabled && hasContent && currentSessionId && sessionPhase !== 'idle';
+        const queue = queueModeEnabled ? !alternate : alternate;
+        if (queue && canQueue) {
             handleQueueMessage();
         } else {
             void handleSubmitRef.current();
         }
-    }, [composerInteractionDisabled, inputMode, hasContent, currentSessionId, sessionPhase, queueModeEnabled, handleQueueMessage]);
+    }, [composerInteractionDisabled, hasContent, currentSessionId, sessionPhase, queueModeEnabled, handleQueueMessage]);
+
+    const handlePrimaryAction = React.useCallback(() => sendOrQueue(false), [sendOrQueue]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         // Early return during IME composition to prevent interference with autocomplete.
         // Uses keyCode === 229 fallback for WebKit where compositionend fires before keydown.
         if (isIMECompositionEvent(e)) return;
-
-        if (inputMode === 'shell' && e.key === 'Escape') {
-            e.preventDefault();
-            setInputMode('normal');
-            return;
-        }
-
-        if (inputMode === 'shell' && e.key === 'Backspace' && message.length === 0) {
-            e.preventDefault();
-            setInputMode('normal');
-            return;
-        }
 
         if ((e.key === 'Backspace' || e.key === 'Delete') && !e.metaKey && !e.ctrlKey && !e.altKey) {
             const textarea = textareaRef.current;
@@ -1777,25 +1703,34 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
 
         if (showCommandAutocomplete && commandRef.current) {
             if (e.key === 'Enter' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Escape' || e.key === 'Tab') {
-                e.preventDefault();
-                commandRef.current.handleKeyDown(e.key);
-                return;
+                // A popup without results does not consume the key (Enter then sends, arrows move the caret).
+                if (commandRef.current.handleKeyDown(e.key)) {
+                    e.preventDefault();
+                    requestAnimationFrame(syncPopupActiveOption);
+                    return;
+                }
             }
         }
 
         if (showSkillAutocomplete && skillRef.current) {
             if (e.key === 'Enter' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Escape' || e.key === 'Tab') {
-                e.preventDefault();
-                skillRef.current.handleKeyDown(e.key);
-                return;
+                // A popup without results does not consume the key (Enter then sends, arrows move the caret).
+                if (skillRef.current.handleKeyDown(e.key)) {
+                    e.preventDefault();
+                    requestAnimationFrame(syncPopupActiveOption);
+                    return;
+                }
             }
         }
 
         if (showFileMention && mentionRef.current) {
             if (e.key === 'Enter' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Escape' || e.key === 'Tab') {
-                e.preventDefault();
-                mentionRef.current.handleKeyDown(e.key);
-                return;
+                // A popup without results does not consume the key (Enter then sends, arrows move the caret).
+                if (mentionRef.current.handleKeyDown(e.key)) {
+                    e.preventDefault();
+                    requestAnimationFrame(syncPopupActiveOption);
+                    return;
+                }
             }
         }
 
@@ -1840,13 +1775,12 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             e.preventDefault();
             if (historyIndex === -1) {
                 // Entering history mode - save current input as draft
-                setDraftMessage(message);
-                setHistoryIndex(0);
+                setHistory(0, message);
                 setMessage(userMessageHistory[0]);
             } else if (historyIndex < userMessageHistory.length - 1) {
                 // Navigate to older message
                 const newIndex = historyIndex + 1;
-                setHistoryIndex(newIndex);
+                setHistory(newIndex, draftMessage);
                 setMessage(userMessageHistory[newIndex]);
             }
             // Move cursor to start after history navigation
@@ -1861,13 +1795,12 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             e.preventDefault();
             if (historyIndex === 0) {
                 // Exit history mode - restore draft
-                setHistoryIndex(-1);
+                setHistory(-1, '');
                 setMessage(draftMessage);
-                setDraftMessage('');
             } else {
                 // Navigate to newer message
                 const newIndex = historyIndex - 1;
-                setHistoryIndex(newIndex);
+                setHistory(newIndex, draftMessage);
                 setMessage(userMessageHistory[newIndex]);
             }
             return;
@@ -1877,31 +1810,8 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         if (e.key === 'Enter' && !e.shiftKey && (!isMobile || e.ctrlKey || e.metaKey)) {
             e.preventDefault();
 
-            const isCtrlEnter = e.ctrlKey || e.metaKey;
-
-            // Queue mode: Enter queues, Ctrl+Enter sends
-            // Normal mode: Enter sends, Ctrl+Enter queues
-            // Note: Queueing only works when there's an existing session (currentSessionId)
-            // For new sessions (draft), always send immediately
-            const canQueue = !composerInteractionDisabled && inputMode === 'normal' && hasContent && currentSessionId && sessionPhase !== 'idle';
-
-            if (queueModeEnabled) {
-                if (isCtrlEnter || !canQueue) {
-                    // Ctrl+Enter sends, or Enter when can't queue (new session)
-                    handleSubmit();
-                } else {
-                    // Enter queues when we have a session
-                    handleQueueMessage();
-                }
-            } else {
-                if (isCtrlEnter && canQueue) {
-                    // Ctrl+Enter queues when we have a session
-                    handleQueueMessage();
-                } else {
-                    // Enter sends
-                    handleSubmit();
-                }
-            }
+            // Queue mode: Enter queues, Ctrl+Enter sends. Normal mode: Enter sends, Ctrl+Enter queues.
+            sendOrQueue(e.ctrlKey || e.metaKey);
         }
     };
 
@@ -2133,13 +2043,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     }, [adjustTextareaHeight, message, isMobile]);
 
     const updateAutocompleteState = React.useCallback((value: string, cursorPosition: number) => {
-        if (inputMode === 'shell') {
-            setShowCommandAutocomplete(false);
-            setShowFileMention(false);
-            setShowSkillAutocomplete(false);
-            return;
-        }
-
         if (value.startsWith('/')) {
             const firstSpace = value.indexOf(' ');
             const firstNewline = value.indexOf('\n');
@@ -2196,7 +2099,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         } else {
             setShowFileMention(false);
         }
-    }, [inputMode, setAutocompleteTab, setCommandQuery, setMentionQuery, setShowCommandAutocomplete, setShowFileMention, setShowSkillAutocomplete, setSkillQuery]);
+    }, [setAutocompleteTab, setCommandQuery, setMentionQuery, setShowCommandAutocomplete, setShowFileMention, setShowSkillAutocomplete, setSkillQuery]);
 
     const applyAutocompletePrefix = React.useCallback((prefix: '/' | '@') => {
         const nextMessage = message.length === 0
@@ -3094,66 +2997,18 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         };
     }, [selectedDraftProject, selectedDraftProjectCurrentBranch]);
 
-    const worktreeBranchOptions = React.useMemo(() => {
-        if (!selectedDraftProject) {
-            return [];
-        }
-
-        const worktrees = (() => {
-            if (!selectedDraftProjectPath) {
-                return [];
-            }
-            return availableWorktreesByProject.get(selectedDraftProjectPath)
-                ?? availableWorktreesByProject.get(selectedDraftProject.path)
-                ?? [];
-        })();
-
-        return buildSessionTargetOptions({
-            projectRoot: normalizePath(selectedDraftProject.path) ?? '',
-            rootBranch: selectedDraftProjectCurrentBranch,
-            worktrees,
-            pendingBootstrapDirectory: newSessionDraft?.bootstrapPendingDirectory ?? null,
-        });
-    }, [availableWorktreesByProject, newSessionDraft?.bootstrapPendingDirectory, selectedDraftProject, selectedDraftProjectCurrentBranch, selectedDraftProjectPath]);
-
     const selectedDraftDirectory = React.useMemo(
-        () => normalizePath(newSessionDraft?.bootstrapPendingDirectory ?? null)
-            ?? normalizePath(newSessionDraft?.directoryOverride ?? null)
-            ?? selectedDraftProjectPath,
-        [newSessionDraft?.bootstrapPendingDirectory, newSessionDraft?.directoryOverride, selectedDraftProjectPath],
+        () => normalizePath(newSessionDraft?.directoryOverride ?? null) ?? selectedDraftProjectPath,
+        [newSessionDraft?.directoryOverride, selectedDraftProjectPath],
     );
-
-    const shouldKeepMissingSelectedDraftDirectory = React.useMemo(() => {
-        const pendingDirectory = normalizePath(newSessionDraft?.bootstrapPendingDirectory ?? null);
-        return Boolean(
-            newSessionDraft?.preserveDirectoryOverride
-            ||
-            newSessionDraft?.pendingWorktreeRequestId
-            || (pendingDirectory && pendingDirectory === selectedDraftDirectory)
-        );
-    }, [newSessionDraft?.bootstrapPendingDirectory, newSessionDraft?.pendingWorktreeRequestId, newSessionDraft?.preserveDirectoryOverride, selectedDraftDirectory]);
 
     const draftBranchItems = React.useMemo(() => {
         const baseItems: Array<{ value: string; label: string }> = [];
         if (projectRootBranchOption) {
             baseItems.push(projectRootBranchOption);
         }
-        baseItems.push(...worktreeBranchOptions);
-
-        if (!selectedDraftDirectory) {
-            return baseItems;
-        }
-        if (baseItems.some((option) => option.value === selectedDraftDirectory)) {
-            return baseItems;
-        }
-        if (!shouldKeepMissingSelectedDraftDirectory) {
-            return baseItems;
-        }
-        return [
-            ...baseItems,
-            { value: selectedDraftDirectory, label: formatDirectoryName(selectedDraftDirectory) },
-        ];
-    }, [projectRootBranchOption, selectedDraftDirectory, shouldKeepMissingSelectedDraftDirectory, worktreeBranchOptions]);
+        return baseItems;
+    }, [projectRootBranchOption]);
 
     const selectedDraftBranchLabel = React.useMemo(() => {
         const selectedValue = selectedDraftDirectory ?? draftBranchItems[0]?.value ?? null;
@@ -3170,41 +3025,14 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         return extractGitChangedFiles(currentGitStatus.files, currentGitStatus.diffStats, currentDirectory).length > 0;
     }, [currentDirectory, currentGitStatus, isGitRepo]);
 
-    const selectedDraftBranchIsKnown = React.useMemo(() => {
-        if (!selectedDraftDirectory) {
-            return true;
-        }
-        if (projectRootBranchOption?.value === selectedDraftDirectory) {
-            return true;
-        }
-        return worktreeBranchOptions.some((option) => option.value === selectedDraftDirectory);
-    }, [projectRootBranchOption?.value, selectedDraftDirectory, worktreeBranchOptions]);
-
-    React.useEffect(() => {
-        if (!newSessionDraft?.open || !newSessionDraft?.preserveDirectoryOverride) {
-            return;
-        }
-        if (!selectedDraftDirectory || !selectedDraftBranchIsKnown) {
-            return;
-        }
-        useSessionUIStore.getState().setDraftPreserveDirectoryOverride(false);
-    }, [newSessionDraft?.open, newSessionDraft?.preserveDirectoryOverride, selectedDraftBranchIsKnown, selectedDraftDirectory]);
-
     const shouldShowDraftBranchSelector = React.useMemo(() => {
         if (isDiscoveringDraftBranches) {
             return false;
         }
-        if (projectRootBranchOption) {
-            return true;
-        }
-        return worktreeBranchOptions.length > 0;
-    }, [isDiscoveringDraftBranches, projectRootBranchOption, worktreeBranchOptions.length]);
+        return Boolean(projectRootBranchOption);
+    }, [isDiscoveringDraftBranches, projectRootBranchOption]);
 
     const handleDraftProjectChange = React.useCallback((projectId: string) => {
-        const draft = useSessionUIStore.getState().newSessionDraft;
-        if (draft?.pendingWorktreeRequestId || draft?.bootstrapPendingDirectory || draft?.preserveDirectoryOverride) {
-            return;
-        }
         const project = projects.find((entry) => entry.id === projectId);
         if (!project) {
             return;
@@ -3219,10 +3047,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     }, [activeProjectId, projects, setActiveProjectIdOnly, setNewSessionDraftTarget]);
 
     const handleDraftDirectoryChange = React.useCallback((directory: string) => {
-        const draft = useSessionUIStore.getState().newSessionDraft;
-        if (draft?.pendingWorktreeRequestId || draft?.bootstrapPendingDirectory || draft?.preserveDirectoryOverride) {
-            return;
-        }
         if (!selectedDraftProject) {
             return;
         }
@@ -3238,29 +3062,13 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         label?: string;
         icon?: string | null;
         color?: string | null;
-        iconImage?: { mime: string; updatedAt: number; source: 'custom' | 'auto' } | null;
-        iconBackground?: string | null;
     }) => {
-        const imageUrl = getProjectIconImageUrl(
-            { id: project.id, iconImage: project.iconImage ?? null },
-            {
-                themeVariant: currentTheme.metadata.variant,
-                iconColor: currentTheme.colors.surface.foreground,
-            },
-        );
         const ProjectIcon = project.icon ? PROJECT_ICON_MAP[project.icon] : null;
         const iconColor = getProjectIconColor(project.color);
 
         return (
             <span className="inline-flex min-w-0 items-center gap-1.5">
-                {imageUrl ? (
-                    <span
-                        className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center overflow-hidden rounded-[3px]"
-                        style={project.iconBackground ? { backgroundColor: project.iconBackground } : undefined}
-                    >
-                        <img src={imageUrl} alt="" className="h-full w-full object-contain" draggable={false} />
-                    </span>
-                ) : ProjectIcon ? (
+                {ProjectIcon ? (
                     <ProjectIcon className="h-3.5 w-3.5 shrink-0" style={iconColor ? { color: iconColor } : undefined} />
                 ) : (
                     <RiFolderLine className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" style={iconColor ? { color: iconColor } : undefined} />
@@ -3268,13 +3076,10 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                 <span className="truncate">{getProjectDisplayLabel(project)}</span>
             </span>
         );
-    }, [currentTheme.colors.surface.foreground, currentTheme.metadata.variant]);
+    }, []);
 
     React.useEffect(() => {
         if (!showDraftTargetSelectors || !selectedDraftProject || !selectedDraftDirectory) {
-            return;
-        }
-        if (newSessionDraft?.pendingWorktreeRequestId || newSessionDraft?.bootstrapPendingDirectory || newSessionDraft?.preserveDirectoryOverride) {
             return;
         }
         const valid = draftBranchItems.some((option) => option.value === selectedDraftDirectory);
@@ -3285,7 +3090,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             projectId: selectedDraftProject.id,
             directoryOverride: selectedDraftProject.path,
         });
-    }, [draftBranchItems, newSessionDraft?.bootstrapPendingDirectory, newSessionDraft?.pendingWorktreeRequestId, newSessionDraft?.preserveDirectoryOverride, selectedDraftDirectory, selectedDraftProject, setNewSessionDraftTarget, showDraftTargetSelectors]);
+    }, [draftBranchItems, selectedDraftDirectory, selectedDraftProject, setNewSessionDraftTarget, showDraftTargetSelectors]);
 
     const footerPaddingClass = isMobile ? 'px-1.5 py-1.5' : (isVSCode ? 'px-1.5 py-1' : 'px-2.5 py-1.5');
     const buttonSizeClass = isMobile ? 'h-8 w-8' : (isVSCode ? 'h-5 w-5' : 'h-6 w-6');
@@ -3320,6 +3125,38 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             }
         };
     }, []);
+
+    // Position of the open popup next to the caret in the expanded composer (undefined = default anchoring).
+    const popupOverlayStyle = (maxWidth: number): React.CSSProperties | undefined => {
+        if (!isDesktopExpanded || !autocompleteOverlayPosition) {
+            return undefined;
+        }
+        return {
+            left: `${autocompleteOverlayPosition.left}px`,
+            top: `${autocompleteOverlayPosition.top}px`,
+            bottom: 'auto',
+            width: `min(${maxWidth}px, calc(100% - ${autocompleteOverlayPosition.left + 8}px))`,
+            maxHeight: `${autocompleteOverlayPosition.maxHeight}px`,
+            transform: autocompleteOverlayPosition.place === 'above' ? 'translateY(-100%)' : undefined,
+        };
+    };
+
+    const hasOpenPopup = showCommandAutocomplete || showSkillAutocomplete || showFileMention;
+
+    // Mirrors the popup's highlighted option to the textarea (aria-activedescendant).
+    const [popupActiveOptionId, setPopupActiveOptionId] = React.useState<string | null>(null);
+    const syncPopupActiveOption = React.useCallback(() => {
+        const selected = document.querySelector<HTMLElement>(`#${COMPOSER_POPUP_ID} [aria-selected="true"]`);
+        setPopupActiveOptionId(selected?.id || null);
+    }, []);
+    React.useEffect(() => {
+        if (!hasOpenPopup) {
+            setPopupActiveOptionId(null);
+            return;
+        }
+        const frame = requestAnimationFrame(syncPopupActiveOption);
+        return () => cancelAnimationFrame(frame);
+    }, [hasOpenPopup, commandQuery, mentionQuery, skillQuery, message, syncPopupActiveOption]);
 
     return (
         <>
@@ -3356,106 +3193,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                     </div>
                 )}
 
-                {/* Linked Issue row */}
-                {linkedIssue && !isVSCode && (
-                    <div className="pb-2 w-full px-1">
-                        <button
-                            type="button"
-                            onClick={() => setIssuePickerOpen(true)}
-                            className="flex w-full items-center gap-1.5 text-sm hover:opacity-80 transition-opacity text-left h-5 px-1"
-                        >
-                            {linkedIssue.author?.avatarUrl && (
-                                <img
-                                    src={linkedIssue.author.avatarUrl}
-                                    alt={linkedIssue.author.login}
-                                    className="h-5 w-5 rounded-full flex-shrink-0"
-                                />
-                            )}
-                            <span className="text-muted-foreground flex-shrink-0">
-                                #{linkedIssue.number}
-                                {linkedIssue.author && (
-                                    <span className="ml-1">{t('chat.chatInput.linked.byAuthor', { author: linkedIssue.author.login })}</span>
-                                )}
-                            </span>
-                            <span className="text-foreground truncate">
-                                {linkedIssue.title}
-                            </span>
-                            <span className="flex items-center gap-0.5 flex-shrink-0">
-                                <a
-                                    href={linkedIssue.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="flex items-center justify-center h-6 w-6 hover:bg-[var(--interactive-hover)] rounded-full transition-colors"
-                                    aria-label={t('chat.chatInput.linked.issue.openInBrowserAria')}
-                                >
-                                    <RiExternalLinkLine className="h-4 w-4 text-muted-foreground" />
-                                </a>
-                                <span
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setLinkedIssue(null);
-                                    }}
-                                    className="flex items-center justify-center h-6 w-6 hover:bg-[var(--interactive-hover)] rounded-full transition-colors cursor-pointer"
-                                    aria-label={t('chat.chatInput.linked.issue.removeAria')}
-                                >
-                                    <RiCloseLine className="h-4 w-4 text-muted-foreground" />
-                                </span>
-                            </span>
-                        </button>
-                    </div>
-                )}
-                {linkedPr && !isVSCode && (
-                    <div className="pb-2 w-full px-1">
-                        <button
-                            type="button"
-                            onClick={() => setPrPickerOpen(true)}
-                            className="flex w-full items-center gap-1.5 text-sm hover:opacity-80 transition-opacity text-left h-5 px-1"
-                        >
-                            {linkedPr.author?.avatarUrl && (
-                                <img
-                                    src={linkedPr.author.avatarUrl}
-                                    alt={linkedPr.author.login}
-                                    className="h-5 w-5 rounded-full flex-shrink-0"
-                                />
-                            )}
-                            <span className="text-muted-foreground flex-shrink-0">
-                                {t('chat.chatInput.linked.pr.number', { number: linkedPr.number })}
-                                {linkedPr.author && (
-                                    <span className="ml-1">{t('chat.chatInput.linked.byAuthor', { author: linkedPr.author.login })}</span>
-                                )}
-                            </span>
-                            <span className="text-foreground truncate">
-                                {linkedPr.title}
-                            </span>
-                            <span className="text-muted-foreground flex-shrink-0 typography-meta">
-                                {linkedPr.head} → {linkedPr.base}
-                            </span>
-                            <span className="flex items-center gap-0.5 flex-shrink-0">
-                                <a
-                                    href={linkedPr.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="flex items-center justify-center h-6 w-6 hover:bg-[var(--interactive-hover)] rounded-full transition-colors"
-                                    aria-label={t('chat.chatInput.linked.pr.openInBrowserAria')}
-                                >
-                                    <RiExternalLinkLine className="h-4 w-4 text-muted-foreground" />
-                                </a>
-                                <span
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setLinkedPr(null);
-                                    }}
-                                    className="flex items-center justify-center h-6 w-6 hover:bg-[var(--interactive-hover)] rounded-full transition-colors cursor-pointer"
-                                    aria-label={t('chat.chatInput.linked.pr.removeAria')}
-                                >
-                                    <RiCloseLine className="h-4 w-4 text-muted-foreground" />
-                                </span>
-                            </span>
-                        </button>
-                    </div>
-                )}
                 <MemoStatusRow
                     showAbortStatus={showAbortStatus}
                     showAssistantStatus={false}
@@ -3507,30 +3244,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                             </SelectItem>
                                         </SelectGroup>
                                     ) : null}
-                                    {projectRootBranchOption ? <SelectSeparator /> : null}
-                                    <SelectGroup>
-                                        <div className="flex items-center justify-between px-2 py-1.5">
-                                            <span className="text-muted-foreground typography-meta">{t('chat.chatInput.worktrees')}</span>
-                                            <button
-                                                type="button"
-                                                className="text-muted-foreground typography-meta hover:text-foreground cursor-pointer"
-                                                onPointerDown={(e) => { e.stopPropagation(); }}
-                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); void createWorktreeDraft(); }}
-                                            >
-                                                {t('chat.chatInput.worktreeNew')}
-                                            </button>
-                                        </div>
-                                        {worktreeBranchOptions.map((option) => (
-                                            <SelectItem key={option.value} value={option.value} className="max-w-[24rem] truncate">
-                                                {option.pending ? '⏳ ' : ''}{option.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                    {selectedDraftDirectory && !selectedDraftBranchIsKnown ? (
-                                        <SelectItem value={selectedDraftDirectory} className="max-w-[24rem] truncate">
-                                            {selectedDraftBranchLabel}
-                                        </SelectItem>
-                                    ) : null}
                                 </SelectContent>
                             </Select>
                         ) : null}
@@ -3543,9 +3256,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                         isDesktopExpanded && 'flex-1 min-h-0',
                         "border border-border/80",
                         "focus-within:ring-1",
-                        inputMode === 'shell'
-                            ? 'focus-within:ring-[var(--status-info)]'
-                            : 'focus-within:ring-primary/50',
+                        'focus-within:ring-primary/50',
                         isDragging && "ring-2 ring-primary ring-offset-2",
                         composerInteractionDisabled && 'pointer-events-none opacity-60'
                     )}
@@ -3591,16 +3302,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                             activeTab={autocompleteTab}
                             onTabSelect={handleAutocompleteTabSelect}
                             onClose={() => setShowCommandAutocomplete(false)}
-                            style={isDesktopExpanded && autocompleteOverlayPosition
-                                ? {
-                                    left: `${autocompleteOverlayPosition.left}px`,
-                                    top: `${autocompleteOverlayPosition.top}px`,
-                                    bottom: 'auto',
-                                    width: `min(450px, calc(100% - ${autocompleteOverlayPosition.left + 8}px))`,
-                                    maxHeight: `${autocompleteOverlayPosition.maxHeight}px`,
-                                    transform: autocompleteOverlayPosition.place === 'above' ? 'translateY(-100%)' : undefined,
-                                }
-                                : undefined}
+                            style={popupOverlayStyle(450)}
                         />
                     )}
                     { }
@@ -3610,16 +3312,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                             searchQuery={skillQuery}
                             onSkillSelect={handleSkillSelect}
                             onClose={() => setShowSkillAutocomplete(false)}
-                            style={isDesktopExpanded && autocompleteOverlayPosition
-                                ? {
-                                    left: `${autocompleteOverlayPosition.left}px`,
-                                    top: `${autocompleteOverlayPosition.top}px`,
-                                    bottom: 'auto',
-                                    width: `min(360px, calc(100% - ${autocompleteOverlayPosition.left + 8}px))`,
-                                    maxHeight: `${autocompleteOverlayPosition.maxHeight}px`,
-                                    transform: autocompleteOverlayPosition.place === 'above' ? 'translateY(-100%)' : undefined,
-                                }
-                                : undefined}
+                            style={popupOverlayStyle(360)}
                         />
                     )}
 
@@ -3634,16 +3327,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                             activeTab={autocompleteTab}
                             onTabSelect={handleAutocompleteTabSelect}
                             onClose={() => setShowFileMention(false)}
-                            style={isDesktopExpanded && autocompleteOverlayPosition
-                                ? {
-                                    left: `${autocompleteOverlayPosition.left}px`,
-                                    top: `${autocompleteOverlayPosition.top}px`,
-                                    bottom: 'auto',
-                                    width: `min(520px, calc(100% - ${autocompleteOverlayPosition.left + 8}px))`,
-                                    maxHeight: `${autocompleteOverlayPosition.maxHeight}px`,
-                                    transform: autocompleteOverlayPosition.place === 'above' ? 'translateY(-100%)' : undefined,
-                                }
-                                : undefined}
+                            style={popupOverlayStyle(520)}
                         />
                     )}
                     <div className={cn("relative overflow-hidden", isDesktopExpanded && 'flex flex-1 min-h-0 flex-col')}>
@@ -3657,7 +3341,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                         : isMobile
                                             ? 'py-2.5'
                                             : 'pt-4 pb-2',
-                                    inputMode === 'shell' ? 'font-mono' : 'typography-markdown md:typography-ui-label',
+                                    'typography-markdown md:typography-ui-label',
                                 )}
                                 ref={composerHighlightRef}
                             >
@@ -3681,6 +3365,10 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                             simple
                             ref={textareaRef}
                             data-chat-input="true"
+                            aria-haspopup={hasOpenPopup ? 'listbox' : undefined}
+                            aria-expanded={hasOpenPopup ? true : undefined}
+                            aria-controls={hasOpenPopup ? COMPOSER_POPUP_ID : undefined}
+                            aria-activedescendant={hasOpenPopup ? popupActiveOptionId ?? undefined : undefined}
                             value={message}
                             onChange={handleTextChange}
                             onBeforeInput={handleBeforeInput}
@@ -3706,9 +3394,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                 updateAutocompleteOverlayPosition();
                             }}
                             placeholder={currentSessionId || newSessionDraftOpen
-                                ? inputMode === 'shell'
-                                    ? t('chat.chatInput.placeholder.shell')
-                                    : t('chat.chatInput.placeholder.chat')
+                                ? t('chat.chatInput.placeholder.chat')
                                 : t('chat.chatInput.placeholder.selectSession')}
                             disabled={composerInteractionDisabled || (!currentSessionId && !newSessionDraftOpen)}
                             autoCorrect={isMobile ? "on" : "off"}
@@ -3723,7 +3409,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                     : isMobile
                                         ? 'py-2.5'
                                         : 'pt-4 pb-2',
-                                inputMode === 'shell' && 'font-mono',
                                 highlightedComposerContent && 'text-transparent caret-[var(--surface-foreground)]',
                             )}
                             style={{
@@ -3761,8 +3446,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                             handleLocalFileSelect={handleLocalFileSelect}
                                             handlePickLocalFiles={handlePickLocalFiles}
                                             handleOpenCommandMenu={handleOpenCommandMenu}
-                                            openIssuePicker={openIssuePicker}
-                                            openPrPicker={openPrPicker}
                                             onOpenSettings={onOpenSettings}
                                         />
                                         <PermissionModeSelector
@@ -3783,7 +3466,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                             />
                                         </div>
                                         <div className="flex items-center gap-x-1 flex-shrink-0">
-                                            <MemoBrowserVoiceButton />
                                             <ComposerActionButtons
                                                 isMobile={isMobile}
                                                 footerIconButtonClass={footerIconButtonClass}
@@ -3826,8 +3508,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                         handleLocalFileSelect={handleLocalFileSelect}
                                         handlePickLocalFiles={handlePickLocalFiles}
                                         handleOpenCommandMenu={handleOpenCommandMenu}
-                                        openIssuePicker={openIssuePicker}
-                                        openPrPicker={openPrPicker}
                                         onOpenSettings={onOpenSettings}
                                     />
                                     <FocusModeButton
@@ -3846,7 +3526,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                 </div>
                                 <div className={cn('flex items-center flex-1 justify-end', footerGapClass, 'md:gap-x-3')}>
                                     <MemoModelControls className={cn('flex-1 min-w-0 justify-end')} />
-                                    <MemoBrowserVoiceButton />
                                     <ComposerActionButtons
                                         isMobile={isMobile}
                                         footerIconButtonClass={footerIconButtonClass}
@@ -3872,28 +3551,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             </div>
         </form>
 
-        {isFeatureEnabled('github') ? (
-          <>
-        {/* Issue Picker Dialog */}
-        <GitHubIssuePickerDialog
-            open={issuePickerOpen}
-            onOpenChange={setIssuePickerOpen}
-            mode="select"
-            onSelect={(issue) => {
-                setLinkedIssue(issue);
-                setLinkedPr(null);
-            }}
-        />
-        <GitHubPrPickerDialog
-            open={prPickerOpen}
-            onOpenChange={setPrPickerOpen}
-            onSelect={(pr) => {
-                setLinkedPr(pr);
-                setLinkedIssue(null);
-            }}
-        />
-          </>
-        ) : null}
         </>
     );
 };

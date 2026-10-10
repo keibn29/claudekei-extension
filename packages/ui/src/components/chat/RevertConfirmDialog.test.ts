@@ -9,7 +9,18 @@ import { dict as zhCnDict } from '@/lib/i18n/messages/zh-CN';
 import { dict as esDict } from '@/lib/i18n/messages/es';
 import { dict as ukDict } from '@/lib/i18n/messages/uk';
 
-import { executeRevertConfirm, handleTimelineRevertSuccess } from './revertConfirmUtils';
+import {
+    createLatestRequestGuard,
+    executeRevertConfirm,
+    handleTimelineRevertSuccess,
+    isConversationOnlyPreview,
+    isRevertConfirmDisabled,
+    loadRevertPreview,
+    REVERT_PREVIEW_MAX_FILES,
+    splitPreviewFiles,
+    type RevertPreviewState,
+} from './revertConfirmUtils';
+import type { RevertPreview } from '@/lib/claude/types';
 import { useSessionUIStore } from '@/sync/session-ui-store';
 
 describe('RevertConfirmDialog & Confirmation Fix Contracts', () => {
@@ -17,12 +28,24 @@ describe('RevertConfirmDialog & Confirmation Fix Contracts', () => {
         const requiredKeys = [
             'chat.revertDialog.title',
             'chat.revertDialog.description',
-            'chat.revertDialog.subagentHelp',
+            'chat.revertDialog.checkingFiles',
+            'chat.revertDialog.filesHeading',
+            'chat.revertDialog.filesNone',
+            'chat.revertDialog.filesUnavailable',
+            'chat.revertDialog.filesNote',
+            'chat.revertDialog.busyNote',
+            'chat.revertDialog.moreFiles',
             'chat.revertDialog.confirm',
+            'chat.revertDialog.confirmConversationOnly',
             'chat.revertDialog.cancel',
             'chat.revertDialog.reverting',
             'chat.revertDialog.errorTitle',
             'chat.revertDialog.toast.failed',
+            'chat.revert.toast.filesNotRestored',
+            'chat.revert.toast.undidTo',
+            'chat.revert.toast.redidTo',
+            'chat.revert.toast.restoredAll',
+            'chat.timeline.help.undoToPoint',
         ] as const;
 
         const locales = [
@@ -55,20 +78,25 @@ describe('RevertConfirmDialog & Confirmation Fix Contracts', () => {
             });
         }
 
-        test('English copy explains file rollback, message history, and timestamp cascade truthfully', () => {
-            const desc = enDict['chat.revertDialog.description'];
-            const subagentHelp = enDict['chat.revertDialog.subagentHelp'];
+        test('English copy explains the hidden messages, composer refill, permanence and /redo', () => {
+            const desc = enDict['chat.revertDialog.description'].toLowerCase();
+            expect(desc.includes('hidden')).toBe(true);
+            expect(desc.includes('composer')).toBe(true);
+            expect(desc.includes('permanent')).toBe(true);
+            expect(desc.includes('/redo')).toBe(true);
+            expect(enDict['chat.revertDialog.filesNote'].toLowerCase().includes('shell')).toBe(true);
+            expect('chat.revertDialog.subagentHelp' in enDict).toBe(false);
+        });
 
-            // Consequence on files and messages clearly stated
-            expect(desc.toLowerCase().includes('file')).toBe(true);
-            expect(desc.toLowerCase().includes('message')).toBe(true);
-            expect(desc.toLowerCase().includes('earlier messages remain')).toBe(true);
-
-            // Subagent timestamp cascade clearly stated without absolute retainedPriorHelp claims
-            expect(subagentHelp.toLowerCase().includes('subagent')).toBe(true);
-            expect(subagentHelp.toLowerCase().includes('turn time')).toBe(true);
-            expect(subagentHelp.toLowerCase().includes('confirmation')).toBe(true);
-            expect(subagentHelp.toLowerCase().includes('earlier work will be kept')).toBe(false);
+        test('interpolated copy keeps its placeholders in every locale', () => {
+            for (const { dict } of locales) {
+                const d = dict as Record<string, string>;
+                expect(d['chat.revertDialog.filesHeading'].includes('{count}')).toBe(true);
+                expect(d['chat.revertDialog.moreFiles'].includes('{count}')).toBe(true);
+                expect(d['chat.revertDialog.filesUnavailable'].includes('{error}')).toBe(true);
+                expect(d['chat.revert.toast.undidTo'].includes('{preview}')).toBe(true);
+                expect(d['chat.revert.toast.redidTo'].includes('{preview}')).toBe(true);
+            }
         });
     });
 
@@ -537,6 +565,118 @@ describe('RevertConfirmDialog & Confirmation Fix Contracts', () => {
             expect(revertConfirmDialogSource.includes('disabled={isPending}')).toBe(true);
             expect(revertConfirmDialogSource.includes('chat.revertDialog.toast.failed')).toBe(true);
             expect(revertConfirmDialogSource.includes('chat.revertDialog.errorTitle')).toBe(true);
+        });
+    });
+
+    describe('6. File preview (dry run) states', () => {
+        const target = { sessionId: 's1', messageId: 'm1' };
+        const preview = (overrides: Partial<RevertPreview> = {}): RevertPreview => ({
+            files: ['a.ts'],
+            insertions: 3,
+            deletions: 1,
+            ...overrides,
+        });
+        const recordStates = () => {
+            const states: RevertPreviewState[] = [];
+            return { states, setState: (state: RevertPreviewState) => states.push(state) };
+        };
+
+        test('loading then ready; confirm is disabled only while loading', async () => {
+            const { states, setState } = recordStates();
+            const guard = createLatestRequestGuard();
+            await loadRevertPreview({ target, guard, setState, fetchPreview: async () => preview() });
+            expect(states.map((s) => s.status)).toEqual(['loading', 'ready']);
+            expect(isRevertConfirmDisabled(false, { status: 'loading' })).toBe(true);
+            expect(isRevertConfirmDisabled(false, states[1]!)).toBe(false);
+            expect(isRevertConfirmDisabled(true, states[1]!)).toBe(true);
+        });
+
+        test('filesError switches the confirm action to conversation-only', async () => {
+            const { states, setState } = recordStates();
+            await loadRevertPreview({
+                target,
+                guard: createLatestRequestGuard(),
+                setState,
+                fetchPreview: async () => preview({ files: [], insertions: 0, deletions: 0, filesError: 'No file checkpoint for this message' }),
+            });
+            expect(isConversationOnlyPreview(states[1]!)).toBe(true);
+            expect(isConversationOnlyPreview({ status: 'ready', preview: preview() })).toBe(false);
+            expect(isConversationOnlyPreview({ status: 'loading' })).toBe(false);
+        });
+
+        test('a failed preview request leaves confirm enabled and exposes the error', async () => {
+            const { states, setState } = recordStates();
+            await loadRevertPreview({
+                target,
+                guard: createLatestRequestGuard(),
+                setState,
+                fetchPreview: async () => {
+                    throw new Error('host unavailable');
+                },
+            });
+            expect(states[1]).toEqual({ status: 'error', error: 'host unavailable' });
+            expect(isRevertConfirmDisabled(false, states[1]!)).toBe(false);
+        });
+
+        test('stale responses are ignored (target changed or dialog closed)', async () => {
+            const { states, setState } = recordStates();
+            const guard = createLatestRequestGuard();
+            let resolveFirst: (value: RevertPreview) => void = () => {};
+            const first = loadRevertPreview({
+                target,
+                guard,
+                setState,
+                fetchPreview: () => new Promise<RevertPreview>((resolve) => { resolveFirst = resolve; }),
+            });
+            const second = loadRevertPreview({
+                target: { sessionId: 's1', messageId: 'm2' },
+                guard,
+                setState,
+                fetchPreview: async () => preview({ files: ['b.ts'] }),
+            });
+            await second;
+            resolveFirst(preview({ files: ['stale.ts'] }));
+            await first;
+            const last = states[states.length - 1]!;
+            expect(last.status === 'ready' && last.preview.files).toEqual(['b.ts']);
+
+            const closing = recordStates();
+            let resolveClosed: (value: RevertPreview) => void = () => {};
+            const pending = loadRevertPreview({
+                target,
+                guard,
+                setState: closing.setState,
+                fetchPreview: () => new Promise<RevertPreview>((resolve) => { resolveClosed = resolve; }),
+            });
+            guard.invalidate();
+            resolveClosed(preview());
+            await pending;
+            expect(closing.states.map((s) => s.status)).toEqual(['loading']);
+        });
+
+        test('no target resets to idle without fetching', async () => {
+            const { states, setState } = recordStates();
+            let calls = 0;
+            await loadRevertPreview({
+                target: null,
+                guard: createLatestRequestGuard(),
+                setState,
+                fetchPreview: async () => {
+                    calls += 1;
+                    return preview();
+                },
+            });
+            expect(states).toEqual([{ status: 'idle' }]);
+            expect(calls).toBe(0);
+        });
+
+        test('file list shows the first 8 paths and counts the rest', () => {
+            const files = Array.from({ length: 11 }, (_, i) => `f${i}.ts`);
+            const { shown, more } = splitPreviewFiles(files);
+            expect(REVERT_PREVIEW_MAX_FILES).toBe(8);
+            expect(shown).toEqual(files.slice(0, 8));
+            expect(more).toBe(3);
+            expect(splitPreviewFiles(['a.ts'])).toEqual({ shown: ['a.ts'], more: 0 });
         });
     });
 });
