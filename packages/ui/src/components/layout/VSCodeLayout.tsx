@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { useRuntimeAPIs } from '@/hooks/useRuntimeAPIs';
 import { useI18n } from '@/lib/i18n';
 import { resolveDisplayContextUsage } from '@/lib/contextUsage';
+import type { SessionContextUsage } from '@/stores/types/sessionTypes';
 import { lazyWithChunkRecovery } from '@/lib/chunkLoadRecovery';
 import { useCurrentSessionIsSubtask } from '@/hooks/useCurrentSessionIsSubtask';
 import { RiAddLine, RiArrowLeftLine, RiSettings3Line, RiTimeLine } from '@remixicon/react';
@@ -508,7 +509,6 @@ const VSCodeHeader: React.FC<VSCodeHeaderProps> = ({ title, showBack, onBack, on
   const providers = useConfigStore((s) => s.providers);
   const getContextUsage = useSessionUIStore((state) => state.getContextUsage);
   const currentSessionId = useSessionUIStore((state) => state.currentSessionId);
-  const contextUsageFocus = useSessionUIStore((state) => state.contextUsageFocus);
   const getLastUserChoice = useSessionUIStore((state) => state.getLastUserChoice);
   // In a subagent session the SubagentHeader's "Back to <Parent>" is the only back navigation.
   const isSubagentSession = useCurrentSessionIsSubtask();
@@ -518,9 +518,9 @@ const VSCodeHeader: React.FC<VSCodeHeaderProps> = ({ title, showBack, onBack, on
     () => readModelLimits(currentModel?.limit && typeof currentModel.limit === 'object' ? currentModel.limit : null),
     [currentModel],
   );
-  const contextUsageSessionId = contextUsageFocus && contextUsageFocus.parentSessionId === currentSessionId
-    ? contextUsageFocus.sessionId
-    : currentSessionId;
+  // Always the main/current session: an expanded subagent (`sub_<callId>`) has no context of its own, so focusing it
+  // would blank the exact context and the limits.
+  const contextUsageSessionId = currentSessionId;
   const sessionChoice = React.useMemo(
     () => (contextUsageSessionId ? getLastUserChoice(contextUsageSessionId) : null),
     [contextUsageSessionId, getLastUserChoice],
@@ -539,13 +539,23 @@ const VSCodeHeader: React.FC<VSCodeHeaderProps> = ({ title, showBack, onBack, on
     },
     [contextLimit, contextUsageRecords, contextUsageSessionId, getContextUsage, outputLimit],
   );
+  const lastKnownContextUsageRef = React.useRef<{ sessionId: string; usage: SessionContextUsage } | null>(null);
   const visibleContextUsage = React.useMemo(
-    () => resolveDisplayContextUsage(contextUsageSessionId, contextUsage, contextLimit, outputLimit),
+    () => {
+      const known = lastKnownContextUsageRef.current;
+      const lastKnown = known && known.sessionId === contextUsageSessionId ? known.usage : null;
+      const resolved = resolveDisplayContextUsage(contextUsageSessionId, contextUsage, contextLimit, outputLimit, lastKnown);
+      if (contextUsageSessionId && contextUsage) {
+        lastKnownContextUsageRef.current = { sessionId: contextUsageSessionId, usage: contextUsage };
+      }
+      return resolved;
+    },
     [contextLimit, contextUsage, contextUsageSessionId, outputLimit],
   );
   const displayPercentage = visibleContextUsage && visibleContextUsage.contextLimit > 0
     ? (visibleContextUsage.totalTokens / visibleContextUsage.contextLimit) * 100
     : 0;
+  // New-session draft: no session yet, but the popover still shows the (global) plan limits.
 
   return (
     <div className="flex items-center gap-1.5 pl-3 pr-2 py-1 border-b border-border bg-background shrink-0">
@@ -592,13 +602,13 @@ const VSCodeHeader: React.FC<VSCodeHeaderProps> = ({ title, showBack, onBack, on
           <RiSettings3Line className="h-5 w-5" />
         </button>
       )}
-      {showContextUsage && visibleContextUsage && (
+      {showContextUsage && (
         <ContextUsagePopover
           sessionId={contextUsageSessionId}
           fallback={{
             percentage: displayPercentage,
-            totalTokens: visibleContextUsage.totalTokens,
-            totalCost: visibleContextUsage.totalCost,
+            totalTokens: visibleContextUsage?.totalTokens ?? 0,
+            totalCost: visibleContextUsage?.totalCost ?? 0,
           }}
           ariaLabel={t('contextUsage.aria.label')}
         />

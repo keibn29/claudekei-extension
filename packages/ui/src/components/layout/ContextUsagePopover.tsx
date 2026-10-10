@@ -8,7 +8,8 @@ import { useI18n } from '@/lib/i18n';
 import { claudeClient } from '@/lib/claude/client';
 import { getUsage, setUsage } from '@/lib/claude/bootstrapCache';
 import { useUsageLimits } from '@/lib/claude/useUsageLimits';
-import type { ContextUsage } from '@/lib/claude/types';
+import type { ContextUsage, UsageLimits } from '@/lib/claude/types';
+import { isSubagentSessionId, pickLatestContextUsage } from '@/lib/contextUsage';
 import {
     buildContextBar,
     buildContextDetail,
@@ -151,8 +152,38 @@ const Breakdown: React.FC<{ usage: ContextUsage }> = ({ usage }) => {
     );
 };
 
+type LimitsSectionProps = { limits: UsageLimits | null; now: number; onOpenDetails: () => void };
+
+/** Plan usage limits (global, independent of the session); hidden for API-key users. */
+const LimitsSection: React.FC<LimitsSectionProps> = ({ limits, now, onOpenDetails }) => {
+    const { t } = useI18n();
+    if (!hasUsageLimits(limits)) return null;
+    return (
+        <div className="space-y-2.5 border-t border-border/40 pt-3" data-usage-limits>
+            <div className="flex items-center justify-between gap-2">
+                <span className="typography-ui-label min-w-0 truncate font-medium text-foreground">
+                    {limits.plan
+                        ? t('contextUsage.popover.limitsTitlePlan', { plan: limits.plan })
+                        : t('contextUsage.popover.limitsTitle')}
+                </span>
+                <button
+                    type="button"
+                    className="typography-meta flex-shrink-0 rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                    onClick={onOpenDetails}
+                >
+                    {t('claudeUsage.popover.details')}
+                </button>
+            </div>
+            {limits.windows.map((window) => <UsageLimitRow key={window.id} window={window} now={now} />)}
+        </div>
+    );
+};
+
 interface ContextUsagePopoverProps {
-    /** Session whose context is shown (the focused subagent session while one is expanded). */
+    /**
+     * Session whose context is shown: always the main/current session (a `sub_` id is never measured), or `null` in a
+     * new-session draft where only the plan limits are available.
+     */
     sessionId: string | null;
     /** Static estimate used until the host reports `Session.contextUsage` (and for sessions without it). */
     fallback: { percentage: number; totalTokens: number; totalCost?: number };
@@ -184,7 +215,36 @@ export const ContextUsagePopover: React.FC<ContextUsagePopoverProps> = ({ sessio
 
     const pushed = session?.contextUsage;
     const measured = fresh && fresh.sessionId === sessionId ? fresh.usage : undefined;
-    const usage = measured && (!pushed || measured.updatedAt >= pushed.updatedAt) ? measured : pushed ?? measured;
+    const usage = pickLatestContextUsage(pushed, measured);
+
+    const sessionIdRef = React.useRef(sessionId);
+    sessionIdRef.current = sessionId;
+
+    // Exact measurement for the main session; ignores sub_ ids, stale sessions and older-than-known results.
+    const fetchContext = React.useCallback(() => {
+        if (!sessionId || isSubagentSessionId(sessionId)) return;
+        void claudeClient.contextUsage(sessionId)
+            .then((result) => {
+                if (sessionIdRef.current !== sessionId) return;
+                setFresh((previous) => {
+                    const known = previous && previous.sessionId === sessionId ? previous.usage : undefined;
+                    return known && known.updatedAt > result.updatedAt ? previous : { sessionId, usage: result };
+                });
+            })
+            .catch(() => undefined);
+    }, [sessionId]);
+
+    const refreshLimits = React.useCallback((at: number) => {
+        if (shouldRefreshUsage(getUsage()?.updatedAt, at)) {
+            void claudeClient.refreshUsage().then((result) => setUsage(result)).catch(() => undefined);
+        }
+    }, []);
+
+    // Warm up before the popover is opened: exact context for the session and (throttled) plan limits.
+    React.useEffect(() => {
+        fetchContext();
+        refreshLimits(Date.now());
+    }, [fetchContext, refreshLimits]);
 
     const handleOpenChange = React.useCallback((next: boolean) => {
         setOpen(next);
@@ -194,15 +254,9 @@ export const ContextUsagePopover: React.FC<ContextUsagePopoverProps> = ({ sessio
         }
         const startedAt = Date.now();
         setNow(startedAt);
-        if (sessionId) {
-            void claudeClient.contextUsage(sessionId)
-                .then((result) => setFresh({ sessionId, usage: result }))
-                .catch(() => undefined);
-        }
-        if (shouldRefreshUsage(getUsage()?.updatedAt, startedAt)) {
-            void claudeClient.refreshUsage().then((result) => setUsage(result)).catch(() => undefined);
-        }
-    }, [sessionId]);
+        fetchContext();
+        refreshLimits(startedAt);
+    }, [fetchContext, refreshLimits]);
 
     // Reset times tick while the popover is open.
     React.useEffect(() => {
@@ -271,6 +325,7 @@ export const ContextUsagePopover: React.FC<ContextUsagePopoverProps> = ({ sessio
                             <div className="space-y-2">
                                 <div className="typography-ui-label text-foreground">{tooltip}</div>
                                 <div className="typography-micro text-muted-foreground">{t('contextUsage.popover.noData')}</div>
+                                <LimitsSection limits={limits} now={now} onOpenDetails={openUsageSettings} />
                             </div>
                         ) : view === 'detail' ? (
                             <div className="space-y-3">
@@ -306,25 +361,7 @@ export const ContextUsagePopover: React.FC<ContextUsagePopoverProps> = ({ sessio
                                     <div className="typography-micro text-muted-foreground/80">{t('contextUsage.popover.estimated')}</div>
                                 ) : null}
 
-                                {hasUsageLimits(limits) ? (
-                                    <div className="space-y-2.5 border-t border-border/40 pt-3" data-usage-limits>
-                                        <div className="flex items-center justify-between gap-2">
-                                            <span className="typography-ui-label min-w-0 truncate font-medium text-foreground">
-                                                {limits.plan
-                                                    ? t('contextUsage.popover.limitsTitlePlan', { plan: limits.plan })
-                                                    : t('contextUsage.popover.limitsTitle')}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                className="typography-meta flex-shrink-0 rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                                                onClick={openUsageSettings}
-                                            >
-                                                {t('claudeUsage.popover.details')}
-                                            </button>
-                                        </div>
-                                        {limits.windows.map((window) => <UsageLimitRow key={window.id} window={window} now={now} />)}
-                                    </div>
-                                ) : null}
+                                <LimitsSection limits={limits} now={now} onOpenDetails={openUsageSettings} />
 
                                 <Button
                                     type="button"

@@ -32,6 +32,7 @@ import type {
   ToolPart,
   UserMessage,
 } from '@openchamber/ui/src/lib/claude/types';
+import { EFFORT_LEVELS } from '@openchamber/ui/src/lib/claude/types';
 import {
   buildEditDiff,
   buildMultiEditDiff,
@@ -110,7 +111,15 @@ export type MapperOptions = {
   hooks?: MapperHooks;
   /** Plugin alias lookups (read-only access to the claudekei plugin's per-session state), optional. */
   aliases?: AliasResolver;
+  /**
+   * Configured model / effort of a subagent type (claudekei.jsonc preset, then the agent definition's frontmatter),
+   * used when the Agent tool call names none. `model: inherit` or an unset field means "the parent's".
+   */
+  subagentDefaults?: (agentType: string) => SubagentDefaults | undefined;
 };
+
+/** Model / effort configured for a subagent type. */
+export type SubagentDefaults = { model?: string; effort?: EffortLevel };
 
 /** Maps plugin session aliases (`exp-1`) to agent ids and back. */
 export type AliasResolver = {
@@ -270,6 +279,8 @@ type Container = {
   agentRec?: AgentRec;
   instructions: InstructionRec[];
   lastProgressEmit: number;
+  /** Child sessions only: memo of the `subagentDefaults` lookup (type -> result), so the config files are read once. */
+  defaultsMemo?: { type: string; value: SubagentDefaults | undefined };
   /** An assistant text was seen since the latest instruction (forwarded by the SDK or synthesized by the safety net). */
   replied: boolean;
 };
@@ -397,6 +408,7 @@ export function createMapper(options: MapperOptions): Mapper {
       parentID: parent.id,
       time: { created: t, updated: t },
     };
+    Object.assign(info, childModelFields(child));
     child.info = info;
     emit({ type: 'session.created', properties: { sessionID: id, info: structuredClone(info) } });
     setStatus(child, { type: 'busy' });
@@ -421,6 +433,50 @@ export function createMapper(options: MapperOptions): Mapper {
     if (announce) emitChildInfo(child);
   };
 
+  /**
+   * Model / effort of a child session, resolved from the most specific source: the Agent tool call input, then the
+   * subagent type's configuration (`subagentDefaults`), then the parent's. `inherit` means the parent's. The concrete
+   * model the subagent actually ran with arrives later as `resolvedModel` (see `noteChildModel`).
+   */
+  function childModelFields(child: Container): { model: string; effort?: EffortLevel } {
+    const ownerRef = child.spawnedBy ? tools.get(child.spawnedBy) : undefined;
+    const rawInput = ownerRef?.part.claude.input;
+    const input: Rec = isRec(rawInput) ? rawInput : ((ownerRef?.part.state.input as Rec | undefined) ?? {});
+    const type = child.agentRec?.agentType ?? str(input.subagent_type);
+    let defaults: SubagentDefaults | undefined;
+    if (type && options.subagentDefaults) {
+      if (child.defaultsMemo?.type !== type) child.defaultsMemo = { type, value: options.subagentDefaults(type) };
+      defaults = child.defaultsMemo.value;
+    }
+    const named = (value: unknown): string | undefined => {
+      const text = str(value)?.trim();
+      return text && text !== 'inherit' ? text : undefined;
+    };
+    const inputEffort = EFFORT_LEVELS.find((level) => level === input.effort);
+    const nextEffort = inputEffort ?? defaults?.effort ?? effort ?? undefined;
+    return { model: named(input.model) ?? named(defaults?.model) ?? model, ...(nextEffort ? { effort: nextEffort } : {}) };
+  }
+
+  /** Re-resolves the child's model / effort once the Agent input or the agent type became known; announces a change. */
+  function applyChildModel(child: Container): void {
+    if (!child.info) return;
+    const next = childModelFields(child);
+    if (child.info.model === next.model && child.info.effort === next.effort) return;
+    const info: Session = { ...child.info, model: next.model };
+    if (next.effort) info.effort = next.effort;
+    else delete info.effort;
+    child.info = info;
+    emitChildInfo(child);
+  }
+
+  /** The model id a subagent's assistant message reports is the one that actually ran: it wins over the resolved selection. */
+  const noteChildModel = (child: Container, apiModel: string | undefined): void => {
+    // `<synthetic>` marks host-generated messages that never reached the API.
+    if (!apiModel || apiModel.startsWith('<') || !child.info || child.info.resolvedModel === apiModel) return;
+    child.info = { ...child.info, resolvedModel: apiModel };
+    emitChildInfo(child);
+  };
+
   /** Registers (or returns) the agent instance behind a child session. */
   function attachAgent(child: Container, agentId: string, ownerToolUseId: string, agentType: string | undefined): AgentRec {
     let rec = agents.get(agentId);
@@ -433,6 +489,7 @@ export function createMapper(options: MapperOptions): Mapper {
     const type = rec.agentType ?? str((ownerRef?.part.state.input as Rec | undefined)?.subagent_type);
     rec.agentType = type;
     setChildClaude(child, { agentId, agentType: type });
+    applyChildModel(child);
     if (ownerRef) updateSubMeta(ownerRef, { sessionID: child.id, agentId, ...(type ? { agentType: type } : {}) });
     return rec;
   }
@@ -572,6 +629,7 @@ export function createMapper(options: MapperOptions): Mapper {
     container.open.add(a);
     container.lastAssistant = a;
     emitMessage(message);
+    if (container !== main) noteChildModel(container, apiModel);
     return a;
   };
 
@@ -671,6 +729,7 @@ export function createMapper(options: MapperOptions): Mapper {
         rec.agentType = type;
         setChildClaude(child, { agentType: type });
       }
+      applyChildModel(child);
     } else if (part.tool === 'sendmessage') {
       Object.assign(ref.meta, { recipient: str(input.to) ?? '', message: str(input.message) ?? '' });
     }

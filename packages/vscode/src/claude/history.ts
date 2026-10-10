@@ -10,7 +10,7 @@ import type { ClaudeEvent } from '@openchamber/ui/src/lib/claude/protocol';
 import type { EffortLevel, PermissionMode } from '@openchamber/ui/src/lib/claude/types';
 import type { TurnRecord } from './agentLog';
 import type { IdGenerator } from './ids';
-import { createMapper, type AliasResolver, type MapperLogLevel } from './mapper';
+import { createMapper, type AliasResolver, type MapperLogLevel, type MapperOptions } from './mapper';
 import { createSessionState, reduceEvents, type SessionState } from './sessionState';
 
 /** Shape of `SessionMessage` as returned at runtime (the d.ts lists fewer fields). */
@@ -50,6 +50,8 @@ export type ReplayOptions = {
   maxToolOutputChars?: number;
   /** Plugin alias lookups (claudekei state file), optional. */
   aliases?: AliasResolver;
+  /** Configured model / effort per subagent type (see `MapperOptions.subagentDefaults`). */
+  subagentDefaults?: MapperOptions['subagentDefaults'];
   log?: (level: MapperLogLevel, message: string, data?: unknown) => void;
 };
 
@@ -119,6 +121,7 @@ export function replayEntries(entries: readonly HistoryEntry[], options: ReplayO
     ids: options.ids,
     log: options.log,
     aliases: options.aliases,
+    subagentDefaults: options.subagentDefaults,
     replay: true,
     maxToolOutputChars: options.maxToolOutputChars ?? DEFAULT_MAX_TOOL_OUTPUT_CHARS,
   });

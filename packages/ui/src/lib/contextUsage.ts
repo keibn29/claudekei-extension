@@ -15,10 +15,27 @@ export const resolveDisplayContextUsage = (
   contextUsage: SessionContextUsage | null | undefined,
   contextLimit: number,
   outputLimit: number,
+  lastKnown?: SessionContextUsage | null,
 ): SessionContextUsage | null => {
   if (!sessionId) {
     return null;
   }
 
-  return contextUsage ?? createEmptyContextUsage(contextLimit, outputLimit);
+  // A last known real value beats an all-zero placeholder (the ring must not drop to 0 mid-work).
+  return contextUsage ?? lastKnown ?? createEmptyContextUsage(contextLimit, outputLimit);
 };
+
+/** Subagent pseudo-sessions (`sub_<callId>`) have no measurable context of their own. */
+export const isSubagentSessionId = (sessionId: string | null | undefined): boolean =>
+  typeof sessionId === 'string' && sessionId.startsWith('sub_');
+
+/** Newest of two measurements by `updatedAt`; ties go to `candidate`. */
+export const pickLatestContextUsage = <T extends { updatedAt: number }>(
+  pushed: T | null | undefined,
+  candidate: T | null | undefined,
+): T | undefined => {
+  if (!pushed) return candidate ?? undefined;
+  if (!candidate) return pushed;
+  return candidate.updatedAt >= pushed.updatedAt ? candidate : pushed;
+};
+

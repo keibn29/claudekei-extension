@@ -3,7 +3,9 @@ import { RiArrowDownSLine, RiArrowLeftLine, RiArrowRightSLine } from '@remixicon
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { effortLabel, subagentModelInfo } from '@/lib/claude/modelNames';
 import { useConfigStore } from '@/stores/useConfigStore';
+import { useCatalog } from './hooks/useComposerModel';
 import { useSessionUIStore } from '@/sync/session-ui-store';
 import { useSession, useSessionMessageRecords, useSessionStatus } from '@/sync/sync-context';
 import {
@@ -45,6 +47,7 @@ export const SubagentHeader: React.FC<SubagentHeaderProps> = ({ onJumpToMessage 
     const records = useSessionMessageRecords(sessionId ?? '');
     const status = useSessionStatus(sessionId ?? '');
     const agents = useConfigStore((state) => state.agents);
+    const catalog = useCatalog();
     const [open, setOpen] = React.useState(false);
     const [activeId, setActiveId] = React.useState<string | null>(null);
     const listId = React.useId();
@@ -58,6 +61,7 @@ export const SubagentHeader: React.FC<SubagentHeaderProps> = ({ onJumpToMessage 
     const catalogAgent = findAgentByType(agents, type);
     const typeLabel = catalogAgent ? agentLabel(catalogAgent) : (type ? formatAgentName(type) : '');
     const colorKey = catalogAgent?.name ?? type ?? 'subagent';
+    const modelInfo = subagentModelInfo(session, catalog?.models ?? []);
     const busy = status?.type === 'busy' || status?.type === 'retry';
     const failed = !busy && Boolean(findRunError(records, { start: 0, end: records.length }));
     const infoStatus = busy ? 'running' : failed ? 'failed' : 'done';
@@ -95,6 +99,16 @@ export const SubagentHeader: React.FC<SubagentHeaderProps> = ({ onJumpToMessage 
                     <SubagentKindIcon kind="agent" className="h-3.5 w-3.5" />
                 </span>
                 <SubagentTypeChip info={{ typeLabel, colorKey }} />
+                {modelInfo.model ? (
+                    <span className="typography-micro flex-shrink-0 text-muted-foreground" data-subagent-model>
+                        {modelInfo.model}
+                    </span>
+                ) : null}
+                {modelInfo.effort ? (
+                    <span className="typography-micro flex-shrink-0 rounded border border-border/60 px-1 leading-4 text-muted-foreground" data-subagent-effort>
+                        {effortLabel(modelInfo.effort).toLowerCase()}
+                    </span>
+                ) : null}
                 <div className="flex min-w-0 flex-1 items-center">
                     <SubagentAlias alias={session?.claude?.alias} />
                 </div>

@@ -332,10 +332,11 @@ const writeRevealedToolIds = (messageId: string, value: Set<string>): void => {
     revealedToolIdsByMessage.set(messageId, new Set(value));
 };
 
-const UserMessageBody = React.memo(({ sessionId, messageId, parts, isMobile, hasTouchInput, hasTextContent, onCopyMessage, copiedMessage, onShowPopup, agentMention, onRevert, onFork, userActionsMode = 'inline', stickyUserHeaderEnabled = true }: {
+const UserMessageBody = React.memo(({ sessionId, messageId, parts, isMobile, hasTouchInput, hasTextContent, onCopyMessage, copiedMessage, onShowPopup, agentMention, onRevert, onFork, messageCreatedAt, userActionsMode = 'inline', stickyUserHeaderEnabled = true }: {
     sessionId?: string;
     messageId: string;
     parts: Part[];
+    messageCreatedAt?: number;
     isMobile: boolean;
     hasTouchInput?: boolean;
     hasTextContent?: boolean;
@@ -422,6 +423,13 @@ const UserMessageBody = React.memo(({ sessionId, messageId, parts, isMobile, has
         [hasCopyableText, isTouchContext, onCopyMessage, revealCopyHint]
     );
 
+    const userTimestamp = React.useMemo(() => {
+        if (typeof messageCreatedAt !== 'number' || messageCreatedAt <= 0) return null;
+        const short = formatTimestampForDisplay(messageCreatedAt);
+        if (short.length === 0) return null;
+        return { short, full: new Date(messageCreatedAt).toLocaleString() };
+    }, [messageCreatedAt]);
+
     const actionsBlock = ((canCopyMessage && hasCopyableText) || onRevert || onFork) && showUserActions ? (
         <div className={cn(
             'group/user-actions',
@@ -450,6 +458,14 @@ const UserMessageBody = React.memo(({ sessionId, messageId, parts, isMobile, has
                         : 'pointer-events-none opacity-0 transition-opacity duration-150 group-hover/message:pointer-events-auto group-hover/message:opacity-100 group-hover/user-actions:pointer-events-auto group-hover/user-actions:opacity-100 group-hover/user-shell:pointer-events-auto group-hover/user-shell:opacity-100'
                 )}
             >
+                {userTimestamp ? (
+                    <span
+                        className="mr-1 text-xs text-muted-foreground/60 tabular-nums whitespace-nowrap"
+                        title={userTimestamp.full}
+                    >
+                        {userTimestamp.short}
+                    </span>
+                ) : null}
                 {onRevert && (
                 <Tooltip delayDuration={1000}>
                     <TooltipTrigger asChild>
@@ -611,6 +627,7 @@ const AssistantMessageBody = React.memo(({
     onAuxiliaryContentComplete,
     showReasoningTraces = false,
     turnGroupingContext,
+    onFork,
     errorMessage,
 }: Omit<MessageBodyProps, 'isUser'>) => {
     const { t } = useI18n();
@@ -1573,6 +1590,27 @@ const AssistantMessageBody = React.memo(({
                     >
                         <div className="flex items-center gap-1.5">
                             {footerButtons}
+                            {onFork && isLastAssistantInTurn && hasStopFinish ? (
+                                <Tooltip delayDuration={1000}>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground bg-transparent hover:text-foreground hover:!bg-transparent active:!bg-transparent focus-visible:!bg-transparent focus-visible:ring-2 focus-visible:ring-primary/50"
+                                            aria-label={t('chat.messageBody.actions.forkAria')}
+                                            onPointerDown={(event) => event.stopPropagation()}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                onFork();
+                                            }}
+                                        >
+                                            <RiGitBranchLine className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent sideOffset={6}>{t('chat.messageBody.actions.fork')}</TooltipContent>
+                                </Tooltip>
+                            ) : null}
                         </div>
                         <div className="flex items-center gap-1.5">
                             {turnDurationText ? (
@@ -1623,6 +1661,7 @@ const MessageBody = React.memo(({ isUser, ...props }: MessageBodyProps) => {
                 isMobile={props.isMobile}
                 hasTouchInput={props.hasTouchInput}
                 hasTextContent={props.hasTextContent}
+                messageCreatedAt={props.messageCreatedAt}
                 onCopyMessage={props.onCopyMessage}
                 copiedMessage={props.copiedMessage}
                 onShowPopup={props.onShowPopup}

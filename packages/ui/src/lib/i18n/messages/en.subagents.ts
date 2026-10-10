@@ -10,6 +10,8 @@ export const subagentsDict = {
   'chat.subagent.fallbackType': 'Agent',
   'chat.subagent.copy': 'Copy',
   'chat.subagent.openFullText': 'Open full text',
+  'chat.subagent.output.show': 'Show output',
+  'chat.subagent.output.hide': 'Hide output',
 
   // Actions
   'chat.subagent.open': 'Open {type} session',

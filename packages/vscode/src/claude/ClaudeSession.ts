@@ -12,9 +12,9 @@ import type { ClaudeRequestPayload } from '@openchamber/ui/src/lib/claude/protoc
 import type { ContextUsage, EffortLevel, Message, PermissionMode, PermissionResponse, QuestionAnswer, RevertPreview, RevertResult, Session, SessionStatus, SlashCommand } from '@openchamber/ui/src/lib/claude/types';
 import type { AgentLog } from './agentLog';
 import { AsyncQueue } from './asyncQueue';
-import { estimateContextUsage, toContextUsage } from './contextUsage';
+import { estimateContextUsage, seedContextUsage, toContextBaseline, toContextUsage, type ContextBaseline } from './contextUsage';
 import { loadHistory } from './history';
-import { createMapper, type AliasResolver, type InitInfo, type Mapper } from './mapper';
+import { createMapper, type AliasResolver, type InitInfo, type Mapper, type SubagentDefaults } from './mapper';
 import { pluginAliasResolver } from './pluginAliases';
 import { PermissionBroker } from './permissions';
 import type { RevertMarker, RevertStore } from './revertStore';
@@ -56,6 +56,12 @@ export type ClaudeSessionDeps = {
   onRateLimit?: (info: Record<string, unknown>) => void;
   /** A live `getContextUsage` measured the window of the selected model value (lazy fallback for model windows). */
   onModelWindow?: (modelValue: string, maxTokens: number) => void;
+  /** Known context window of a model value (catalog / measured), used to size estimates before any measurement. */
+  modelWindow?: (modelValue: string) => number | undefined;
+  /** Persisted fixed-cost baseline of a model value (seeds a fresh session's context figure). */
+  contextBaseline?: (modelValue: string) => ContextBaseline | undefined;
+  /** An exact measurement produced a baseline for the selected model value. */
+  onContextBaseline?: (modelValue: string, baseline: ContextBaseline) => void;
   /** `bypassPermissions` is only honoured when the user enabled `claudekei.allowBypassPermissions`. */
   isModeAllowed?: (mode: PermissionMode) => boolean;
   log: (level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: unknown) => void;
@@ -64,6 +70,8 @@ export type ClaudeSessionDeps = {
   stderr?: (data: string) => void;
   /** Plugin alias lookup; defaults to the claudekei plugin's state file. */
   aliases?: (sessionId: string) => AliasResolver;
+  /** Configured model / effort of a subagent type (claudekei.jsonc preset, agent frontmatter), for the child sessions. */
+  subagentDefaults?: (agentType: string) => SubagentDefaults | undefined;
   /** Model / effort preset of a primary agent (claudekei.jsonc, else the agent's frontmatter model). */
   agentPreset?: (agent: string) => { defaultModel?: string; defaultEffort?: EffortLevel } | undefined;
   /** Concrete model id for a selected model value (catalog lookup), when known without a live process. */
@@ -94,6 +102,8 @@ export function attachmentBlock(file: { mime: string; filename: string; dataUrl:
 
 /** Stop watchdog: after an interrupt, wait this long before stopping tasks one by one, then again before killing the process. */
 const STOP_WATCHDOG_MS = 4000;
+/** `getContextUsage` that does not answer within this long is abandoned so a later measurement can run. */
+const CONTEXT_MEASURE_TIMEOUT_MS = 12_000;
 
 const LIVE: ReadonlySet<SessionLifecycle> = new Set(['starting', 'live-idle', 'live-busy']);
 
@@ -147,6 +157,9 @@ export class ClaudeSession {
   ) {
     this.prefs = init.prefs;
     this.info = { ...init.info, agent: init.prefs.agent || undefined, mode: init.prefs.mode, ...this.modelFields(init.prefs) };
+    // A session with no measurement yet starts from the model's known fixed cost (system prompt, tools, memory).
+    const baseline = this.info.contextUsage ? undefined : deps.contextBaseline?.(init.prefs.model);
+    if (baseline) this.info = { ...this.info, contextUsage: seedContextUsage(baseline, deps.now(), deps.modelWindow?.(init.prefs.model)) };
     this.exists = init.exists;
     this.lifecycle = init.exists ? 'cold' : 'draft';
     this.loaded = !init.exists;
@@ -211,7 +224,7 @@ export class ClaudeSession {
   async ensureLoaded(): Promise<void> {
     if (this.loaded) return;
     const sdk = (await this.deps.runtime()).sessions;
-    const snapshot = await loadHistory({ aliases: (this.deps.aliases ?? pluginAliasResolver)(this.id), sessionId: this.id, cwd: this.deps.cwd, mode: this.prefs.mode, model: this.prefs.model, agent: this.prefs.agent, effort: this.prefs.effort, userAgents: this.deps.agentLog?.forReplay(this.id), sdk, log: (l, m, d) => this.deps.log(l === 'warn' ? 'warn' : 'debug', m, d) });
+    const snapshot = await loadHistory({ aliases: (this.deps.aliases ?? pluginAliasResolver)(this.id), subagentDefaults: this.deps.subagentDefaults, sessionId: this.id, cwd: this.deps.cwd, mode: this.prefs.mode, model: this.prefs.model, agent: this.prefs.agent, effort: this.prefs.effort, userAgents: this.deps.agentLog?.forReplay(this.id), sdk, log: (l, m, d) => this.deps.log(l === 'warn' ? 'warn' : 'debug', m, d) });
     // A live process may have started meanwhile; keep its events by folding them on top of the history.
     if (this.loaded) return;
     const bucket = bucketFor(snapshot.state, this.id);
@@ -222,7 +235,7 @@ export class ClaudeSession {
     this.hideCommittedCut();
     // Cold session: a rough figure from the transcript until a live measurement replaces it.
     const tokens = this.lastKnownTokens();
-    if (!this.contextUsage && tokens) this.info = { ...this.info, contextUsage: estimateContextUsage(tokens, this.deps.now()) };
+    if (!this.contextUsage && tokens) this.info = { ...this.info, contextUsage: estimateContextUsage(tokens, this.deps.now(), undefined, this.deps.modelWindow?.(this.prefs.model)) };
     bucket.info = this.info;
   }
 
@@ -476,6 +489,7 @@ export class ClaudeSession {
         agent,
         now: this.deps.now,
         aliases: (this.deps.aliases ?? pluginAliasResolver)(this.id),
+        subagentDefaults: this.deps.subagentDefaults,
         log: (level, message, data) => this.deps.log(level, `[mapper ${this.id.slice(0, 8)}] ${message}`, data),
         hooks: {
           onInit: (init) => {
@@ -520,6 +534,7 @@ export class ClaudeSession {
       this.spawnCount += 1;
       this.setLifecycle('live-idle');
       this.pump = this.runPump(this.query, mapper);
+      void this.measureAfterSpawn(this.query);
     } catch (error) {
       this.setLifecycle(this.exists ? 'cold' : 'draft');
       throw error;
@@ -951,20 +966,43 @@ export class ClaudeSession {
   /** After a `result`: measure in the background (throttled; never blocks or fails the turn). */
   private scheduleContextUsage(): void {
     if (this.deps.now() - this.contextMeasuredAt < 2000) return;
-    void this.measureContextUsage();
+    // A measurement already in flight started before this turn ended: take a fresh one after it.
+    const inFlight = this.contextMeasuring;
+    void (inFlight ? inFlight.then(() => this.measureContextUsage()) : this.measureContextUsage());
+  }
+
+  /**
+   * Right after the process initialised: `getContextUsage` answers without a turn, so the popup has exact figures
+   * from the start instead of after the first result. Bypasses (and does not feed) the post-result throttle.
+   */
+  private async measureAfterSpawn(query: ClaudeQuery): Promise<void> {
+    try {
+      await query.initializationResult?.();
+    } catch {
+      return;
+    }
+    if (this.query !== query || this.disposed) return;
+    await this.measureContextUsage(false);
   }
 
   /** SDK `getContextUsage` on the live process, folded into `Session.contextUsage` (announced by `session.updated`). */
-  private measureContextUsage(): Promise<ContextUsage | undefined> {
+  private measureContextUsage(throttled = true): Promise<ContextUsage | undefined> {
     const query = this.query;
     if (!query?.getContextUsage || !this.isLive) return Promise.resolve(undefined);
     this.contextMeasuring ??= (async () => {
+      let timer: unknown;
       try {
-        const usage = toContextUsage(await query.getContextUsage!({ detail: 'full' }), this.deps.now());
+        // A hung process must not leave `contextMeasuring` set forever (every later measurement would join it).
+        const timeout = new Promise<never>((_, reject) => {
+          timer = this.deps.timers.setTimeout(() => reject(new Error(`getContextUsage timed out after ${CONTEXT_MEASURE_TIMEOUT_MS} ms`)), CONTEXT_MEASURE_TIMEOUT_MS);
+        });
+        const usage = toContextUsage(await Promise.race([query.getContextUsage!({ detail: 'full' }), timeout]), this.deps.now());
         if (usage && !this.disposed) {
           this.contextUsage = usage;
           this.deps.onModelWindow?.(this.prefs.model, usage.maxTokens);
-          this.contextMeasuredAt = this.deps.now();
+          const baseline = toContextBaseline(usage);
+          if (baseline) this.deps.onContextBaseline?.(this.prefs.model, baseline);
+          if (throttled) this.contextMeasuredAt = this.deps.now();
           this.info = { ...this.info, contextUsage: usage };
           this.publish([{ type: 'session.updated', properties: { sessionID: this.id, info: this.info } }]);
         }
@@ -973,6 +1011,7 @@ export class ClaudeSession {
         this.deps.log('debug', 'getContextUsage failed', error instanceof Error ? error.message : String(error));
         return undefined;
       } finally {
+        if (timer !== undefined) this.deps.timers.clearTimeout(timer);
         this.contextMeasuring = undefined;
       }
     })();
@@ -1002,7 +1041,10 @@ export class ClaudeSession {
     }
     await this.ensureLoaded();
     if (this.contextUsage) return this.contextUsage;
-    const estimate = estimateContextUsage(this.lastKnownTokens() ?? 0, this.deps.now());
+    const tokens = this.lastKnownTokens();
+    // Nothing counted in the transcript: keep the seeded estimate rather than replacing it with an empty one.
+    if (!tokens && this.info.contextUsage) return this.info.contextUsage;
+    const estimate = estimateContextUsage(tokens ?? 0, this.deps.now(), undefined, this.deps.modelWindow?.(this.prefs.model));
     this.info = { ...this.info, contextUsage: estimate };
     return estimate;
   }

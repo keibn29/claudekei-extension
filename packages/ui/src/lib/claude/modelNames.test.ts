@@ -113,3 +113,27 @@ describe('nextEffort (cycling)', () => {
     expect(nextEffort(null, [])).toBeNull();
   });
 });
+
+describe('subagentModelInfo', () => {
+  const catalog = [
+    { value: 'opus', displayName: 'Opus', description: '', resolvedModel: 'claude-opus-5-5', supportsEffort: true },
+    { value: 'haiku', displayName: 'Haiku', description: '', resolvedModel: 'claude-haiku-4-5', supportsEffort: false },
+  ];
+
+  test('the transcript model wins over the selection; effort is shown as is', async () => {
+    const { subagentModelInfo } = await import('./modelNames');
+    expect(subagentModelInfo({ model: 'haiku', resolvedModel: 'claude-opus-5-5', effort: 'high' }, catalog)).toEqual({ model: 'Opus 5.5', effort: 'high' });
+  });
+
+  test('a selection alone is labelled; unknown parts are omitted', async () => {
+    const { subagentModelInfo } = await import('./modelNames');
+    expect(subagentModelInfo({ model: 'opus' }, catalog)).toEqual({ model: 'Opus 5.5' });
+    expect(subagentModelInfo({}, catalog)).toEqual({});
+    expect(subagentModelInfo(undefined, catalog)).toEqual({});
+  });
+
+  test('effort is hidden for a model without effort support', async () => {
+    const { subagentModelInfo } = await import('./modelNames');
+    expect(subagentModelInfo({ model: 'haiku', resolvedModel: 'claude-haiku-4-5', effort: 'high' }, catalog)).toEqual({ model: 'Haiku 4.5' });
+  });
+});

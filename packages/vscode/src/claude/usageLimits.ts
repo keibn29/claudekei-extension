@@ -92,6 +92,25 @@ export function parseUsageReport(raw: unknown, now: number, account?: AccountInf
   return result;
 };
 
+const WINDOW_ORDER = ['session', 'weekly'];
+/** Session first, then weekly, then the rest (stable). */
+const sortWindows = (windows: UsageWindow[]): void => {
+  windows.sort((a, b) => (WINDOW_ORDER.indexOf(a.id) + 1 || 99) - (WINDOW_ORDER.indexOf(b.id) + 1 || 99));
+};
+
+/**
+ * A usage report that lists fewer windows than we already know about (e.g. one that dropped the session row) must not
+ * erase them: windows of `previous` that `next` lacks are kept while their reset time is still in the future. Windows
+ * without a reset time or past it are dropped (their meter has restarted, the old figure would be wrong).
+ */
+export function carryOverWindows(previous: UsageLimits | undefined, next: UsageLimits, now: number): UsageLimits {
+  const missing = (previous?.windows ?? []).filter((w) => !next.windows.some((n) => n.id === w.id) && w.resetsAt !== undefined && w.resetsAt > now);
+  if (missing.length === 0) return next;
+  const windows = [...next.windows, ...missing];
+  sortWindows(windows);
+  return { ...next, windows };
+}
+
 const EVENT_WINDOWS: Record<string, { id: string; kind: string; label: string }> = {
   five_hour: { id: 'session', kind: 'session', label: 'Session limit' },
   seven_day: { id: 'weekly', kind: 'weekly_all', label: 'Weekly · All models' },
@@ -124,8 +143,7 @@ export function applyRateLimitEvent(previous: UsageLimits | undefined, info: unk
   };
   const windows = previous ? previous.windows.filter((w) => w.id !== meta.id) : [];
   windows.push(window);
-  const order = ['session', 'weekly'];
-  windows.sort((a, b) => (order.indexOf(a.id) + 1 || 99) - (order.indexOf(b.id) + 1 || 99));
+  sortWindows(windows);
   return { ...previous, windows, updatedAt: now, source: previous?.source ?? 'rate_limit_event' };
 }
 

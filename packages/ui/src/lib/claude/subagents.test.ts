@@ -23,7 +23,6 @@ import {
   readSubagentLink,
   resolveSubagentAlias,
   shouldCollapseInstruction,
-  shouldGroupStartExpanded,
   isStaleBusyChild,
   shouldShowNoActivityHint,
   summarizeSubagentStatuses,
@@ -217,12 +216,6 @@ describe('group summary', () => {
     expect(summarizeSubagentStatuses(['preparing', 'running', 'done', 'sent', 'failed', 'not-delivered', 'stopped'])).toEqual({
       total: 7, running: 2, done: 2, failed: 2, stopped: 1,
     });
-  });
-
-  test('groups with 4+ members that are all settled start collapsed', () => {
-    expect(shouldGroupStartExpanded({ total: 4, running: 0, done: 4, failed: 0, stopped: 0 })).toBe(false);
-    expect(shouldGroupStartExpanded({ total: 4, running: 1, done: 3, failed: 0, stopped: 0 })).toBe(true);
-    expect(shouldGroupStartExpanded({ total: 3, running: 0, done: 3, failed: 0, stopped: 0 })).toBe(true);
   });
 });
 

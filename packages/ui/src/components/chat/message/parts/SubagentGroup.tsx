@@ -1,11 +1,10 @@
 import React from 'react';
-import { RiArrowDownSLine, RiArrowRightSLine, RiExternalLinkLine, RiStackLine } from '@remixicon/react';
+import { RiArrowDownSLine, RiArrowRightSLine, RiStackLine } from '@remixicon/react';
 import type { ToolPart } from '@/lib/claude/types';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import {
     formatSubagentElapsed,
-    shouldGroupStartExpanded,
     summarizeSubagentStatuses,
     type SubagentStatus,
 } from '@/lib/claude/subagents';
@@ -14,14 +13,15 @@ import type { ToolPopupContent } from '../types';
 import {
     SubagentAlias,
     SubagentKindIcon,
+    SubagentOpenIconButton,
     SubagentPeekLine,
     SubagentStatusGlyph,
     SubagentTypeChip,
 } from './SubagentParts';
 import { SubagentBody, SubagentLiveRegion } from './SubagentCard';
-import { useSubagentAriaLabel, useSubagentEffects, useSubagentOpen } from './useSubagentUi';
+import { useSubagentAriaLabel, useSubagentEffects } from './useSubagentUi';
 import { useDurationTickerNow } from './useDurationTicker';
-import { useSubagentInfo, type SubagentInfo } from './useSubagentInfo';
+import { useSubagentInfo } from './useSubagentInfo';
 
 type MemberReport = { status: SubagentStatus; startedAt?: number; endedAt?: number };
 
@@ -41,30 +41,6 @@ interface RowProps {
     onContentChange?: (reason?: ContentChangeReason) => void;
     onShowPopup?: (content: ToolPopupContent) => void;
 }
-
-const OpenIconButton: React.FC<{ info: SubagentInfo }> = ({ info }) => {
-    const { t } = useI18n();
-    const { open, canOpen, label } = useSubagentOpen(info);
-    return (
-        <button
-            type="button"
-            className={cn(
-                'inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-muted-foreground',
-                'hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
-                !canOpen && 'cursor-not-allowed opacity-40 hover:text-muted-foreground',
-            )}
-            aria-label={label}
-            aria-disabled={!canOpen}
-            title={canOpen ? label : t('chat.subagent.unlinkedTooltip')}
-            onClick={(event) => {
-                event.stopPropagation();
-                if (canOpen) open();
-            }}
-        >
-            <RiExternalLinkLine className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-    );
-};
 
 /** One compact line (24px): chip, alias, description, status. Expands inline into the full card body. */
 const SubagentRow: React.FC<RowProps> = ({ part, isExpanded, onToggle, onReport, onContentChange, onShowPopup }) => {
@@ -107,7 +83,7 @@ const SubagentRow: React.FC<RowProps> = ({ part, isExpanded, onToggle, onReport,
                     </span>
                     <SubagentStatusGlyph info={info} />
                 </button>
-                <OpenIconButton info={info} />
+                <SubagentOpenIconButton info={info} />
             </div>
             {!isExpanded && status === 'running' ? <div className="pr-7"><SubagentPeekLine info={info} /></div> : null}
             {isExpanded ? (
@@ -125,7 +101,7 @@ const SubagentRow: React.FC<RowProps> = ({ part, isExpanded, onToggle, onReport,
 const SubagentGroup: React.FC<SubagentGroupProps> = ({ parts, expandedTools, onToggleTool, onContentChange, onShowPopup }) => {
     const { t } = useI18n();
     const [reports, setReports] = React.useState<Record<string, MemberReport>>({});
-    const [userExpanded, setUserExpanded] = React.useState<boolean | null>(null);
+    const [expanded, setExpanded] = React.useState(true);
     const headingId = React.useId();
     const listId = React.useId();
 
@@ -141,7 +117,6 @@ const SubagentGroup: React.FC<SubagentGroupProps> = ({ parts, expandedTools, onT
 
     const statuses = parts.map((part) => reports[part.callID]?.status ?? 'running');
     const counts = summarizeSubagentStatuses(statuses);
-    const expanded = userExpanded ?? shouldGroupStartExpanded(counts);
 
     const starts = parts.map((part) => reports[part.callID]?.startedAt).filter((value): value is number => typeof value === 'number');
     const ends = parts.map((part) => reports[part.callID]?.endedAt).filter((value): value is number => typeof value === 'number');
@@ -173,7 +148,7 @@ const SubagentGroup: React.FC<SubagentGroupProps> = ({ parts, expandedTools, onT
                 className="group/tool flex w-full items-center gap-1.5 rounded-xl py-2 pl-px pr-2 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                 aria-expanded={expanded}
                 aria-controls={listId}
-                onClick={() => setUserExpanded(!expanded)}
+                onClick={() => setExpanded(!expanded)}
             >
                 <span className="relative h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--tools-icon)' }} aria-hidden="true">
                     <span className={cn('absolute inset-0 transition-opacity', expanded ? 'opacity-0' : 'group-hover/tool:opacity-0')}>

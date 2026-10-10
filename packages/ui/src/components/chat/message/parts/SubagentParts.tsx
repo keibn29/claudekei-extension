@@ -164,11 +164,38 @@ export const SubagentOpenButton: React.FC<{ info: SubagentInfo }> = ({ info }) =
     );
 };
 
+/** Icon-only "open session" button for compact rows. Stops propagation so it never toggles the row. */
+export const SubagentOpenIconButton: React.FC<{ info: SubagentInfo }> = ({ info }) => {
+    const { t } = useI18n();
+    const { open, canOpen, label } = useSubagentOpen(info);
+    return (
+        <button
+            type="button"
+            className={cn(
+                'inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-muted-foreground',
+                'hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
+                !canOpen && 'cursor-not-allowed opacity-40 hover:text-muted-foreground',
+            )}
+            aria-label={label}
+            aria-disabled={!canOpen}
+            title={canOpen ? label : t('chat.subagent.unlinkedTooltip')}
+            onClick={(event) => {
+                event.stopPropagation();
+                if (canOpen) open();
+            }}
+            onKeyDown={(event) => event.stopPropagation()}
+        >
+            <RiExternalLinkLine className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+    );
+};
+
 /**
  * Instructions / Message block: markdown with a 4-line preview and Show more / Show less. Copy button top right;
  * very long text also offers the full-text dialog.
  */
 export const SubagentInstructionBlock: React.FC<{
+    id?: string;
     /** Optional eyebrow row (child session: `FROM ORCHESTRATOR · #2`). Without it the copy button floats top right. */
     label?: React.ReactNode;
     text: string;
@@ -180,7 +207,7 @@ export const SubagentInstructionBlock: React.FC<{
     className?: string;
     /** Tailwind `from-*` class matching the surface behind the collapsed fade. */
     fadeClass?: string;
-}> = ({ label, text, popupTitle, onShowPopup, onContentChange, footerAction, className, fadeClass = 'from-background' }) => {
+}> = ({ id, label, text, popupTitle, onShowPopup, onContentChange, footerAction, className, fadeClass = 'from-background' }) => {
     const { t } = useI18n();
     const collapsible = shouldCollapseInstruction(text);
     const [expanded, setExpanded] = React.useState(false);
@@ -202,7 +229,7 @@ export const SubagentInstructionBlock: React.FC<{
     };
 
     return (
-        <div className={cn('space-y-1', className)}>
+        <div id={id} className={cn('space-y-1', className)}>
             {label ? (
                 <div className="flex items-start justify-between gap-2">
                     <span className="typography-micro min-w-0 text-muted-foreground/80">{label}</span>

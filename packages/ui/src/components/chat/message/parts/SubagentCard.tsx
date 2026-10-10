@@ -3,7 +3,7 @@ import { RiArrowDownSLine, RiArrowRightSLine } from '@remixicon/react';
 import type { ToolPart } from '@/lib/claude/types';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
-import { isActiveSubagentStatus } from '@/lib/claude/subagents';
+import { firstLine, isActiveSubagentStatus } from '@/lib/claude/subagents';
 import type { ContentChangeReason } from '@/hooks/useChatScrollManager';
 import type { ToolPopupContent } from '../types';
 import { MinDurationShineText } from './MinDurationShineText';
@@ -13,6 +13,7 @@ import {
     SubagentInstructionBlock,
     SubagentKindIcon,
     SubagentOpenButton,
+    SubagentOpenIconButton,
     SubagentStatusGlyph,
     SubagentToolCount,
     SubagentTypeChip,
@@ -52,7 +53,7 @@ export const SubagentLiveRegion: React.FC<{ info: SubagentInfo }> = ({ info }) =
 };
 
 /**
- * Expanded body, top to bottom: message text, last actions, open-session link, reply. No section labels:
+ * Expanded body, top to bottom: last actions, open-session link, reply (hidden behind a toggle). No section labels:
  * spacing and hairlines separate the parts.
  */
 export const SubagentBody: React.FC<{
@@ -65,6 +66,8 @@ export const SubagentBody: React.FC<{
     const { t } = useI18n();
     const replyText = info.error ? undefined : (info.reply ?? info.toolOutput);
     const handleContentChange = React.useCallback(() => onContentChange?.('structural'), [onContentChange]);
+    const [showOutput, setShowOutput] = React.useState(false);
+    const outputId = `${id}-output`;
     const popupTitle = `${subagentTitle(t, info.kind)} ${info.typeLabel}`.trim();
 
     return (
@@ -76,15 +79,7 @@ export const SubagentBody: React.FC<{
                 className,
             )}
         >
-            {info.instruction ? (
-                <SubagentInstructionBlock
-                    text={info.instruction}
-                    popupTitle={popupTitle}
-                    onShowPopup={onShowPopup}
-                    onContentChange={handleContentChange}
-                />
-            ) : null}
-            <SubagentActivityList info={info} className="border-t border-border/40 pt-2" />
+            <SubagentActivityList info={info} />
             {info.error ? (
                 <div
                     className="typography-meta rounded-xl border p-2"
@@ -99,13 +94,32 @@ export const SubagentBody: React.FC<{
             ) : null}
             {info.status !== 'not-delivered' ? <SubagentOpenButton info={info} /> : null}
             {replyText ? (
-                <SubagentInstructionBlock
-                    className="border-t border-border/40 pt-2"
-                    text={replyText}
-                    popupTitle={popupTitle}
-                    onShowPopup={onShowPopup}
-                    onContentChange={handleContentChange}
-                />
+                <div className="border-t border-border/40 pt-2">
+                    <button
+                        type="button"
+                        className="typography-micro rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                        aria-expanded={showOutput}
+                        aria-controls={outputId}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            setShowOutput((previous) => !previous);
+                            handleContentChange();
+                        }}
+                    >
+                        {showOutput ? t('chat.subagent.output.hide') : t('chat.subagent.output.show')}
+                    </button>
+                    {showOutput ? (
+                        <SubagentInstructionBlock
+                            id={outputId}
+                            className="mt-1"
+                            text={replyText}
+                            popupTitle={popupTitle}
+                            onShowPopup={onShowPopup}
+                            onContentChange={handleContentChange}
+                        />
+                    ) : null}
+                </div>
             ) : null}
         </div>
     );
@@ -117,7 +131,9 @@ const SubagentLines: React.FC<{ info: SubagentInfo }> = ({ info }) => {
     const active = info.status === 'running';
     const type = info.typeLabel || t('chat.subagent.fallbackType');
     const failedText = info.status === 'failed' || info.status === 'not-delivered' ? info.error : undefined;
-    const description = failedText ? failedText.split('\n')[0] : info.description;
+    // The description falls back to the first line of the prompt; never surface the prompt in the header.
+    const isPromptFallback = !failedText && Boolean(info.description) && info.description === firstLine(info.instruction);
+    const description = failedText ? failedText.split('\n')[0] : (isPromptFallback ? undefined : info.description);
 
     // The last-actions list sits under the card, so only the SendMessage state needs its own line.
     let thirdLine: React.ReactNode = null;
@@ -142,7 +158,7 @@ const SubagentLines: React.FC<{ info: SubagentInfo }> = ({ info }) => {
                     style={failedText ? { color: 'var(--status-error)' } : undefined}
                     title={description}
                 >
-                    {info.kind === 'message' && !failedText && info.instruction === description ? `"${description}"` : description}
+                    {description}
                 </div>
             ) : null}
             {thirdLine}
@@ -212,6 +228,7 @@ const SubagentCard: React.FC<SubagentCardProps> = ({ part, isExpanded, onToggle,
                         <SubagentAlias alias={info.alias} />
                     </div>
                     <SubagentStatusGlyph info={info} />
+                    {info.sessionId ? <SubagentOpenIconButton info={info} /> : null}
                 </div>
                 <SubagentLines info={info} />
             </div>

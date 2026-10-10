@@ -85,10 +85,11 @@ export function toContextUsage(raw: unknown, now: number, source: ContextUsage['
 
 /**
  * Estimate for a session without a measurement: everything counted is "Messages" (the last response's prompt size),
- * the rest is free. `previous` supplies the window size when an earlier measurement exists.
+ * the rest is free. `previous` supplies the window size when an earlier measurement exists, else `windowHint` (the
+ * model's known window) before falling back to the 200K default.
  */
-export function estimateContextUsage(tokens: number, now: number, previous?: ContextUsage): ContextUsage {
-  const maxTokens = previous?.maxTokens ?? FALLBACK_CONTEXT_WINDOW;
+export function estimateContextUsage(tokens: number, now: number, previous?: ContextUsage, windowHint?: number): ContextUsage {
+  const maxTokens = previous?.maxTokens ?? (windowHint && windowHint > 0 ? windowHint : FALLBACK_CONTEXT_WINDOW);
   const used = Math.max(0, Math.min(tokens, maxTokens));
   return {
     usedTokens: used,
@@ -99,6 +100,45 @@ export function estimateContextUsage(tokens: number, now: number, previous?: Con
       { id: 'messages', label: 'Messages', tokens: used, kind: 'used' },
       { id: 'free-space', label: 'Free space', tokens: maxTokens - used, kind: 'free' },
     ],
+    updatedAt: now,
+    source: 'estimate',
+  };
+}
+
+/**
+ * What a model costs before any message: the fixed categories (system prompt, tools, memory files, ...) of an exact
+ * measurement, excluding Messages and Free space. Persisted per model so a fresh session can show a realistic figure
+ * before its first measurement.
+ */
+export type ContextBaseline = {
+  maxTokens: number;
+  /** Sum of the `used` categories. */
+  usedTokens: number;
+  /** `used` / `buffer` / `deferred` categories, without Messages. */
+  categories: ContextCategory[];
+  autocompactBufferTokens?: number;
+};
+
+/** Baseline of an exact measurement; undefined when it is not a usable one (estimate, no categories). */
+export function toContextBaseline(usage: ContextUsage): ContextBaseline | undefined {
+  if (usage.source !== 'exact') return undefined;
+  const categories = usage.categories.filter((c) => c.kind !== 'free' && !(c.kind === 'used' && c.id === 'messages'));
+  const usedTokens = categories.filter((c) => c.kind === 'used').reduce((n, c) => n + c.tokens, 0);
+  if (usedTokens <= 0) return undefined;
+  return { maxTokens: usage.maxTokens, usedTokens, categories, ...(usage.autocompactBufferTokens !== undefined ? { autocompactBufferTokens: usage.autocompactBufferTokens } : {}) };
+}
+
+/** Estimate for a session with no messages yet, from the model's baseline (`windowHint` wins as the window size). */
+export function seedContextUsage(baseline: ContextBaseline, now: number, windowHint?: number): ContextUsage {
+  const maxTokens = windowHint && windowHint > 0 ? windowHint : baseline.maxTokens;
+  const used = Math.min(baseline.usedTokens, maxTokens);
+  const buffer = baseline.autocompactBufferTokens ?? 0;
+  return {
+    usedTokens: used,
+    maxTokens,
+    percent: Math.round((used / maxTokens) * 1000) / 10,
+    ...(baseline.autocompactBufferTokens !== undefined ? { autocompactBufferTokens: baseline.autocompactBufferTokens } : {}),
+    categories: [...baseline.categories, { id: 'free-space', label: 'Free space', tokens: Math.max(0, maxTokens - used - buffer), kind: 'free' }],
     updatedAt: now,
     source: 'estimate',
   };

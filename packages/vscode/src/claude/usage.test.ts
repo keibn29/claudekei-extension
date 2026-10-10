@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import type { ContextUsage, Session, UsageLimits } from '@openchamber/ui/src/lib/claude/types';
-import { estimateContextUsage, slug, toContextUsage } from './contextUsage';
-import { allEvents, createHarness, until, type Harness } from './fakes';
-import { applyRateLimitEvent, parseUsageReport } from './usageLimits';
+import { estimateContextUsage, seedContextUsage, slug, toContextBaseline, toContextUsage } from './contextUsage';
+import { allEvents, createHarness, tick, until, type Harness } from './fakes';
+import { applyRateLimitEvent, carryOverWindows, parseUsageReport } from './usageLimits';
 import { loadJson } from './testUtils';
 
 const NOW = 1_800_000_000_000;
@@ -59,6 +59,21 @@ describe('context usage mapping (real getContextUsage response)', () => {
     const withWindow = estimateContextUsage(100_000, NOW, toContextUsage(contextFull(), NOW));
     expect(withWindow.maxTokens).toBe(1_000_000);
     expect(withWindow.percent).toBe(10);
+    // a known model window sizes the estimate when there is no previous measurement
+    expect(estimateContextUsage(100_000, NOW, undefined, 1_000_000)).toMatchObject({ maxTokens: 1_000_000, percent: 10 });
+  });
+
+  test('baseline: fixed categories without Messages and Free space; seeds an estimate', () => {
+    const exact = toContextUsage(contextFull(), NOW)!;
+    const baseline = toContextBaseline(exact)!;
+    expect(baseline.categories.some((c) => c.id === 'messages' || c.kind === 'free')).toBe(false);
+    const messages = exact.categories.find((c) => c.id === 'messages')!.tokens;
+    expect(baseline.usedTokens).toBe(exact.usedTokens - messages);
+    expect(baseline.autocompactBufferTokens).toBe(33000);
+    const seeded = seedContextUsage(baseline, NOW);
+    expect(seeded).toMatchObject({ source: 'estimate', usedTokens: baseline.usedTokens, maxTokens: 1_000_000 });
+    expect(seeded.categories.find((c) => c.id === 'free-space')!.tokens).toBe(1_000_000 - baseline.usedTokens - 33000);
+    expect(toContextBaseline({ ...exact, source: 'estimate' })).toBeUndefined();
   });
 });
 
@@ -88,6 +103,15 @@ describe('usage limits mapping (real usage response)', () => {
   test('API key / third party: no windows', () => {
     expect(parseUsageReport({ subscription_type: null, rate_limits_available: false, rate_limits: null }, NOW)).toMatchObject({ windows: [], source: 'usage' });
     expect(parseUsageReport(undefined, NOW).windows).toEqual([]);
+  });
+
+  test('carryOverWindows keeps windows missing from the report only while they have not reset', () => {
+    const win = (id: string, resetsAt?: number) => ({ id, kind: id, label: id, utilization: 0.5, ...(resetsAt !== undefined ? { resetsAt } : {}) });
+    const previous: UsageLimits = { windows: [win('session', NOW + 1000), win('weekly:a', NOW - 1), win('weekly:b'), win('weekly', NOW + 5000)], updatedAt: 1, source: 'usage' };
+    const next: UsageLimits = { windows: [win('weekly:c', NOW + 9)], updatedAt: 2, source: 'usage' };
+    expect(carryOverWindows(previous, next, NOW).windows.map((w) => w.id)).toEqual(['session', 'weekly', 'weekly:c']);
+    // present in the report: the report wins
+    expect(carryOverWindows(previous, { ...next, windows: [win('session')] }, NOW).windows.find((w) => w.id === 'session')!.resetsAt).toBeUndefined();
   });
 
   test('rate_limit_event (real shape): updates only its window, keeps the rest; other types are ignored', () => {
@@ -167,6 +191,54 @@ describe('usage limits in the session host', () => {
   });
 });
 
+describe('plan limits are protected from glitchy reports', () => {
+  const report = (...rows: Array<{ kind: string; percent: number; resets_at: string | null }>) => ({ subscription_type: 'team', rate_limits_available: true, rate_limits: { limits: rows } });
+  const inHours = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
+  const usageUpdates = (h: Harness) => (h.broadcaster.flush(), allEvents(h).filter((e) => e.type === 'usage.updated')) as Array<{ properties: { usage: UsageLimits } }>;
+  const apply = (h: Harness, raw: unknown): UsageLimits | undefined => h.manager['applyUsageRaw'](raw);
+
+  test('a null / empty report keeps the known windows: no push, no persist, debug log', () => {
+    const h = createHarness('text');
+    apply(h, report({ kind: 'session', percent: 30, resets_at: inHours(2) }, { kind: 'weekly_all', percent: 10, resets_at: inHours(100) }));
+    const stored = h.store.get('claudekei.usageLimits');
+    const pushes = usageUpdates(h).length;
+
+    for (const glitch of [{ subscription_type: 'team', rate_limits: null }, { subscription_type: 'team', rate_limits_available: true, rate_limits: { limits: [] } }, {}]) {
+      expect(apply(h, glitch)?.windows).toHaveLength(2);
+    }
+    expect(h.manager.getUsage()?.windows.map((w) => w.id)).toEqual(['session', 'weekly']);
+    expect(usageUpdates(h).length).toBe(pushes);
+    expect(h.store.get('claudekei.usageLimits')).toBe(stored);
+    expect(h.logs.some((l) => l.message.includes('without windows ignored'))).toBe(true);
+  });
+
+  test('windows that only came from rate_limit_events survive a fuller report while unexpired; expired ones drop', () => {
+    const h = createHarness('text');
+    const future = Date.now() + 3_600_000;
+    const past = Date.now() - 1000;
+    h.manager['usage'] = { windows: [{ id: 'session', kind: 'session', label: 'Session limit', utilization: 0.4, resetsAt: future }, { id: 'weekly:opus', kind: 'weekly_scoped', label: 'Weekly · Opus', utilization: 0.2, resetsAt: past }], updatedAt: 1, source: 'usage' };
+    const next = apply(h, report({ kind: 'weekly_all', percent: 10, resets_at: inHours(100) }))!;
+    expect(next.windows.map((w) => w.id)).toEqual(['session', 'weekly']);
+    expect(next.windows[0]).toMatchObject({ utilization: 0.4, resetsAt: future });
+    expect(h.logs.some((l) => l.message.includes('fewer windows'))).toBe(false);
+    // dropping a window logs the raw report
+    apply(h, report({ kind: 'weekly_all', percent: 11, resets_at: inHours(100) }));
+    h.manager['usage'] = { ...h.manager['usage'], windows: [...h.manager['usage'].windows, { id: 'x', kind: 'x', label: 'X', utilization: 0.1 }] };
+    apply(h, report({ kind: 'weekly_all', percent: 12, resets_at: inHours(100) }));
+    expect(h.logs.some((l) => l.message.includes('fewer windows'))).toBe(true);
+  });
+
+  test('an explicit rate_limits_available:false still clears the windows', () => {
+    const h = createHarness('text');
+    apply(h, report({ kind: 'session', percent: 30, resets_at: inHours(2) }));
+    expect(h.manager.getUsage()?.windows).toHaveLength(1);
+    const next = apply(h, { subscription_type: null, rate_limits_available: false, rate_limits: null })!;
+    expect(next.windows).toEqual([]);
+    expect(h.manager.getUsage()?.windows).toEqual([]);
+    expect(usageUpdates(h).at(-1)!.properties.usage.windows).toEqual([]);
+  });
+});
+
 describe('context usage in the session host', () => {
   test('measured after each result, announced in session.updated, available through the request', async () => {
     const h = createHarness('text', {}, undefined, { contextRaw: contextFull() });
@@ -214,5 +286,73 @@ describe('context usage in the session host', () => {
     await sendAndSettle(h, 's1', 'again');
     await until(() => h.queries.at(-1)!.contextCalls.length > 0, 2000);
     expect((await h.manager.contextUsage('s1')).source).toBe('exact');
+  });
+
+  test('measured as soon as the process is up, before the first turn settles', async () => {
+    const h = createHarness('permission-edit', {}, undefined, { contextRaw: contextFull() });
+    await h.manager.bootstrap();
+    const { id } = h.manager.create();
+    await h.manager.send(id, { text: 'edit' });
+    await until(() => (h.broadcaster.flush(), allEvents(h).some((e) => e.type === 'permission.asked')));
+    // the turn is blocked on the permission request, yet the figures are already there
+    expect(h.manager['sessions'].get(id)!.lifecycle).toBe('live-busy');
+    await until(() => h.queries.at(-1)!.contextCalls.length > 0, 2000);
+    h.broadcaster.flush();
+    const withUsage = allEvents(h).filter((e) => e.type === 'session.updated' && (e.properties.info as Session).contextUsage?.source === 'exact');
+    expect(withUsage.length).toBeGreaterThan(0);
+    const asked = allEvents(h).find((e) => e.type === 'permission.asked');
+    if (asked?.type !== 'permission.asked') throw new Error();
+    h.manager.respondPermission(id, asked.properties.id, 'once');
+    await until(() => h.manager['sessions'].get(id)!.lifecycle === 'live-idle');
+    // the spawn measurement does not feed the post-result throttle: the result still measures again
+    await until(() => h.queries.at(-1)!.contextCalls.length >= 2, 2000);
+  });
+
+  test('a new session is seeded from the model baseline (persisted across restarts) and keeps it when nothing else is known', async () => {
+    const h = createHarness('text', {}, undefined, { contextRaw: contextFull() });
+    await h.manager.bootstrap();
+    expect(h.manager.create().contextUsage).toBeUndefined();
+    const { id } = h.manager.create();
+    await sendAndSettle(h, id);
+    await until(() => h.queries.at(-1)!.contextCalls.length > 0, 2000);
+    await until(() => h.store.get('claudekei.contextBaselines') !== undefined, 2000);
+
+    const seeded = h.manager.create();
+    expect(seeded.contextUsage).toMatchObject({ source: 'estimate', maxTokens: 1_000_000 });
+    expect(seeded.contextUsage!.usedTokens).toBeGreaterThan(0);
+    expect(seeded.contextUsage!.categories.some((c) => c.id === 'messages')).toBe(false);
+    // no live process and no transcript tokens: the request must not overwrite it with an empty estimate
+    expect(await h.manager.contextUsage(seeded.id)).toEqual(seeded.contextUsage!);
+
+    // next start: the baseline comes from the persisted state
+    const h2 = createHarness('text', {}, undefined, { shared: { store: h.store, api: h.api } });
+    expect(h2.manager.create().contextUsage).toMatchObject({ source: 'estimate', usedTokens: seeded.contextUsage!.usedTokens });
+  });
+
+  test('a hung getContextUsage is abandoned after the timeout so later measurements can run', async () => {
+    const h = createHarness('text', {}, undefined, { contextRaw: contextFull() });
+    await h.manager.bootstrap();
+    const { id } = h.manager.create();
+    await sendAndSettle(h, id);
+    await until(() => h.queries.at(-1)!.contextCalls.length > 0, 2000);
+    const q = h.queries.at(-1)!;
+    q.getContextUsage = () => new Promise(() => undefined);
+    const pending = h.manager.contextUsage(id);
+    await tick();
+    h.timers.advance(12_000);
+    expect((await pending).source).toBe('exact'); // falls back to the last measurement
+    expect(h.manager['sessions'].get(id)!['contextMeasuring']).toBeUndefined();
+    expect(h.logs.some((l) => l.message === 'getContextUsage failed')).toBe(true);
+  });
+
+  test('a subagent child id answers with the owning session usage instead of throwing', async () => {
+    const h = createHarness('task', {}, undefined, { contextRaw: contextFull() });
+    await h.manager.bootstrap();
+    const { id } = h.manager.create();
+    await sendAndSettle(h, id);
+    const child = [...h.manager['sessions'].get(id)!.state.sessions.keys()].find((k) => k.startsWith('sub_'));
+    expect(child).toBeTruthy();
+    expect((await h.manager.contextUsage(child!)).maxTokens).toBe(1_000_000);
+    await expect(h.manager.contextUsage('sub_missing')).rejects.toThrow('not found');
   });
 });

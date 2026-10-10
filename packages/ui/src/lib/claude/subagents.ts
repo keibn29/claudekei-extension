@@ -230,10 +230,6 @@ export const summarizeSubagentStatuses = (statuses: readonly SubagentStatus[]): 
   return counts;
 };
 
-/** Groups with 4+ members that are all settled start collapsed; otherwise expanded. */
-export const shouldGroupStartExpanded = (counts: SubagentStatusCounts): boolean =>
-  counts.running > 0 || counts.total < 4;
-
 // ---------------------------------------------------------------------------
 // Grouping
 // ---------------------------------------------------------------------------

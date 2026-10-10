@@ -136,6 +136,21 @@ export const labelForMessageModel = (
   return resolveModelLabel({ selected: modelID, resolved: entry ? undefined : modelID, models });
 };
 
+/**
+ * Model label and effort of a subagent child session, each omitted when unknown. The concrete model the subagent ran
+ * with (`resolvedModel`, from its transcript) wins over the selection; an effort the model does not support is hidden.
+ */
+export const subagentModelInfo = (
+  session: { model?: string; resolvedModel?: string; effort?: EffortLevel } | undefined,
+  models: readonly Pick<ModelInfo, 'value' | 'displayName' | 'description' | 'resolvedModel' | 'supportsEffort' | 'supportedEffortLevels'>[],
+): { model?: string; effort?: EffortLevel } => {
+  const id = session?.resolvedModel ?? session?.model;
+  if (!id) return {};
+  const model = labelForMessageModel(id, models) || undefined;
+  const effort = session?.effort && supportedEffortLevels(matchCatalogModel(models, id)).includes(session.effort) ? session.effort : undefined;
+  return { ...(model ? { model } : {}), ...(effort ? { effort } : {}) };
+};
+
 /** Next effort when cycling: model default -> each supported level -> back to model default. */
 export const nextEffort = (current: EffortLevel | null, choices: readonly EffortLevel[]): EffortLevel | null => {
   if (choices.length === 0) return null;

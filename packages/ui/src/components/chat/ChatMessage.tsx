@@ -1031,6 +1031,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                                                 isUser={isUser}
                                                 isMessageCompleted={isMessageCompleted}
                                                 messageFinish={messageFinish}
+                                                messageCreatedAt={messageCreatedAt ?? undefined}
                                                 syntaxTheme={syntaxTheme}
                                                 isMobile={isMobile}
                                                 hasTouchInput={hasTouchInput}
@@ -1063,6 +1064,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                                                 isUser={isUser}
                                                 isMessageCompleted={isMessageCompleted}
                                                 messageFinish={messageFinish}
+                                                messageCreatedAt={messageCreatedAt ?? undefined}
                                                 syntaxTheme={syntaxTheme}
                                                 isMobile={isMobile}
                                                 hasTouchInput={hasTouchInput}
@@ -1133,6 +1135,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                                 showReasoningTraces={showReasoningTraces}
                                 agentMention={agentMention}
                                 turnGroupingContext={turnGroupingContext}
+                                onFork={handleFork}
                                 errorMessage={assistantErrorText}
                             />
 

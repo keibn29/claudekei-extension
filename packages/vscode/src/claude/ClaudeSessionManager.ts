@@ -9,8 +9,10 @@ import type { BootstrapResponse, ClaudeEvent, LiveSessionState, SessionSnapshot 
 import { EFFORT_LEVELS, PERMISSION_MODES, type AccountInfo, type Catalog, type ContextUsage, type EffortLevel, type PermissionMode, type PermissionResponse, type QuestionAnswer, type RevertPreview, type RevertResult, type McpServerScope, type McpStatusSnapshot, type McpTransportConfig, type Session, type SlashCommand, type UsageActivity, type UsageLimits } from '@openchamber/ui/src/lib/claude/types';
 import { AgentLog } from './agentLog';
 import { normalizeAgentName, resolveDefaultAgent } from './agentSettings';
-import { readAgentPresets } from './claudekeiConfig';
-import { applyRateLimitEvent, parseUsageActivity, parseUsageReport } from './usageLimits';
+import { loadAgentFrontmatter } from './agentFrontmatter';
+import { readAgentPresets, type AgentPreset } from './claudekeiConfig';
+import type { ContextBaseline } from './contextUsage';
+import { applyRateLimitEvent, carryOverWindows, parseUsageActivity, parseUsageReport } from './usageLimits';
 import type { Broadcaster } from './broadcaster';
 import { buildCatalog, looksLoggedOut, probeCatalog, probeFromInit, type PrimaryAgentSetting, type ProbeResult } from './catalog';
 import { createCliRunner, type CliRunner } from './claudeCli';
@@ -19,7 +21,7 @@ import { mapMcpServers, mcpConfigJson, mergeMcpConfig, validateMcpConfig } from 
 import type { SkillsCatalogOptions } from './skillsCatalog';
 import { ClaudeSession, type ClaudeSessionDeps, type SendInput, type SessionPrefs } from './ClaudeSession';
 import { buildClaudeEnv, resolveClaudeExecutable, resolveLoginShellPath, type ExecutableResolution } from './env';
-import type { InitInfo } from './mapper';
+import type { InitInfo, SubagentDefaults } from './mapper';
 import { RevertStore } from './revertStore';
 import type { ClaudeQuery, SdkRuntime, SdkSessionInfo } from './sdk';
 import { loadSdkRuntime } from './sdk';
@@ -84,6 +86,7 @@ const CATALOG_KEY = 'claudekei.catalogCache';
 const PREFS_KEY = 'claudekei.sessionPrefs';
 const USAGE_KEY = 'claudekei.usageLimits';
 const WINDOWS_KEY = 'claudekei.modelWindows';
+const BASELINES_KEY = 'claudekei.contextBaselines';
 /** A rate_limit_event triggers a full usage refresh at most this often. */
 const USAGE_REFRESH_MIN_MS = 60_000;
 /** Bootstrap re-probes the catalog at most this often (the probe spawns a process). */
@@ -130,6 +133,8 @@ export class ClaudeSessionManager {
   private readonly agentLog: AgentLog;
   private modelWindows: Record<string, number> = {};
   private modelWindowsKey = '';
+  /** Fixed context cost (system prompt, tools, memory) per model value, from the last exact measurement. */
+  private contextBaselines: Record<string, ContextBaseline> = {};
   /** True while the values come from another Claude Code build: shown, but every model is measured again. */
   private windowsStale = false;
   private windowsMeasuring: Promise<void> | undefined;
@@ -149,6 +154,8 @@ export class ClaudeSessionManager {
   private lastCatalogJson = '';
   private lastProbeAt = 0;
   private catalogCache: { value: Catalog; at: number; key: string } | undefined;
+  /** `model` / `effort` of the subagent definitions on disk (loaded in the background with the catalog). */
+  private agentFrontmatter = new Map<string, AgentPreset>();
   private status: ConnectionStatus = 'connecting';
   private statusError: string | undefined;
   private readonly log: NonNullable<ClaudeSessionManagerOptions['log']>;
@@ -182,6 +189,7 @@ export class ClaudeSessionManager {
     this.agentLog = new AgentLog(options.store);
     this.cli = options.cli ?? createCliRunner(() => this.executable().path ?? findOnPath('claude', (options.baseEnv ?? process.env).PATH));
     this.usage = (options.globalStore ?? options.store).get<UsageLimits | undefined>(USAGE_KEY, undefined);
+    this.contextBaselines = (options.globalStore ?? options.store).get<Record<string, ContextBaseline>>(BASELINES_KEY, {});
     this.deps = {
       agentLog: this.agentLog,
       cwd: options.cwd,
@@ -193,10 +201,14 @@ export class ClaudeSessionManager {
       onPrefsChanged: (session) => this.savePrefs(session),
       agentPreset: (agent) => this.catalog().primaryAgents.find((p) => p.name === agent),
       resolveModel: (value) => this.resolveModel(value),
+      subagentDefaults: (agentType) => this.subagentDefaults(agentType),
       onActivity: (session, state) => this.onSessionActivity(session, state),
       onCommandsChanged: (commands) => this.applyCommands(commands),
       onRateLimit: (info) => this.onRateLimit(info),
       onModelWindow: (value, max) => this.recordModelWindow(value, max),
+      modelWindow: (value) => this.modelWindows[value],
+      contextBaseline: (value) => this.contextBaselines[value],
+      onContextBaseline: (value, baseline) => this.recordContextBaseline(value, baseline),
       isModeAllowed: (mode) => mode !== 'bypassPermissions' || this.config.allowBypassPermissions,
       log: this.log,
       now: this.now,
@@ -269,6 +281,18 @@ export class ClaudeSessionManager {
     return value;
   }
 
+  /**
+   * Model / effort configured for a subagent type: the claudekei.jsonc preset (the plugin applies it to the Agent call),
+   * then the definition's frontmatter, then the SDK catalog's model. Unset fields mean "the parent's".
+   */
+  private subagentDefaults(agentType: string): SubagentDefaults | undefined {
+    const preset = readAgentPresets({ cwd: this.options.cwd, home: this.options.home })[agentType];
+    const frontmatter = this.agentFrontmatter.get(agentType);
+    const model = preset?.model ?? frontmatter?.model ?? this.catalog().agents.find((a) => a.name === agentType)?.model;
+    const effort = preset?.effort ?? frontmatter?.effort;
+    return model || effort ? { ...(model ? { model } : {}), ...(effort ? { effort } : {}) } : undefined;
+  }
+
   /** Starts the startup probe (idempotent while running). Resolves when it has settled. */
   start(): Promise<void> {
     return this.refreshCatalog().then(() => undefined);
@@ -276,6 +300,7 @@ export class ClaudeSessionManager {
 
   /** Re-runs the probe, updates cache/status and pushes `catalog.updated` / `account.updated` when changed. */
   refreshCatalog(): Promise<Catalog> {
+    void loadAgentFrontmatter(this.configFs()).then((defs) => void (this.agentFrontmatter = defs), (e) => this.log('debug', 'agent frontmatter scan failed', String(e)));
     this.catalogPromise ??= (async () => {
       if (!this.probe) this.setStatus('connecting');
       try {
@@ -406,6 +431,13 @@ export class ClaudeSessionManager {
     this.options.broadcaster.emit([{ type: 'catalog.updated', properties: { catalog } }]);
   }
 
+  /** An exact measurement of a live session: remember the model's fixed context cost to seed new sessions. */
+  private recordContextBaseline(modelValue: string, baseline: ContextBaseline): void {
+    if (JSON.stringify(this.contextBaselines[modelValue]) === JSON.stringify(baseline)) return;
+    this.contextBaselines = { ...this.contextBaselines, [modelValue]: baseline };
+    void (this.options.globalStore ?? this.options.store).update(BASELINES_KEY, this.contextBaselines);
+  }
+
   /** Lazy fallback: a live session measured the window of its selected model. */
   private recordModelWindow(modelValue: string, maxTokens: number): void {
     if (!(maxTokens > 0) || this.modelWindows[modelValue] === maxTokens) return;
@@ -492,8 +524,21 @@ export class ClaudeSessionManager {
   /** Folds an SDK usage response in; returns the new limits (undefined when the response is unusable). */
   private applyUsageRaw(raw: unknown): UsageLimits | undefined {
     if (raw === undefined || raw === null) return undefined;
-    this.lastUsageFetchAt = this.now();
-    const next = parseUsageReport(raw, this.now(), this.account);
+    const now = this.now();
+    this.lastUsageFetchAt = now;
+    const parsed = parseUsageReport(raw, now, this.account);
+    const previous = this.usage;
+    // Only an explicit "no plan limits" (API key / third party) clears known windows; a missing or empty report is a glitch.
+    const explicitNone = typeof raw === 'object' && !Array.isArray(raw) && (raw as Record<string, unknown>).rate_limits_available === false;
+    let next = parsed;
+    if (previous && previous.windows.length > 0 && !explicitNone) {
+      if (parsed.windows.length === 0) {
+        this.log('debug', 'usage report without windows ignored; keeping the last known limits', { kept: previous.windows.length, raw });
+        return previous;
+      }
+      next = carryOverWindows(previous, parsed, now);
+    }
+    if (previous && next.windows.length < previous.windows.length) this.log('debug', 'usage report has fewer windows than before', { before: previous.windows.length, after: next.windows.length, raw });
     this.setUsage(next);
     return next;
   }
@@ -699,6 +744,11 @@ export class ClaudeSessionManager {
   }
 
   async contextUsage(sessionId: string): Promise<ContextUsage> {
+    // A subagent child session shares its parent's context window: answer with the owning session's usage.
+    if (sessionId.startsWith('sub_')) {
+      for (const s of this.sessions.values()) if (s.state.sessions.get(sessionId)?.info) return s.contextUsageNow();
+      throw new Error(`Subagent session ${sessionId} not found`);
+    }
     return (await this.resolve(sessionId)).contextUsageNow();
   }
 

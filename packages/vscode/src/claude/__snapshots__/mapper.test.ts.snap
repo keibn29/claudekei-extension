@@ -3849,7 +3849,7 @@ exports[`golden: every fixture maps cleanly task 1`] = `
     "message.updated": 14,
     "session.created": 1,
     "session.status": 6,
-    "session.updated": 3,
+    "session.updated": 4,
   },
   "main": {
     "messages": [
@@ -4140,7 +4140,7 @@ exports[`golden: every fixture maps cleanly task-forward 1`] = `
     "message.updated": 14,
     "session.created": 1,
     "session.status": 6,
-    "session.updated": 3,
+    "session.updated": 4,
   },
   "main": {
     "messages": [
@@ -4403,7 +4403,7 @@ exports[`golden: every fixture maps cleanly task-sync 1`] = `
             },
           },
           {
-            "apiMessageId": "reply:17000000000250000",
+            "apiMessageId": "reply:17000000000260000",
             "cost": 0,
             "finish": "end_turn",
             "id": "m5",
@@ -4444,7 +4444,7 @@ exports[`golden: every fixture maps cleanly task-sync 1`] = `
     "message.updated": 11,
     "session.created": 1,
     "session.status": 4,
-    "session.updated": 3,
+    "session.updated": 4,
   },
   "main": {
     "messages": [
