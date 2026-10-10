@@ -23,6 +23,7 @@ type PendingScrollRequest = {
     behavior: ScrollBehavior;
     turnId: string | null;
     attempts: number;
+    settling: boolean;
     resolve: (value: boolean) => void;
 };
 
@@ -205,15 +206,27 @@ export const useChatTimelineController = ({
             return;
         }
 
-        const didScroll = pending.kind === 'turn'
-            ? (messageListRef.current?.scrollToTurnId(pending.id, { behavior: pending.behavior }) ?? false)
-            : (messageListRef.current?.scrollToMessageId(pending.id, { behavior: pending.behavior }) ?? false);
+        if (pending.settling) {
+            return;
+        }
 
-        if (didScroll) {
-            if (pending.turnId) {
-                setActiveTurnId(pending.turnId);
-            }
-            resolvePendingScrollRequest(true);
+        const handle = messageListRef.current;
+        const settle = pending.kind === 'turn'
+            ? handle?.scrollToTurnId(pending.id, { behavior: pending.behavior })
+            : handle?.scrollToMessageId(pending.id, { behavior: pending.behavior });
+
+        if (settle) {
+            // Resolve only after the list reports a verified landing.
+            pending.settling = true;
+            void settle.then((landed) => {
+                if (pendingScrollRequestRef.current !== pending) {
+                    return;
+                }
+                if (landed && pending.turnId) {
+                    setActiveTurnId(pending.turnId);
+                }
+                resolvePendingScrollRequest(landed);
+            });
             return;
         }
 
@@ -414,6 +427,7 @@ export const useChatTimelineController = ({
                     behavior: options?.behavior ?? 'auto',
                     turnId,
                     attempts: 0,
+                    settling: false,
                     resolve,
                 };
                 attemptPendingScrollRequest();
@@ -464,6 +478,7 @@ export const useChatTimelineController = ({
                     behavior: options?.behavior ?? 'auto',
                     turnId: turnId ?? null,
                     attempts: 0,
+                    settling: false,
                     resolve,
                 };
                 attemptPendingScrollRequest();

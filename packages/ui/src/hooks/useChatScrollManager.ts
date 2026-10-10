@@ -33,6 +33,8 @@ interface UseChatScrollManagerOptions {
     isMobile: boolean;
     chatRenderMode?: 'sorted' | 'live';
     onActiveTurnChange?: (turnId: string | null) => void;
+    /** True while a timeline jump is settling; re-pinning is skipped meanwhile. */
+    isJumpInFlight?: () => boolean;
 }
 
 export interface AnimationHandlers {
@@ -79,6 +81,7 @@ export const useChatScrollManager = ({
     isSyncing,
     isMobile,
     onActiveTurnChange,
+    isJumpInFlight,
 }: UseChatScrollManagerOptions): UseChatScrollManagerResult => {
     const scrollRef = React.useRef<HTMLDivElement | null>(null);
     const scrollEngine = useScrollEngine({ containerRef: scrollRef, isMobile });
@@ -384,7 +387,7 @@ export const useChatScrollManager = ({
         }
 
         // Re-pin at bottom should always work (even momentum scroll)
-        if (!isPinnedRef.current) {
+        if (!isPinnedRef.current && !isJumpInFlight?.()) {
             const distanceFromBottom = getDistanceFromBottom();
             if (distanceFromBottom <= getPinThreshold()) {
                 setFollowMode(sessionIsWorking ? 'smooth' : 'none');
@@ -400,6 +403,7 @@ export const useChatScrollManager = ({
         queueViewportAnchor(currentSessionId, estimatedIndex);
     }, [
         currentSessionId,
+        isJumpInFlight,
         getDistanceFromBottom,
         getPinThreshold,
         isMarkedAutoScroll,

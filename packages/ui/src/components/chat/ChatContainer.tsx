@@ -482,6 +482,8 @@ export const ChatContainer: React.FC = () => {
         activeTurnChangeRef.current(turnId);
     }, []);
 
+    const isJumpInFlight = React.useCallback(() => messageListRef.current?.isJumpInFlight() ?? false, []);
+
     const {
         scrollRef,
         handleMessageContentChange,
@@ -503,6 +505,7 @@ export const ChatContainer: React.FC = () => {
         chatRenderMode,
         sessionPermissions: sessionBlockingCards,
         onActiveTurnChange: handleActiveTurnChange,
+        isJumpInFlight,
     });
 
     // Alt+T toggles the timeline. Registered here (not in the global shortcut hook) so it only works while
@@ -582,7 +585,7 @@ export const ChatContainer: React.FC = () => {
 
     const scrollToTimelineMessage = timelineController.scrollToMessage;
     const handleJumpToMessage = React.useCallback(
-        (messageId: string) => scrollToTimelineMessage(messageId, { behavior: 'smooth' }),
+        (messageId: string) => scrollToTimelineMessage(messageId, { behavior: 'auto' }),
         [scrollToTimelineMessage],
     );
 
