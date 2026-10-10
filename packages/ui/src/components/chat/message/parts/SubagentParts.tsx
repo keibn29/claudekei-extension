@@ -270,7 +270,7 @@ export const SubagentInstructionBlock: React.FC<{
                 <div
                     className={cn(
                         'relative typography-meta text-foreground/90',
-                        scrollable && 'max-h-[5.5rem] overflow-y-auto overscroll-contain',
+                        scrollable && 'max-h-[20.5rem] overflow-y-auto overscroll-contain',
                         isCollapsed && 'max-h-[5.5rem] overflow-hidden',
                         collapsible && expanded && 'max-h-[40vh] overflow-y-auto',
                     )}
