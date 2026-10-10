@@ -52,6 +52,8 @@ export type ReplayOptions = {
   aliases?: AliasResolver;
   /** Configured model / effort per subagent type (see `MapperOptions.subagentDefaults`). */
   subagentDefaults?: MapperOptions['subagentDefaults'];
+  /** Claude Code's recorded model / effort per subagent (see `MapperOptions.subagentMeta`). */
+  subagentMeta?: MapperOptions['subagentMeta'];
   log?: (level: MapperLogLevel, message: string, data?: unknown) => void;
 };
 
@@ -122,6 +124,7 @@ export function replayEntries(entries: readonly HistoryEntry[], options: ReplayO
     log: options.log,
     aliases: options.aliases,
     subagentDefaults: options.subagentDefaults,
+    subagentMeta: options.subagentMeta,
     replay: true,
     maxToolOutputChars: options.maxToolOutputChars ?? DEFAULT_MAX_TOOL_OUTPUT_CHARS,
   });

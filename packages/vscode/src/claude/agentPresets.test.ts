@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Session, UserMessage } from '@openchamber/ui/src/lib/claude/types';
 import { derivePrimaryAgents } from './catalog';
-import { readAgentPresets } from './claudekeiConfig';
+import { readAgentPresets, readSubagentPresets } from './claudekeiConfig';
 import { allEvents, createHarness, until, STUB_INIT, FakeSessionApi, type Harness } from './fakes';
 
 const dirs: string[] = [];
@@ -58,6 +58,19 @@ describe('claudekei.jsonc presets', () => {
     expect(readAgentPresets(sandbox({ user: '{ not json', project: '[]' }))).toEqual({});
     const { home, cwd } = sandbox({ user: `{ "primaryAgents": { "planner": { "model": "", "effort": "ultra" }, "x": 3, "y": { "model": 5 } } }` });
     expect(readAgentPresets({ cwd, home })).toEqual({});
+  });
+
+  test('subagent presets: subAgents with trailing comma, prefixed keys, deprecated presets overridden by subAgents, files merge per field', () => {
+    const { home, cwd } = sandbox({
+      user: `{ "subAgents": { "frontend-developer": { "model": "sonnet", "effort": "medium", }, "claudekei:explorer": { "model": "haiku" }, }, "presets": { "frontend-developer": { "effort": "low" }, "debugger": { "effort": "xhigh" } }, "primaryAgents": { "planner": { "model": "opus" } } }`,
+      project: `{ "subAgents": { "explorer": { "effort": "low" } } }`,
+    });
+    expect(readSubagentPresets({ cwd, home })).toEqual({
+      'claudekei:frontend-developer': { model: 'sonnet', effort: 'medium' },
+      'claudekei:explorer': { model: 'haiku', effort: 'low' },
+      'claudekei:debugger': { effort: 'xhigh' },
+    });
+    expect(readAgentPresets({ cwd, home })).toEqual({ 'claudekei:planner': { model: 'opus' } });
   });
 
   test('catalog: file value, else the agent frontmatter model (inherit ignored)', () => {

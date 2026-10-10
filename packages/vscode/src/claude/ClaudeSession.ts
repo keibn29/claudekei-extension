@@ -20,6 +20,7 @@ import { PermissionBroker } from './permissions';
 import type { RevertMarker, RevertStore } from './revertStore';
 import type { ClaudeQuery, SdkOptions, SdkRuntime, SessionApi, SDKUserMessage } from './sdk';
 import { bucketFor, createSessionState, reduceEvents, type SessionState } from './sessionState';
+import { readSubagentMeta } from './subagentMeta';
 import { isTaskTool } from './toolNormalize';
 import { cutUuidBefore, forkUuidOf } from './transcriptCut';
 
@@ -72,6 +73,8 @@ export type ClaudeSessionDeps = {
   aliases?: (sessionId: string) => AliasResolver;
   /** Configured model / effort of a subagent type (claudekei.jsonc preset, agent frontmatter), for the child sessions. */
   subagentDefaults?: (agentType: string) => SubagentDefaults | undefined;
+  /** Home directory holding `.claude/projects` (Claude Code's subagent meta files); defaults to the user's home. */
+  home?: string;
   /** Model / effort preset of a primary agent (claudekei.jsonc, else the agent's frontmatter model). */
   agentPreset?: (agent: string) => { defaultModel?: string; defaultEffort?: EffortLevel } | undefined;
   /** Concrete model id for a selected model value (catalog lookup), when known without a live process. */
@@ -150,6 +153,9 @@ export class ClaudeSession {
   /** Transcript uuid the next spawn resumes at (set by a committed revert, cleared once the process emitted `init`). */
   private resumeAt: string | undefined;
   readonly broker: PermissionBroker;
+  /** Claude Code's recorded model / effort of a subagent of this session (its `agent-<id>.meta.json`). */
+  private readonly subagentMeta = (toolUseId: string, agentId?: string) =>
+    readSubagentMeta(toolUseId, agentId, { cwd: this.deps.cwd, sessionId: this.id, home: this.deps.home });
 
   constructor(
     private readonly deps: ClaudeSessionDeps,
@@ -224,7 +230,7 @@ export class ClaudeSession {
   async ensureLoaded(): Promise<void> {
     if (this.loaded) return;
     const sdk = (await this.deps.runtime()).sessions;
-    const snapshot = await loadHistory({ aliases: (this.deps.aliases ?? pluginAliasResolver)(this.id), subagentDefaults: this.deps.subagentDefaults, sessionId: this.id, cwd: this.deps.cwd, mode: this.prefs.mode, model: this.prefs.model, agent: this.prefs.agent, effort: this.prefs.effort, userAgents: this.deps.agentLog?.forReplay(this.id), sdk, log: (l, m, d) => this.deps.log(l === 'warn' ? 'warn' : 'debug', m, d) });
+    const snapshot = await loadHistory({ aliases: (this.deps.aliases ?? pluginAliasResolver)(this.id), subagentDefaults: this.deps.subagentDefaults, subagentMeta: this.subagentMeta, sessionId: this.id, cwd: this.deps.cwd, mode: this.prefs.mode, model: this.prefs.model, agent: this.prefs.agent, effort: this.prefs.effort, userAgents: this.deps.agentLog?.forReplay(this.id), sdk, log: (l, m, d) => this.deps.log(l === 'warn' ? 'warn' : 'debug', m, d) });
     // A live process may have started meanwhile; keep its events by folding them on top of the history.
     if (this.loaded) return;
     const bucket = bucketFor(snapshot.state, this.id);
@@ -490,6 +496,7 @@ export class ClaudeSession {
         now: this.deps.now,
         aliases: (this.deps.aliases ?? pluginAliasResolver)(this.id),
         subagentDefaults: this.deps.subagentDefaults,
+        subagentMeta: this.subagentMeta,
         log: (level, message, data) => this.deps.log(level, `[mapper ${this.id.slice(0, 8)}] ${message}`, data),
         hooks: {
           onInit: (init) => {

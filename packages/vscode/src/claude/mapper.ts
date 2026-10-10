@@ -116,6 +116,11 @@ export type MapperOptions = {
    * used when the Agent tool call names none. `model: inherit` or an unset field means "the parent's".
    */
   subagentDefaults?: (agentType: string) => SubagentDefaults | undefined;
+  /**
+   * Authoritative model / effort of a started subagent (Claude Code's `agent-<id>.meta.json`), looked up by the owning
+   * Agent `tool_use` id. Beats the Agent input and the configured defaults; undefined while the file is not there yet.
+   */
+  subagentMeta?: (toolUseId: string, agentId?: string) => SubagentDefaults | undefined;
 };
 
 /** Model / effort configured for a subagent type. */
@@ -281,6 +286,8 @@ type Container = {
   lastProgressEmit: number;
   /** Child sessions only: memo of the `subagentDefaults` lookup (type -> result), so the config files are read once. */
   defaultsMemo?: { type: string; value: SubagentDefaults | undefined };
+  /** Child sessions only: the authoritative meta once found, else when it was last looked for (misses are throttled). */
+  metaMemo?: { value?: SubagentDefaults; checkedAt?: number };
   /** An assistant text was seen since the latest instruction (forwarded by the SDK or synthesized by the safety net). */
   replied: boolean;
 };
@@ -434,8 +441,9 @@ export function createMapper(options: MapperOptions): Mapper {
   };
 
   /**
-   * Model / effort of a child session, resolved from the most specific source: the Agent tool call input, then the
-   * subagent type's configuration (`subagentDefaults`), then the parent's. `inherit` means the parent's. The concrete
+   * Model / effort of a child session, resolved from the most authoritative source: Claude Code's meta file for the
+   * subagent (`subagentMeta`), then the Agent tool call input, then the subagent type's configuration
+   * (`subagentDefaults`). The model falls back to the parent's (`inherit`); the effort never does. The concrete
    * model the subagent actually ran with arrives later as `resolvedModel` (see `noteChildModel`).
    */
   function childModelFields(child: Container): { model: string; effort?: EffortLevel } {
@@ -452,9 +460,25 @@ export function createMapper(options: MapperOptions): Mapper {
       const text = str(value)?.trim();
       return text && text !== 'inherit' ? text : undefined;
     };
+    const meta = childMeta(child);
     const inputEffort = EFFORT_LEVELS.find((level) => level === input.effort);
-    const nextEffort = inputEffort ?? defaults?.effort ?? effort ?? undefined;
-    return { model: named(input.model) ?? named(defaults?.model) ?? model, ...(nextEffort ? { effort: nextEffort } : {}) };
+    // No fallback to the parent's effort: an unconfirmed value would be shown as if it were the subagent's.
+    const nextEffort = meta?.effort ?? inputEffort ?? defaults?.effort;
+    return { model: named(meta?.model) ?? named(input.model) ?? named(defaults?.model) ?? model, ...(nextEffort ? { effort: nextEffort } : {}) };
+  }
+
+  const META_RETRY_MS = 500;
+
+  /** Claude Code's recorded model / effort for the child, once its meta file exists (found values stick; misses retry every 500 ms). */
+  function childMeta(child: Container): SubagentDefaults | undefined {
+    if (!options.subagentMeta || !child.spawnedBy) return undefined;
+    const memo = (child.metaMemo ??= {});
+    if (memo.value) return memo.value;
+    const now = Date.now();
+    if (memo.checkedAt !== undefined && now - memo.checkedAt < META_RETRY_MS) return undefined;
+    memo.checkedAt = now;
+    memo.value = options.subagentMeta(child.spawnedBy, child.agentRec?.agentId);
+    return memo.value;
   }
 
   /** Re-resolves the child's model / effort once the Agent input or the agent type became known; announces a change. */
@@ -472,7 +496,10 @@ export function createMapper(options: MapperOptions): Mapper {
   /** The model id a subagent's assistant message reports is the one that actually ran: it wins over the resolved selection. */
   const noteChildModel = (child: Container, apiModel: string | undefined): void => {
     // `<synthetic>` marks host-generated messages that never reached the API.
-    if (!apiModel || apiModel.startsWith('<') || !child.info || child.info.resolvedModel === apiModel) return;
+    if (!child.info) return;
+    // Child messages are a good moment to pick up the meta file that appears shortly after the spawn.
+    applyChildModel(child);
+    if (!apiModel || apiModel.startsWith('<') || child.info.resolvedModel === apiModel) return;
     child.info = { ...child.info, resolvedModel: apiModel };
     emitChildInfo(child);
   };

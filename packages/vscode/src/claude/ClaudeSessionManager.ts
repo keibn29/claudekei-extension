@@ -10,7 +10,7 @@ import { EFFORT_LEVELS, PERMISSION_MODES, type AccountInfo, type Catalog, type C
 import { AgentLog } from './agentLog';
 import { normalizeAgentName, resolveDefaultAgent } from './agentSettings';
 import { loadAgentFrontmatter } from './agentFrontmatter';
-import { readAgentPresets, type AgentPreset } from './claudekeiConfig';
+import { readAgentPresets, readSubagentPresets, type AgentPreset } from './claudekeiConfig';
 import type { ContextBaseline } from './contextUsage';
 import { applyRateLimitEvent, carryOverWindows, parseUsageActivity, parseUsageReport } from './usageLimits';
 import type { Broadcaster } from './broadcaster';
@@ -193,6 +193,7 @@ export class ClaudeSessionManager {
     this.deps = {
       agentLog: this.agentLog,
       cwd: options.cwd,
+      home: options.home,
       runtime: this.runtimeLoader,
       env: () => this.buildEnv(),
       executablePath: () => this.executable().path,
@@ -286,7 +287,7 @@ export class ClaudeSessionManager {
    * then the definition's frontmatter, then the SDK catalog's model. Unset fields mean "the parent's".
    */
   private subagentDefaults(agentType: string): SubagentDefaults | undefined {
-    const preset = readAgentPresets({ cwd: this.options.cwd, home: this.options.home })[agentType];
+    const preset = readSubagentPresets({ cwd: this.options.cwd, home: this.options.home })[agentType];
     const frontmatter = this.agentFrontmatter.get(agentType);
     const model = preset?.model ?? frontmatter?.model ?? this.catalog().agents.find((a) => a.name === agentType)?.model;
     const effort = preset?.effort ?? frontmatter?.effort;

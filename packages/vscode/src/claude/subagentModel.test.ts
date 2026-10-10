@@ -6,7 +6,7 @@ import { createMapper, type SubagentDefaults } from './mapper';
 import { bucketFor, createSessionState, reduceEvents } from './sessionState';
 import { fakeClock } from './testUtils';
 
-const make = (opts: { effort?: EffortLevel | null; defaults?: Record<string, SubagentDefaults> } = {}) => {
+const make = (opts: { effort?: EffortLevel | null; defaults?: Record<string, SubagentDefaults>; meta?: (toolUseId: string) => SubagentDefaults | undefined } = {}) => {
   const lookups: string[] = [];
   const mapper = createMapper({
     sessionId: 's',
@@ -15,6 +15,7 @@ const make = (opts: { effort?: EffortLevel | null; defaults?: Record<string, Sub
     model: 'claude-opus-5-5',
     effort: opts.effort ?? null,
     now: fakeClock(),
+    ...(opts.meta ? { subagentMeta: opts.meta } : {}),
     subagentDefaults: (type) => {
       lookups.push(type);
       return opts.defaults?.[type];
@@ -43,12 +44,37 @@ describe('subagent child session model / effort', () => {
     expect(t.info()).toMatchObject({ model: 'sonnet', effort: 'low' });
   });
 
-  test('`inherit` and unconfigured agents take the parent model and effort', () => {
+  test('`inherit` and unconfigured agents take the parent model; the effort is never taken from the parent', () => {
     const t = make({ effort: 'medium', defaults: { helper: { model: 'inherit' } } });
     t.spawn({ subagent_type: 'helper' });
-    expect(t.info()).toMatchObject({ model: 'claude-opus-5-5', effort: 'medium' });
+    expect(t.info()?.model).toBe('claude-opus-5-5');
+    expect(t.info()?.effort).toBeUndefined();
     t.spawn({ subagent_type: 'other' }, 'toolu_b');
-    expect(t.info('toolu_b')).toMatchObject({ model: 'claude-opus-5-5', effort: 'medium' });
+    expect(t.info('toolu_b')?.model).toBe('claude-opus-5-5');
+    expect(t.info('toolu_b')?.effort).toBeUndefined();
+  });
+
+  test('the meta file beats the Agent input and the configured defaults, and is picked up when it appears later', () => {
+    const metas: Record<string, SubagentDefaults> = {};
+    const t = make({ defaults: { helper: { model: 'opus', effort: 'high' } }, meta: (id) => metas[id] });
+    t.spawn({ subagent_type: 'helper', model: 'haiku', effort: 'low' });
+    expect(t.info()).toMatchObject({ model: 'haiku', effort: 'low' });
+    metas.toolu_a = { model: 'sonnet', effort: 'medium' };
+    // Throttled misses retry on the next child message after the retry window.
+    const realNow = Date.now;
+    Date.now = () => realNow() + 1000;
+    try {
+      t.childSay(undefined);
+    } finally {
+      Date.now = realNow;
+    }
+    expect(t.info()).toMatchObject({ model: 'sonnet', effort: 'medium' });
+  });
+
+  test('a meta file known at spawn applies immediately (history replay)', () => {
+    const t = make({ effort: 'high', meta: () => ({ model: 'sonnet', effort: 'medium' }) });
+    t.spawn({ subagent_type: 'helper' });
+    expect(t.info()).toMatchObject({ model: 'sonnet', effort: 'medium' });
   });
 
   test('no effort anywhere leaves it unset', () => {
