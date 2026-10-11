@@ -3,10 +3,10 @@
  * The SDK is ESM-only and external to the esbuild bundle: it is loaded lazily with a dynamic import()
  * (docs/W0_SPIKE_NOTES.md section 5).
  */
-import type { Options, PermissionMode as SdkPermissionMode, RewindFilesResult, SDKMessage, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import type { Options, PermissionMode as SdkPermissionMode, SDKMessage, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { HistoryEntry } from './history';
 
-export type { Options as SdkOptions, RewindFilesResult, SDKMessage, SDKUserMessage, SdkPermissionMode };
+export type { Options as SdkOptions, SDKMessage, SDKUserMessage, SdkPermissionMode };
 
 /** The subset of the SDK `Query` the host uses. */
 export interface ClaudeQuery extends AsyncGenerator<SDKMessage, void> {
@@ -14,8 +14,6 @@ export interface ClaudeQuery extends AsyncGenerator<SDKMessage, void> {
   interrupt(options?: { cancelQueued?: boolean }): Promise<unknown>;
   /** Optional so fakes may omit it. Emits a `task_notification` with status `stopped` for that task. */
   stopTask?(taskId: string): Promise<void>;
-  /** Optional so fakes compile. Restores files to their state at a user message (needs `enableFileCheckpointing`). */
-  rewindFiles?(userMessageId: string, options?: { dryRun?: boolean }): Promise<RewindFilesResult>;
   setModel(model?: string): Promise<void>;
   setPermissionMode(mode: SdkPermissionMode): Promise<void>;
   /** Optional so fakes may omit it; the host falls back to a respawn when it is missing or fails. */

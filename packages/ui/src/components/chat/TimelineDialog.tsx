@@ -129,7 +129,7 @@ export const TimelineDialog: React.FC<TimelineDialogProps> = ({
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl max-h-[70vh] flex flex-col">
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[70vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <RiTimeLine className="h-5 w-5" />

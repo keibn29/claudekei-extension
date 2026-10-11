@@ -1,12 +1,14 @@
 /** Test-only fakes: a fixture-driven Query, an in-memory session API and manual timers. */
-import { mkdtempSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ClaudeEventsPush } from '@openchamber/ui/src/lib/claude/protocol';
 import { Broadcaster } from './broadcaster';
 import { ClaudeSessionManager, DEFAULT_MANAGER_CONFIG, type ManagerConfig } from './ClaudeSessionManager';
 import type { CliRunner } from './claudeCli';
-import type { ClaudeQuery, InitializationResult, QueryFactory, QueryParams, RewindFilesResult, SdkRuntime, SdkSessionInfo, SessionApi, SDKMessage } from './sdk';
+import type { FileHistory } from './fileHistory';
+import type { ClaudeQuery, InitializationResult, QueryFactory, QueryParams, SdkRuntime, SdkSessionInfo, SessionApi, SDKMessage } from './sdk';
 import { loadNdjson, type FixtureLine } from './testUtils';
 
 export class ManualTimers {
@@ -74,10 +76,6 @@ export function segmentsOf(name: string): FixtureLine[][] {
   }
   return segments;
 }
-
-/** What a fake `rewindFiles(uuid)` answers: the dry run result, the real result (default: success) and a disk side effect. */
-export type RewindSpec = { dry: RewindFilesResult; real?: RewindFilesResult; apply?: () => void };
-export type RewindCall = { uuid: string; dryRun: boolean; query: number };
 
 /** Scripted MCP behaviour shared by every query of a harness. */
 export type FakeMcp = {
@@ -160,19 +158,8 @@ export class FakeQuery implements ClaudeQuery {
     this.interruptOptions.push(options);
     return { still_queued: [] };
   }
-  /** Answers of `rewindFiles` per user message uuid (shared by every query of a harness); unknown uuid = no checkpoint. */
-  rewind = new Map<string, RewindSpec>();
-  rewindCalls: RewindCall[] = [];
   /** Position of this query in the harness (0 = the catalog probe). */
   index = 0;
-  async rewindFiles(userMessageId: string, options?: { dryRun?: boolean }): Promise<RewindFilesResult> {
-    this.rewindCalls.push({ uuid: userMessageId, dryRun: options?.dryRun === true, query: this.index });
-    const spec = this.rewind.get(userMessageId);
-    if (!spec) return { canRewind: false, error: 'No file checkpoint found for this message.' };
-    if (options?.dryRun) return spec.dry;
-    spec.apply?.();
-    return spec.real ?? { canRewind: true };
-  }
   mcp: FakeMcp = { responses: [], calls: 0, toggles: [] };
   async mcpServerStatus(): Promise<unknown[]> {
     if (this.mcp.statusError) throw new Error(this.mcp.statusError);
@@ -288,17 +275,17 @@ export type Harness = {
   store: Map<string, unknown>;
   config: ManagerConfig;
   logs: Array<{ level: string; message: string }>;
-  /** Directory of the revert copies (`<storageDir>/revert/<sessionId>`). */
+  /** Extension storage directory (`<storageDir>/snapshot`, `<storageDir>/checkpoints/<sessionId>.json`). */
   storageDir: string;
+  /** Workspace directory of the manager (a real git repository when `extra.git` is set). */
+  cwd: string;
+  /** The manager's snapshot checkpoints (seed or inspect them in revert tests). */
+  fileHistory: FileHistory | undefined;
   /** Scripted MCP status / toggle behaviour shared by every query of this harness. */
   mcp: FakeMcp;
   /** Calls of the fake `claude` CLI, and an optional failure per call (`cliFail` returns the stderr to reject with). */
   cliCalls: Array<{ args: string[]; cwd: string }>;
   cliFail: { current?: (args: string[]) => string | undefined };
-  /** `rewindFiles` answers shared by every query of this harness. */
-  rewind: Map<string, RewindSpec>;
-  /** Every `rewindFiles` call of every query, in order. */
-  rewindLog: RewindCall[];
   /** Marks session ids of recorded fixtures as existing transcripts so list/resume see them. */
   addTranscript(id: string, title?: string): void;
 };
@@ -309,7 +296,7 @@ export function createHarness(
   overrides: Partial<ManagerConfig> = {},
   init: InitializationResult = STUB_INIT,
   /** `shared` simulates a window reload: a new manager over the same workspaceState and transcripts. */
-  extra: { home?: string; cwd?: string; storageDir?: string; shared?: { store: Map<string, unknown>; api: FakeSessionApi }; contextRaw?: unknown; usageRaw?: unknown; windows?: Record<string, number>; distDir?: string; measureWindows?: boolean; cli?: CliRunner } = {},
+  extra: { home?: string; cwd?: string; storageDir?: string; shared?: { store: Map<string, unknown>; api: FakeSessionApi }; contextRaw?: unknown; usageRaw?: unknown; windows?: Record<string, number>; distDir?: string; measureWindows?: boolean; cli?: CliRunner; /** Make `cwd` a real git repository with one commit (needs git). */ git?: boolean } = {},
 ): Harness {
   const timers = new ManualTimers();
   const broadcaster = new Broadcaster({ setTimer: timers.setTimeout, clearTimer: timers.clearTimeout });
@@ -329,8 +316,16 @@ export function createHarness(
     if (failure) throw new Error(failure);
     return { stdout: '', stderr: '' };
   });
-  const rewind = new Map<string, RewindSpec>();
-  const rewindLog: RewindCall[] = [];
+  let cwd = extra.cwd ?? '/work/proj';
+  if (extra.git) {
+    cwd = realpathSync(mkdtempSync(join(tmpdir(), 'claudekei-work-')));
+    const git = (...args: string[]) => spawnSync('git', args, { cwd, env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' } });
+    mkdirSync(cwd, { recursive: true });
+    git('init', '--quiet');
+    writeFileSync(join(cwd, 'seed.txt'), 'seed\n');
+    git('add', '.');
+    git('commit', '--quiet', '-m', 'init');
+  }
   const queryFactory: QueryFactory = (params) => {
     // The catalog probe (never-yielding prompt, persistSession false) gets an inert query.
     const isProbe = params.options.persistSession === false;
@@ -342,16 +337,8 @@ export function createHarness(
     q.contextRaw = isProbe ? undefined : extra.contextRaw;
     q.usageRaw = extra.usageRaw;
     q.windowsByModel = extra.windows;
-    q.rewind = rewind;
     q.mcp = mcp;
     q.index = queries.length;
-    const record = q.rewindFiles.bind(q);
-    q.rewindFiles = async (uuid, options) => {
-      const before = q.rewindCalls.length;
-      const result = await record(uuid, options);
-      rewindLog.push(...q.rewindCalls.slice(before));
-      return result;
-    };
     queries.push(q);
     return q;
   };
@@ -359,7 +346,7 @@ export function createHarness(
   const pushes: ClaudeEventsPush[] = [];
   broadcaster.register({ post: (m) => pushes.push(m) });
   const manager = new ClaudeSessionManager({
-    cwd: extra.cwd ?? '/work/proj',
+    cwd,
     store: { get: ((k: string, d?: unknown) => (store.has(k) ? store.get(k) : d)) as never, update: async (k, v) => void store.set(k, v) },
     broadcaster,
     getConfig: () => config,
@@ -378,7 +365,8 @@ export function createHarness(
     timers,
   });
   return {
-    manager, broadcaster, timers, queries, api, pushes, store, config, logs, storageDir, mcp, cliCalls, cliFail, rewind, rewindLog,
+    manager, broadcaster, timers, queries, api, pushes, store, config, logs, storageDir, cwd, mcp, cliCalls, cliFail,
+    fileHistory: (manager as unknown as { deps: { fileHistory?: FileHistory } }).deps.fileHistory,
     addTranscript: (id, title = 'Existing') => void api.infos.set(id, { sessionId: id, summary: title, lastModified: Date.now(), createdAt: Date.now() - 1000 }),
   };
 }

@@ -16,10 +16,13 @@ import { estimateContextUsage, seedContextUsage, toContextBaseline, toContextUsa
 import { loadHistory } from './history';
 import { createMapper, type AliasResolver, type InitInfo, type Mapper, type SubagentDefaults } from './mapper';
 import { pluginAliasResolver } from './pluginAliases';
+import { cleanPluginState } from './pluginStateCleanup';
 import { PermissionBroker } from './permissions';
+import type { FileHistory } from './fileHistory';
 import type { RevertMarker, RevertStore } from './revertStore';
 import type { ClaudeQuery, SdkOptions, SdkRuntime, SessionApi, SDKUserMessage } from './sdk';
 import { bucketFor, createSessionState, reduceEvents, type SessionState } from './sessionState';
+import { revertedPromptIds, transcriptPaths, trimSubagents } from './subagentCut';
 import { readSubagentMeta } from './subagentMeta';
 import { isTaskTool } from './toolNormalize';
 import { cutUuidBefore, forkUuidOf } from './transcriptCut';
@@ -31,6 +34,9 @@ export type SessionLifecycle = 'draft' | 'cold' | 'starting' | 'live-idle' | 'li
 export type SessionPrefs = { model: string; mode: PermissionMode; agent: string; effort?: EffortLevel | null };
 
 export type SendInput = Omit<ClaudeRequestPayload<'claude:session.send'>, 'sessionId'>;
+
+/** How long a revert waits for the CLI to acknowledge an interrupt before it closes the process instead. */
+const INTERRUPT_TIMEOUT_MS = 5000;
 
 export type SessionTimers = {
   setTimeout(fn: () => void, ms: number): unknown;
@@ -81,8 +87,10 @@ export type ClaudeSessionDeps = {
   resolveModel?: (value: string) => string | undefined;
   /** Per-turn agent record so replayed user messages keep the agent they were sent with. */
   agentLog?: AgentLog;
-  /** Revert markers and the file copies behind `/redo` (docs/REVERT_SPEC.md); absent = revert is unavailable. */
+  /** Revert markers (docs/REVERT_SPEC.md); markers only, file state is in `fileHistory`. Absent = revert is unavailable. */
   revertStore?: RevertStore;
+  /** Git snapshot checkpoints behind file restore; absent = conversation-only revert. */
+  fileHistory?: FileHistory;
 };
 
 const TEXT_MIME = /^(text\/|application\/(json|xml|x-yaml|yaml|javascript|typescript|x-sh|x-httpd-php|sql|toml|x-ndjson|ld\+json)|[a-z]+\/[a-z.+-]*\+(json|xml))/i;
@@ -133,6 +141,8 @@ export class ClaudeSession {
   private disposed = false;
   private sendInFlight = 0;
   private pendingInterrupt = false;
+  /** Reverted `promptId`s whose subagent cut still has to be (re)applied before the next spawn (crash / failure before `init`). */
+  private pendingCut: { promptIds: string[]; trimmedAgentIds: string[] } | undefined;
   /** `system/init` model of the live process, valid while the selected model is still `value`. */
   private initResolved: { value: string; resolved: string } | undefined;
   /** Effort the live process runs with; `effortStale` = it could not be changed live (respawn on the next idle send). */
@@ -176,6 +186,7 @@ export class ClaudeSession {
       // The last process died / the window closed before announcing the cut: resume there again, keep the rest hidden.
       this.committedMarker = stored;
       this.resumeAt = stored.resumeAt ?? undefined;
+      this.pendingCut = stored.promptIds ? { promptIds: stored.promptIds, trimmedAgentIds: stored.trimmedAgentIds ?? [] } : undefined;
     } else {
       this.revertMarker = stored;
     }
@@ -317,6 +328,7 @@ export class ClaudeSession {
     this.lastActivity = this.deps.now();
     this.deps.emit(events);
     this.syncLifecycle();
+    if (this.lifecycle === 'live-idle' && !this.hasRunningTasks) void this.deps.fileHistory?.end(this.id);
   }
 
   private setLifecycle(next: SessionLifecycle): void {
@@ -333,6 +345,9 @@ export class ClaudeSession {
     if (next === this.lifecycle) return;
     this.setLifecycle(next);
     this.deps.onActivity?.(this, busy ? 'busy' : 'idle');
+    // The CLI started a turn on its own (a queued message was dequeued, an auto-continuation): the checkpoint an idle
+    // closed must cover what this turn does. `reopen` is a no-op when a newer checkpoint is already open (normal send).
+    if (busy && !this.revertMarker) void this.deps.fileHistory?.reopen(this.id);
     if (!busy) this.onTurnIdle();
   }
 
@@ -371,6 +386,7 @@ export class ClaudeSession {
         this.deps.log('info', 'agent, effort or config changed, respawning session process', { id: this.id, from: this.spawnedAgent, to: this.prefs.agent, effortStale: this.effortStale, configStale: this.configStale });
         await this.closeProcess();
       }
+      if (this.pendingCut && !this.isLive && (await this.cutSubagents(this.pendingCut.promptIds, this.pendingCut.trimmedAgentIds))) this.pendingCut = undefined; // idempotent re-application
       if (!this.isLive) await this.spawn();
       if (this.disposed) throw new Error('This session was deleted');
       if (this.pendingInterrupt) {
@@ -382,6 +398,13 @@ export class ClaudeSession {
       const text = input.command ? `/${input.command.name}${input.command.args ? ` ${input.command.args}` : ''}` : input.text;
       const blocks: Array<Record<string, unknown>> = [{ type: 'text', text }, ...attachments];
       const uuid = randomUUID();
+      // Snapshot the files right before the message is pushed (never throws; a failure only means no checkpoint).
+      await this.deps.fileHistory?.begin(this.id, uuid);
+      if (this.disposed) throw new Error('This session was deleted');
+      if (!this.mapper || !this.queue || this.pendingInterrupt) {
+        this.pendingInterrupt = false;
+        throw new Error('Interrupted before the message was sent');
+      }
       // The label is the agent the message is actually processed by (a queued message keeps the running agent).
       // Effort: what the live process runs with (a change it could not take yet is not in effect for this turn).
       this.mapper!.configure({ model: this.prefs.model, mode: this.prefs.mode, agent: this.spawnedAgent, effort: this.liveEffort });
@@ -479,7 +502,6 @@ export class ClaudeSession {
         // between switches, so the prompt cache is only missed once per switch.
         systemPrompt: { type: 'preset', preset: 'claude_code', snapshot: false },
         thinking: { type: 'adaptive', display: 'summarized' },
-        enableFileCheckpointing: true,
         allowedTools: ['TodoWrite'],
         env,
         abortController: abort,
@@ -583,6 +605,7 @@ export class ClaudeSession {
       this.mapper = undefined;
       this.exists = this.exists || sawResult;
       this.setLifecycle(this.exists ? 'cold' : 'draft');
+      void this.deps.fileHistory?.end(this.id);
       this.deps.onActivity?.(this, 'idle');
       const message = failure instanceof Error ? failure.message : failure ? String(failure) : undefined;
       // A throw after a `result` is the normal end when the CLI exits (W0 notes 3.6); dying mid-turn is unexpected.
@@ -616,41 +639,87 @@ export class ClaudeSession {
     return { uuid: message.claudeUuid, messageId, resumeAt: resumeAt ?? null };
   }
 
-  private async ensureProcess(): Promise<ClaudeQuery> {
-    if (!this.isLive) {
-      await this.spawn();
-      // Nobody sends to this process: let the idle timer close it.
-      this.deps.onActivity?.(this, 'idle');
-    }
-    const query = this.query!;
-    if (!query.rewindFiles) throw new Error('This Claude Code version cannot rewind files');
-    return query;
-  }
-
-  /** A process that is not running a turn: a busy one is interrupted and closed first (pending prompts are denied). */
-  private async idleQuery(): Promise<ClaudeQuery> {
-    // Running background subagents count as busy: rewinding files under them (and killing them on close) is a stop.
+  /** Stops a running turn (and background subagents) before files change under it; an idle live process stays alive. */
+  private async stopRunningTurn(): Promise<void> {
     if (this.lifecycle === 'live-busy' || this.lifecycle === 'starting' || (this.isLive && this.hasRunningTasks)) {
       this.mapper?.markStopRequested();
-      if (this.query) await this.interruptTurn(this.query).catch(() => undefined);
+      // A CLI that does not answer the interrupt must not hang the revert: closing the process stops the turn anyway.
+      if (this.query) await this.withTimeout(this.interruptTurn(this.query).catch(() => undefined), INTERRUPT_TIMEOUT_MS);
       await this.closeProcess();
     }
-    return this.ensureProcess();
   }
 
-  /** Dry run of the file rewind for reverting to `messageId`: never interrupts, may spawn a cold session's process. */
-  revertPreview(messageId: string): Promise<RevertPreview> {
-    return this.exclusive(async () => {
-      const target = await this.revertTarget(messageId);
-      const dry = await (await this.ensureProcess()).rewindFiles!(target.uuid, { dryRun: true });
-      if (!dry.canRewind) return { files: [], insertions: 0, deletions: 0, filesError: dry.error ?? 'No file checkpoint for this message' };
-      return { files: (dry.filesChanged ?? []).map((p) => this.displayPath(p)), insertions: dry.insertions ?? 0, deletions: dry.deletions ?? 0 };
+  /** Resolves with `work`, or after `ms` without it (the work keeps running unobserved). Uses the session timers. */
+  private withTimeout(work: Promise<unknown>, ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      const handle = this.deps.timers.setTimeout(() => {
+        this.deps.log('warn', 'interrupt did not answer in time; closing the process', { id: this.id, ms });
+        resolve();
+      }, ms);
+      void work.then(() => {
+        this.deps.timers.clearTimeout(handle);
+        resolve();
+      });
     });
   }
 
   /**
-   * Restores the files (when the CLI has a checkpoint) and hides `messageId` and everything after it until the next
-   * send commits the cut, or `unrevert`. The current bytes of every file the rewind touches are saved first (D5).
+   * Absolute paths edited by Write / Edit / MultiEdit / NotebookEdit calls in the range a revert to `fromMessageId`
+   * undoes: the main messages from it on, the children their Agent calls created, and, in the other children, what
+   * they did after the first follow-up sent from a reverted message (same range as the commit removes).
+   */
+  private editedPaths(fromMessageId: string): string[] {
+    const main = bucketFor(this.state, this.id);
+    const removed = main.messages.filter((m) => m.id >= fromMessageId);
+    const range = this.revertedRange(removed);
+    const scopes: Array<{ messages: Message[]; parts: Record<string, ReadonlyArray<unknown>> }> = [{ messages: removed, parts: main.parts }];
+    for (const id of range.owned) {
+      const child = this.state.sessions.get(id);
+      if (child) scopes.push(child);
+    }
+    for (const [id, messages] of range.followUps) scopes.push({ messages, parts: this.state.sessions.get(id)!.parts });
+    const paths = new Set<string>();
+    for (const scope of scopes) {
+      for (const m of scope.messages) {
+        for (const part of (scope.parts[m.id] ?? []) as Array<{ type: string; tool?: string; claude?: { name?: string }; state?: { input?: Record<string, unknown> } }>) {
+          if (part.type !== 'tool') continue;
+          const name = (part.claude?.name ?? part.tool ?? '').toLowerCase();
+          if (!['write', 'edit', 'multiedit', 'notebookedit'].includes(name)) continue;
+          const input = part.state?.input ?? {};
+          const path = [input.filePath, input.file_path, input.notebook_path, input.notebookPath].find((v): v is string => typeof v === 'string' && v !== '');
+          if (path) paths.add(resolve(this.deps.cwd, path));
+        }
+      }
+    }
+    return [...paths];
+  }
+
+  /** Adds "N files edited in these turns can't be restored: …" to a revert / preview `filesError`. */
+  private async withUnrestorableNote(fromMessageId: string, filesError: string | undefined): Promise<string | undefined> {
+    const history = this.deps.fileHistory;
+    if (!history) return filesError;
+    const bad = await history.audit(this.editedPaths(fromMessageId));
+    if (bad.length === 0) return filesError;
+    const shown = bad.slice(0, 5).map((p) => this.displayPath(p)).join(', ') + (bad.length > 5 ? ', …' : '');
+    const note = `${bad.length} file(s) edited in these turns can't be restored: ${shown}`;
+    return filesError ? `${filesError}; ${note}` : note;
+  }
+
+  /** Dry run of the file restore for reverting to `messageId`: touches nothing and starts no process. */
+  revertPreview(messageId: string): Promise<RevertPreview> {
+    return this.exclusive(async () => {
+      const target = await this.revertTarget(messageId);
+      const history = this.deps.fileHistory;
+      if (!history) return { files: [], insertions: 0, deletions: 0, filesError: 'file snapshots are unavailable in this host' };
+      const preview = await history.preview(this.id, target.uuid, this.revertMarker?.head);
+      const filesError = await this.withUnrestorableNote(target.messageId, preview.filesError);
+      return { ...preview, files: preview.files.map((p) => this.displayPath(p)), ...(filesError ? { filesError } : {}) };
+    });
+  }
+
+  /**
+   * Restores the files (from the git snapshots) and hides `messageId` and everything after it until the next send
+   * commits the cut, or `unrevert`. The head tree taken right before restoring lets `unrevert` undo it (D5).
    */
   revert(messageId: string): Promise<RevertResult> {
     return this.exclusive(async () => {
@@ -658,20 +727,29 @@ export class ClaudeSession {
       if (!store) throw new Error('Revert is not available in this host');
       const target = await this.revertTarget(messageId);
       if (this.revertMarker?.uuid === target.uuid) return { files: [] };
-      const query = await this.idleQuery();
-      const dry = await query.rewindFiles!(target.uuid, { dryRun: true });
+      await this.stopRunningTurn();
+      const history = this.deps.fileHistory;
       let files: string[] = [];
       let filesError: string | undefined;
-      if (dry.canRewind) {
-        const absolute = (dry.filesChanged ?? []).map((p) => resolve(this.deps.cwd, p));
-        await store.capture(this.id, absolute); // a cap error propagates: nothing was changed yet
-        const real = await query.rewindFiles!(target.uuid);
-        if (real.canRewind) files = absolute.map((p) => this.displayPath(p));
-        else filesError = real.error ?? 'The files could not be restored';
+      let head: string | undefined;
+      if (!history) {
+        filesError = 'file snapshots are unavailable in this host';
       } else {
-        filesError = dry.error ?? 'No file checkpoint for this message';
+        // Back to the head state first, so the new revert starts from it. A failure propagates: the old marker (and
+        // its redo state) stays untouched.
+        const old = this.revertMarker;
+        if (old?.head) {
+          const undone = await history.unrevert(this.id, old.uuid, old.head);
+          // A store that is only temporarily unavailable (git missing, setting off) must not drop the redo head: refuse.
+          if (undone.unavailable) throw new Error(`Cannot move the revert while file snapshots are unavailable (${undone.skipped}). Use /redo first, or fix the setup and try again.`);
+          if (undone.skipped) this.deps.log('warn', 'files of the previous revert were not restored', { id: this.id, reason: undone.skipped });
+        }
+        const result = await history.revert(this.id, target.uuid);
+        files = result.files.map((p) => this.displayPath(p));
+        filesError = await this.withUnrestorableNote(target.messageId, result.filesError);
+        head = result.head;
       }
-      this.revertMarker = { uuid: target.uuid, resumeAt: target.resumeAt };
+      this.revertMarker = { uuid: target.uuid, resumeAt: target.resumeAt, ...(head ? { head } : {}) };
       await store.set(this.id, this.revertMarker);
       this.info = { ...this.info, revert: { messageID: target.messageId } };
       this.publish([{ type: 'session.updated', properties: { sessionID: this.id, info: this.info } }]);
@@ -680,16 +758,27 @@ export class ClaudeSession {
     });
   }
 
-  /** Writes the saved files back (head state) and shows the hidden messages again. */
+  /** Writes the head state back (when the marker has one) and shows the hidden messages again. */
   unrevert(): Promise<void> {
     return this.exclusive(async () => {
-      if (!this.revertMarker) return;
-      await this.deps.revertStore?.restore(this.id);
+      const marker = this.revertMarker;
+      if (!marker) return;
+      if (marker.head && this.deps.fileHistory) {
+        // A file that cannot be written back throws: the marker stays so /redo can be retried.
+        const undone = await this.deps.fileHistory.unrevert(this.id, marker.uuid, marker.head);
+        // Nothing to restore from (expired snapshots, store unavailable): the conversation is restored only.
+        if (undone.skipped) this.deps.log('warn', 'files were not restored on unrevert', { id: this.id, reason: undone.skipped });
+      }
       await this.deps.revertStore?.clear(this.id);
       this.revertMarker = undefined;
       this.clearRevertInfo();
       this.publish([{ type: 'session.updated', properties: { sessionID: this.id, info: this.info } }]);
     });
+  }
+
+  /** Leftover checkpoints only waste space: a failure must never block the send that commits the cut. */
+  private async dropCheckpoints(fromUuid: string): Promise<void> {
+    await this.deps.fileHistory?.drop(this.id, fromUuid).catch((error) => this.deps.log('warn', 'could not drop file checkpoints', { id: this.id, error: error instanceof Error ? error.message : String(error) }));
   }
 
   private clearRevertInfo(): void {
@@ -706,13 +795,25 @@ export class ClaudeSession {
     const marker = this.revertMarker;
     if (!marker) return;
     await this.closeProcess();
+    // The reverted turns' promptIds are computed once (the process is closed: the transcript is complete) and persisted
+    // with the committed marker, so a re-applied cut can never match turns of the new branch.
+    const paths = transcriptPaths({ home: this.deps.home, cwd: this.deps.cwd, sessionId: this.id });
+    const promptIds = marker.promptIds ?? (await revertedPromptIds(paths.main, marker.uuid));
+    if (!promptIds) this.deps.log('warn', 'could not find the reverted turns in the transcript; subagent transcripts are not rolled back', { id: this.id, uuid: marker.uuid });
+    // Which subagents the cut will rewrite is fixed before the first rewrite (dry run) and persisted with the promptIds.
+    const trimmedAgentIds = promptIds ? (marker.trimmedAgentIds ?? (await trimSubagents(paths.subagents, promptIds, undefined, { dryRun: true })).trimmed) : undefined;
+    const committed: RevertMarker = { ...marker, ...(promptIds ? { promptIds } : {}), ...(trimmedAgentIds ? { trimmedAgentIds } : {}) };
     if (marker.resumeAt) {
       // Persist the cut until a process announced it: a reload before that keeps the messages hidden and resumes there.
       this.resumeAt = marker.resumeAt;
-      this.committedMarker = marker;
-      await this.deps.revertStore?.commit(this.id, marker);
+      this.committedMarker = committed;
+      await this.deps.revertStore?.commit(this.id, committed);
+      await this.dropCheckpoints(marker.uuid);
+      if (promptIds) this.pendingCut = (await this.cutSubagents(promptIds, trimmedAgentIds ?? [])) ? undefined : { promptIds, trimmedAgentIds: trimmedAgentIds ?? [] };
     } else {
       await this.deps.revertStore?.clear(this.id);
+      await this.dropCheckpoints(marker.uuid);
+      if (promptIds) await this.cutSubagents(promptIds, []); // before the transcript is deleted
       try {
         await (await this.deps.runtime()).sessions.deleteSession(this.id, { dir: this.deps.cwd });
       } catch (error) {
@@ -731,16 +832,59 @@ export class ClaudeSession {
     this.publish(events);
   }
 
-  /** Events removing `removed` main messages and the subagent children their Agent calls created. */
+  /**
+   * Rolls the subagent transcripts of the reverted turns back (docs/REVERT_SPEC.md, "Subagent context") and cleans the
+   * plugin's alias state. Never throws: a failure is logged and reported so the cut is retried before the next spawn.
+   */
+  private async cutSubagents(promptIds: string[], knownTrimmed: string[]): Promise<boolean> {
+    try {
+      const paths = transcriptPaths({ home: this.deps.home, cwd: this.deps.cwd, sessionId: this.id });
+      const cut = await trimSubagents(paths.subagents, promptIds);
+      for (const f of cut.failed) this.deps.log('warn', 'could not trim a subagent transcript', { id: this.id, ...f });
+      if (cut.removed.length || cut.trimmed.length) this.deps.log('info', 'subagent transcripts rolled back', { id: this.id, removed: cut.removed.length, trimmed: cut.trimmed.length, relinked: cut.relinked });
+      // `knownTrimmed` comes from the marker: a retry finds nothing left to rewrite but must still reset those aliases.
+      await cleanPluginState({ home: this.deps.home, sessionId: this.id, removedAgentIds: cut.removed, trimmedAgentIds: [...new Set([...knownTrimmed, ...cut.trimmed])], subagentsDir: paths.subagents, log: this.deps.log });
+      return cut.failed.length === 0;
+    } catch (error) {
+      this.deps.log('warn', 'could not roll back subagent transcripts', { id: this.id, error: error instanceof Error ? error.message : String(error) });
+      return false;
+    }
+  }
+
+  /**
+   * Events removing `removed` main messages, the subagent children their Agent calls created and, in the children that
+   * stay, the SendMessage follow-ups sent from a removed message with everything the child did after the first of them.
+   */
   private removalEvents(removed: Message[]): ClaudeEvent[] {
-    const bucket = bucketFor(this.state, this.id);
     const events: ClaudeEvent[] = removed.map((m) => ({ type: 'message.removed', properties: { sessionID: this.id, messageID: m.id } }));
-    for (const childId of this.childrenOwnedBy(removed.map((m) => bucket.parts[m.id] ?? []).flat())) {
+    const range = this.revertedRange(removed);
+    for (const childId of range.owned) {
       const info = this.state.sessions.get(childId)?.info;
       if (info) events.push({ type: 'session.deleted', properties: { sessionID: childId, info } });
       else this.state.sessions.delete(childId);
     }
+    for (const [childId, messages] of range.followUps) {
+      for (const m of messages) events.push({ type: 'message.removed', properties: { sessionID: childId, messageID: m.id } });
+    }
     return events;
+  }
+
+  /**
+   * What reverting main messages `removed` undoes outside the main session (the one rule behind both the commit's
+   * removal events and the audit of edits): the children their Agent calls created (with nested ones), and, in every
+   * other child, the messages from the first follow-up sent from a removed message on.
+   */
+  private revertedRange(removed: Message[]): { owned: string[]; followUps: Map<string, Message[]> } {
+    const main = bucketFor(this.state, this.id);
+    const owned = this.childrenOwnedBy(removed.flatMap((m) => main.parts[m.id] ?? []));
+    const removedIds = new Set(removed.map((m) => m.id));
+    const followUps = new Map<string, Message[]>();
+    for (const [childId, child] of this.state.sessions) {
+      if (childId === this.id || owned.includes(childId)) continue;
+      const first = child.messages.findIndex((m) => m.role === 'user' && m.instruction?.fromMessageID !== undefined && removedIds.has(m.instruction.fromMessageID));
+      if (first >= 0) followUps.set(childId, child.messages.slice(first));
+    }
+    return { owned, followUps };
   }
 
   /** Child sessions created by `Agent` calls among `parts`, plus the children nested below them. */

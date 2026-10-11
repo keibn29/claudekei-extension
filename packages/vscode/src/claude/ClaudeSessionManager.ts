@@ -3,7 +3,7 @@
  * (live cap with LRU idle eviction, idle timeout). Vscode-free; persistence goes through a Memento-like store.
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, promises as fsp, readFileSync, statSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import type { BootstrapResponse, ClaudeEvent, LiveSessionState, SessionSnapshot } from '@openchamber/ui/src/lib/claude/protocol';
 import { EFFORT_LEVELS, PERMISSION_MODES, type AccountInfo, type Catalog, type ContextUsage, type EffortLevel, type PermissionMode, type PermissionResponse, type QuestionAnswer, type RevertPreview, type RevertResult, type McpServerScope, type McpStatusSnapshot, type McpTransportConfig, type Session, type SlashCommand, type UsageActivity, type UsageLimits } from '@openchamber/ui/src/lib/claude/types';
@@ -22,6 +22,7 @@ import type { SkillsCatalogOptions } from './skillsCatalog';
 import { ClaudeSession, type ClaudeSessionDeps, type SendInput, type SessionPrefs } from './ClaudeSession';
 import { buildClaudeEnv, resolveClaudeExecutable, resolveLoginShellPath, type ExecutableResolution } from './env';
 import type { InitInfo, SubagentDefaults } from './mapper';
+import { FileHistory } from './fileHistory';
 import { RevertStore } from './revertStore';
 import type { ClaudeQuery, SdkRuntime, SdkSessionInfo } from './sdk';
 import { loadSdkRuntime } from './sdk';
@@ -46,6 +47,8 @@ export type ManagerConfig = {
   allowBypassPermissions: boolean;
   /** `claudekei.defaultPermissionMode`: mode of new sessions (downgraded to `default` when bypass is not allowed). */
   defaultPermissionMode: PermissionMode;
+  /** `claudekei.fileSnapshots`: snapshot workspace files per message so revert can restore them (default true). */
+  fileSnapshots: boolean;
 };
 
 export type ClaudeSessionManagerOptions = {
@@ -64,8 +67,10 @@ export type ClaudeSessionManagerOptions = {
   measureModelWindows?: boolean;
   /** Home directory for `~/.claude/claudekei.jsonc` (tests). */
   home?: string;
-  /** Extension storage directory: file copies for `/redo` live under `<storageDir>/revert/<sessionId>`. Without it revert is unavailable. */
+  /** Extension storage directory: git snapshots and checkpoint logs live under `<storageDir>/snapshot` and `<storageDir>/checkpoints`. Without it revert is unavailable. */
   storageDir?: string;
+  /** Path of the git executable (`git.path` setting); default: `git` found on PATH, else plain `git`. */
+  gitPath?: string;
   /** Poll interval while MCP servers are connecting (tests). */
   mcpPollMs?: number;
   /** Moves a file or directory to the OS trash (vscode `workspace.fs.delete` with `useTrash`); default: `fs.rm`. */
@@ -107,7 +112,7 @@ const MCP_NAME = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,63}$/;
 /** Unsent drafts nobody references are dropped after this long. */
 const DRAFT_TTL_MS = 60 * 60_000;
 
-const DEFAULT_CONFIG: ManagerConfig = { maxLiveSessions: 3, idleTimeoutMinutes: 10, useApiKey: false, claudeExecutablePath: '', primaryAgents: [], allowBypassPermissions: true, defaultPermissionMode: 'bypassPermissions' };
+const DEFAULT_CONFIG: ManagerConfig = { maxLiveSessions: 3, idleTimeoutMinutes: 10, useApiKey: false, claudeExecutablePath: '', primaryAgents: [], allowBypassPermissions: true, defaultPermissionMode: 'bypassPermissions', fileSnapshots: true };
 
 export const DEFAULT_MANAGER_CONFIG = DEFAULT_CONFIG;
 
@@ -215,9 +220,23 @@ export class ClaudeSessionManager {
       now: this.now,
       timers: this.timers,
       stderr: options.stderr,
-      revertStore: options.storageDir ? new RevertStore(options.store, join(options.storageDir, 'revert')) : undefined,
+      revertStore: options.storageDir ? new RevertStore(options.store) : undefined,
+      fileHistory: options.storageDir
+        ? new FileHistory({
+            storageDir: options.storageDir,
+            cwd: options.cwd,
+            gitPath: options.gitPath || findOnPath('git', (options.baseEnv ?? process.env).PATH) || 'git',
+            env: () => this.buildEnv(),
+            enabled: () => this.config.fileSnapshots,
+            log: this.log,
+          })
+        : undefined,
     };
-    void this.deps.revertStore?.sweep().catch((error) => this.log('warn', 'could not sweep stale revert copies', error instanceof Error ? error.message : String(error)));
+    if (options.storageDir) {
+      // File copies of the previous (rewindFiles based) revert implementation are obsolete.
+      void fsp.rm(join(options.storageDir, 'revert'), { recursive: true, force: true }).catch(() => undefined);
+      void this.deps.fileHistory?.warm();
+    }
   }
 
   // --- config / env ------------------------------------------------------------
@@ -925,7 +944,7 @@ export class ClaudeSessionManager {
     }
   }
 
-  /** Dry run of the file rewind behind a revert to `messageId` (never interrupts). */
+  /** Dry run of the file restore behind a revert to `messageId` (never interrupts, starts no process). */
   async revertPreview(sessionId: string, messageId: string): Promise<RevertPreview> {
     const session = await this.revertSession(sessionId);
     return session.revertPreview(messageId);
@@ -943,9 +962,7 @@ export class ClaudeSessionManager {
 
   private async revertSession(sessionId: string): Promise<ClaudeSession> {
     if (sessionId.startsWith('sub_')) throw new Error('Subagent sessions cannot be reverted');
-    const session = await this.resolve(sessionId);
-    if (!session.isLive) await this.makeRoom(session);
-    return session;
+    return this.resolve(sessionId);
   }
 
   async interrupt(sessionId: string): Promise<void> {
@@ -1061,6 +1078,7 @@ export class ClaudeSessionManager {
     }
     this.agentLog.remove(sessionId);
     await this.deps.revertStore?.clear(sessionId);
+    await this.deps.fileHistory?.remove(sessionId).catch((error) => this.log('warn', 'could not remove file snapshots', error instanceof Error ? error.message : String(error)));
     if (info) this.options.broadcaster.emit([{ type: 'session.deleted', properties: { sessionID: sessionId, info } }]);
   }
 

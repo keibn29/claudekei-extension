@@ -59,7 +59,8 @@ export const SubagentBody: React.FC<{
     className?: string;
 }> = ({ id, info, onShowPopup, onContentChange, className }) => {
     const { t } = useI18n();
-    const replyText = info.error ? undefined : (info.reply ?? info.toolOutput);
+    // Hide the reply (toggle and expanded output) while the subagent is working, including follow-up runs.
+    const replyText = info.error || isActiveSubagentStatus(info.status) ? undefined : (info.reply ?? info.toolOutput);
     const handleContentChange = React.useCallback(() => onContentChange?.('structural'), [onContentChange]);
     const [showOutput, setShowOutput] = React.useState(false);
     const outputId = `${id}-output`;

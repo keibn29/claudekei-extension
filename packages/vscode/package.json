@@ -247,6 +247,11 @@
           "default": true,
           "description": "Allow the bypassPermissions mode (runs every tool without asking). When turned off, the extension refuses that mode and new sessions fall back to the default mode."
         },
+        "claudekei.fileSnapshots": {
+          "type": "boolean",
+          "default": true,
+          "description": "Snapshot workspace files per message so Revert/undo can restore them (requires Git)."
+        },
         "claudekei.defaultPermissionMode": {
           "type": "string",
           "enum": [

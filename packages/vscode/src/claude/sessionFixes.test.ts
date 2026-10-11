@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AGENT_LOG_KEY } from './agentLog';
 import { createHarness, STUB_INIT, until, type Harness } from './fakes';
-import { REVERT_KEY, RevertStore } from './revertStore';
+import { REVERT_KEY } from './revertStore';
 import type { ClaudeSession } from './ClaudeSession';
 
 const dirs: string[] = [];
@@ -127,18 +127,15 @@ describe('4/5: running background subagents', () => {
     expect(session['configStale']).toBe(false);
   });
 
-  test('revert treats running tasks as busy: interrupt + close before the rewind', async () => {
+  test('revert treats running tasks as busy: interrupt + close, no respawn', async () => {
     const { h, id, session } = await idleWithRunningTask();
     const first = h.queries[1]!;
     const message = session.getSnapshot().messages.find((m) => m.role === 'user')!;
-    h.rewind.set(message.claudeUuid!, { dry: { canRewind: true, filesChanged: [], insertions: 0, deletions: 0 } });
-    // revert needs the store: the harness has one (storageDir)
     await h.manager.revert(id, message.id);
     expect(first.interrupts).toBe(1);
     expect(first.interruptOptions).toEqual([{ cancelQueued: true }]);
     expect(first.closed).toBe(true);
-    expect(first.rewindCalls).toEqual([]);
-    expect(h.queries[2]!.rewindCalls.map((c) => c.dryRun)).toEqual([true, false]);
+    expect(h.queries).toHaveLength(2);
   });
 });
 
@@ -170,14 +167,12 @@ describe('3: revert target without a cuttable predecessor', () => {
 
   test('a compaction summary with a uuid is a valid cut point', async () => {
     const { h, id } = await setup([summary('sum1', 0), prompt('u1', 1, 'one'), answer('m1', 'a1', 2, 'A')]);
-    h.rewind.set('u1', { dry: { canRewind: false, error: 'none' } });
     await h.manager.revert('s1', id('u1'));
     expect(h.store.get(REVERT_KEY)).toEqual({ s1: { uuid: 'u1', resumeAt: 'sum1' } });
   });
 
   test('the very first message still reverts to a fresh start', async () => {
     const { h, id } = await setup([prompt('u1', 1, 'one'), answer('m1', 'a1', 2, 'A'), prompt('u2', 3, 'two'), answer('m2', 'a2', 4, 'B')]);
-    h.rewind.set('u1', { dry: { canRewind: false, error: 'none' } });
     await h.manager.revert('s1', id('u1'));
     expect(h.store.get(REVERT_KEY)).toEqual({ s1: { uuid: 'u1', resumeAt: null } });
   });
@@ -188,7 +183,7 @@ describe('7: a committed cut survives a reload until a process announced it', ()
 
   test('commit keeps a committed marker; reload hides the cut messages and the next spawn resumes there; init clears it', async () => {
     const work = tmp();
-    const h = createHarness((i) => (i === 2 ? 'revert/noinit' : 'multi-turn'), {}, STUB_INIT, { cwd: work });
+    const h = createHarness((i) => (i === 1 ? 'revert/noinit' : 'multi-turn'), {}, STUB_INIT, { cwd: work });
     h.addTranscript('s1');
     h.api.history.set('s1', entries as never);
     await h.manager.bootstrap();
@@ -197,7 +192,7 @@ describe('7: a committed cut survives a reload until a process announced it', ()
     await h.manager.revert('s1', u2);
     await h.manager.send('s1', { text: 'next' }); // commit; the process never announces itself
     const session = sessionOf(h, 's1');
-    await until(() => h.queries[2]?.prompts.length === 1);
+    await until(() => h.queries[1]?.prompts.length === 1);
     expect(h.store.get(REVERT_KEY)).toEqual({ s1: { uuid: 'u2', resumeAt: 'a1', committed: true } });
     expect(session.hasRevert).toBe(false);
 
@@ -230,17 +225,5 @@ describe('7: a committed cut survives a reload until a process announced it', ()
     expect(snap.messages.filter((m) => m.role === 'user')).toHaveLength(3);
     expect(h.store.get(REVERT_KEY)).toEqual({});
     expect(h.logs.some((l) => l.level === 'warn' && /committed revert cut/.test(l.message))).toBe(true);
-  });
-});
-
-describe('12b: RevertStore ids stay inside the root', () => {
-  test('path-like ids are rejected, UUIDs pass', async () => {
-    const root = tmp();
-    const kv = { get: ((_k: string, d?: unknown) => d) as never, update: async () => undefined };
-    const store = new RevertStore(kv, root);
-    await expect(store.clear('../evil')).rejects.toThrow('Invalid session id');
-    await expect(store.clear('a/b')).rejects.toThrow('Invalid session id');
-    await expect(store.capture('..', [join(root, 'x')])).rejects.toThrow('Invalid session id');
-    await expect(store.clear('7c1a5a4e-0d3b-4f6a-9a53-2f1f2f3a4b5c')).resolves.toBeUndefined();
   });
 });

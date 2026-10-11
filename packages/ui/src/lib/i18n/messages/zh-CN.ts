@@ -738,7 +738,7 @@ export const dict: Record<I18nKey, string> = {
   'chat.revertDialog.filesHeading': 'Files that will be restored ({count})',
   'chat.revertDialog.filesNone': 'No file changes to restore.',
   'chat.revertDialog.filesUnavailable': 'Files can\'t be restored for this message ({error}). Only the conversation will be reverted.',
-  'chat.revertDialog.filesNote': 'Only edits made by Claude\'s file tools are restored; changes from shell commands are not. Edits you made to these files since then are overwritten (/redo brings them back).',
+  'chat.revertDialog.filesNote': 'Restores every file changed since this message (by Claude, subagents or shell commands), except Git-ignored files and files over 10 MB. Edits you made to these files since then are overwritten (/redo brings them back).',
   'chat.revertDialog.busyNote': 'Claude\'s current reply will be stopped first.',
   'chat.revertDialog.moreFiles': 'and {count} more',
   'chat.revertDialog.confirm': '回滚',

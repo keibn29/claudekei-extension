@@ -44,7 +44,7 @@ describe('ClaudeSessionManager', () => {
     expect(o.includePartialMessages).toBe(true);
     expect(o.settingSources).toEqual(['user', 'project', 'local']);
     expect(o.thinking).toEqual({ type: 'adaptive', display: 'summarized' });
-    expect(o.enableFileCheckpointing).toBe(true);
+    expect(o.enableFileCheckpointing).toBeUndefined();
     expect(o.systemPrompt).toEqual({ type: 'preset', preset: 'claude_code', snapshot: false });
     // foreground subagent runs only forward their text reply with this option
     expect(o.forwardSubagentText).toBe(true);

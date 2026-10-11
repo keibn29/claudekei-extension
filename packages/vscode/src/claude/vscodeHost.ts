@@ -20,11 +20,19 @@ export function readManagerConfig(): ManagerConfig {
     useApiKey: config.get<boolean>('useApiKey', false),
     claudeExecutablePath: (config.get<string>('claudeExecutablePath', '') || '').trim(),
     allowBypassPermissions: config.get<boolean>('allowBypassPermissions', true),
+    fileSnapshots: config.get<boolean>('fileSnapshots', true),
     defaultPermissionMode: config.get<PermissionMode>('defaultPermissionMode', 'bypassPermissions'),
     primaryAgents: Array.isArray(primary)
       ? primary.filter((p): p is PrimaryAgentSetting => !!p && typeof (p as PrimaryAgentSetting).name === 'string')
       : [],
   };
+}
+
+/** `git.path` of the built-in Git extension: a string, or a list of candidates (the first one is used). */
+function readGitPath(): string | undefined {
+  const value = vscode.workspace.getConfiguration('git').get<unknown>('path');
+  const first = Array.isArray(value) ? value.find((v): v is string => typeof v === 'string' && v !== '') : value;
+  return typeof first === 'string' && first !== '' ? first : undefined;
 }
 
 export type ClaudeHost = { manager: ClaudeSessionManager; broadcaster: Broadcaster; cwd: string };
@@ -39,9 +47,9 @@ export function createClaudeHost(context: vscode.ExtensionContext, output: vscod
     distDir: path.join(context.extensionPath, 'dist'),
     store: context.workspaceState,
     globalStore: context.globalState,
-    // Without a workspace folder there is no per-workspace storage: the global dir is shared by every such window, and
-    // the revert-copy sweep (dirs without a marker in THIS window's state) would delete the other windows' copies.
+    // Without a workspace folder there is no per-workspace storage: use a per-window dir under the global one.
     storageDir: context.storageUri?.fsPath ?? path.join(context.globalStorageUri.fsPath, 'no-workspace', vscode.env.sessionId),
+    gitPath: readGitPath(),
     trash: (absPath) => Promise.resolve(vscode.workspace.fs.delete(vscode.Uri.file(absPath), { recursive: true, useTrash: true })),
     broadcaster,
     getConfig: readManagerConfig,
