@@ -1,0 +1,72 @@
+/* Minimal composer: plain text by default, only code / lists are rendered. */
+.minimal-composer {
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.minimal-composer .ProseMirror {
+  outline: none;
+  min-height: 1.5rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--surface-foreground);
+}
+
+.minimal-composer .ProseMirror p {
+  margin: 0;
+}
+
+.minimal-composer .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+}
+
+.minimal-composer .ProseMirror code {
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  padding: 0.05rem 0.3rem;
+  border: 1px solid var(--interactive-border);
+  border-radius: 0.25rem;
+  background: var(--markdown-inline-code-bg, var(--surface-muted));
+  color: var(--markdown-inline-code, var(--destructive));
+}
+
+.minimal-composer .ProseMirror pre {
+  margin: 0.25rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--surface-muted);
+  color: var(--surface-foreground);
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  overflow-x: auto;
+}
+
+.minimal-composer .ProseMirror pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: inherit;
+}
+
+.minimal-composer .ProseMirror ul,
+.minimal-composer .ProseMirror ol {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.minimal-composer .ProseMirror ul {
+  list-style: disc;
+}
+
+.minimal-composer .ProseMirror ol {
+  list-style: decimal;
+}
+
+.minimal-composer .ProseMirror li p {
+  margin: 0;
+}
