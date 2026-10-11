@@ -1,6 +1,5 @@
 import React from 'react';
 import type { Part } from '@/lib/claude/types';
-import { measureElement as measureVirtualElement, type VirtualItem, useVirtualizer } from '@tanstack/react-virtual';
 
 import ChatMessage from './ChatMessage';
 import { areOptionalRenderRelevantMessagesEqual, areRelevantTurnGroupingContextsEqual, areRenderRelevantMessagesEqual } from './message/renderCompare';
@@ -19,24 +18,7 @@ import AgentSwitchDivider from './message/AgentSwitchDivider';
 import { AgentSwitchContext } from './message/agentSwitchContext';
 import { deriveAgentSwitchDividers } from '@/lib/claude/agentSwitch';
 
-const MESSAGE_LIST_VIRTUALIZE_THRESHOLD = 15;
-const MESSAGE_LIST_OVERSCAN = 6;
 const JUMP_OFFSET_PX = 50;
-const JUMP_TIME_BUDGET_MS = 2000;
-const JUMP_STABLE_FRAMES = 3;
-const JUMP_COARSE_RETRY_FRAMES = 8;
-
-const estimateHistoryEntryHeight = (entry: RenderEntry | undefined): number => {
-    if (!entry) {
-        return 160;
-    }
-
-    if (entry.kind === 'turn') {
-        return 180 + Math.min(entry.turn.assistantMessages.length, 4) * 100;
-    }
-
-    return 140;
-};
 
 const useStableEvent = <TArgs extends unknown[], TResult>(handler: (...args: TArgs) => TResult) => {
     const handlerRef = React.useRef(handler);
@@ -382,8 +364,6 @@ const getNormalizedMessageForDisplay = (message: ChatMessageEntry): ChatMessageE
 
 interface MessageListProps {
     sessionKey: string;
-    turnStart: number;
-    disableStaging?: boolean;
     messages: ChatMessageEntry[];
     sessionIsWorking?: boolean;
     activeStreamingMessageId?: string | null;
@@ -396,20 +376,13 @@ interface MessageListProps {
     } | null;
     onMessageContentChange: (reason?: ContentChangeReason) => void;
     getAnimationHandlers: (messageId: string) => AnimationHandlers;
-    hasMoreAbove: boolean;
-    isLoadingOlder: boolean;
-    onLoadOlder: () => void;
     scrollToBottom?: (options?: { instant?: boolean; force?: boolean }) => void;
     scrollRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export interface MessageListHandle {
-    /** Resolves true once the target landed; null when the current handle does not know the target yet. */
-    scrollToTurnId: (turnId: string, options?: { behavior?: ScrollBehavior }) => Promise<boolean> | null;
-    scrollToMessageId: (messageId: string, options?: { behavior?: ScrollBehavior }) => Promise<boolean> | null;
-    isJumpInFlight: () => boolean;
-    captureViewportAnchor: () => { messageId: string; offsetTop: number } | null;
-    restoreViewportAnchor: (anchor: { messageId: string; offsetTop: number }) => boolean;
+    scrollToTurnId: (turnId: string) => boolean;
+    scrollToMessageId: (messageId: string) => boolean;
 }
 
 type RenderEntry =
@@ -932,12 +905,6 @@ MessageListEntry.displayName = 'MessageListEntry';
 // Inner component that renders staged turn entries.
 const StaticHistoryList: React.FC<{
     entries: RenderEntry[];
-    shouldVirtualize: boolean;
-    virtualRows: VirtualItem[];
-    scrollMargin: number;
-    totalSize: number;
-    measureElement: (element: HTMLDivElement | null) => void;
-    contentRef: React.RefObject<HTMLDivElement | null>;
     onMessageContentChange: (reason?: ContentChangeReason) => void;
     getAnimationHandlers: (messageId: string) => AnimationHandlers;
     scrollToBottom?: (options?: { instant?: boolean; force?: boolean }) => void;
@@ -949,7 +916,7 @@ const StaticHistoryList: React.FC<{
     shouldAnimateUserMessage: (message: ChatMessageEntry) => boolean;
     onUserAnimationConsumed: (messageId: string) => void;
     activeStreamingPhase?: StreamPhase | null;
-}> = ({ entries, shouldVirtualize, virtualRows, scrollMargin, totalSize, measureElement, contentRef, onMessageContentChange, getAnimationHandlers, scrollToBottom, stickyUserHeader, defaultActivityExpanded, turnUiStates, onToggleTurnGroup, chatRenderMode, shouldAnimateUserMessage, onUserAnimationConsumed, activeStreamingPhase }) => {
+}> = ({ entries, onMessageContentChange, getAnimationHandlers, scrollToBottom, stickyUserHeader, defaultActivityExpanded, turnUiStates, onToggleTurnGroup, chatRenderMode, shouldAnimateUserMessage, onUserAnimationConsumed, activeStreamingPhase }) => {
     const renderEntry = React.useCallback((entry: RenderEntry) => {
         return (
             <MessageListEntry
@@ -972,49 +939,16 @@ const StaticHistoryList: React.FC<{
         );
     }, [activeStreamingPhase, chatRenderMode, defaultActivityExpanded, getAnimationHandlers, onMessageContentChange, onToggleTurnGroup, onUserAnimationConsumed, scrollToBottom, shouldAnimateUserMessage, stickyUserHeader, turnUiStates]);
 
-    const paddingTop = shouldVirtualize && virtualRows.length > 0
-        ? Math.max(0, (virtualRows[0]?.start ?? 0) - scrollMargin)
-        : 0;
-    const paddingBottom = shouldVirtualize && virtualRows.length > 0
-        ? Math.max(0, totalSize - ((virtualRows[virtualRows.length - 1]?.end ?? 0) - scrollMargin))
-        : 0;
-
-    if (!shouldVirtualize) {
-        return (
-            <div ref={contentRef} className="relative w-full">
-                {entries.map((entry) => (
-                    <div
-                        key={entry.key}
-                        data-turn-entry={entry.key}
-                    >
-                        {renderEntry(entry)}
-                    </div>
-                ))}
-            </div>
-        );
-    }
-
     return (
-        <div ref={contentRef} className="relative w-full">
-            {paddingTop > 0 ? <div aria-hidden="true" style={{ height: `${paddingTop}px` }} /> : null}
-            {virtualRows.map((virtualRow) => {
-                const entry = entries[virtualRow.index];
-                if (!entry) {
-                    return null;
-                }
-
-                return (
-                    <div
-                        key={virtualRow.key}
-                        ref={measureElement}
-                        data-index={virtualRow.index}
-                        data-turn-entry={entry.key}
-                    >
-                        {renderEntry(entry)}
-                    </div>
-                );
-            })}
-            {paddingBottom > 0 ? <div aria-hidden="true" style={{ height: `${paddingBottom}px` }} /> : null}
+        <div className="relative w-full">
+            {entries.map((entry) => (
+                <div
+                    key={entry.key}
+                    data-turn-entry={entry.key}
+                >
+                    {renderEntry(entry)}
+                </div>
+            ))}
         </div>
     );
 };
@@ -1076,8 +1010,6 @@ StreamingTailContent.displayName = 'StreamingTailContent';
 
 const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(({ 
     sessionKey,
-    turnStart,
-    disableStaging: _disableStaging,
     messages,
     sessionIsWorking = false,
     activeStreamingMessageId = null,
@@ -1085,14 +1017,10 @@ const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(({
     retryOverlay = null,
     onMessageContentChange,
     getAnimationHandlers,
-    hasMoreAbove,
-    isLoadingOlder,
-    onLoadOlder,
     scrollToBottom,
     scrollRef,
 }, ref) => {
     streamPerfCount('ui.message_list.render');
-    void _disableStaging;
     const stickyUserHeader = useUIStore(state => state.stickyUserHeader);
     const chatRenderMode = useUIStore((state) => state.chatRenderMode);
     const activityRenderMode = useUIStore((state) => state.activityRenderMode);
@@ -1104,7 +1032,6 @@ const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(({
         animatedIds: Set<string>;
     }>({ sessionKey: undefined, previousOrder: [], animatedIds: new Set() });
     const stableGetAnimationHandlers = useStableEvent(getAnimationHandlers);
-    const stableOnLoadOlder = useStableEvent(onLoadOlder);
     const stableScrollToBottom = useStableEvent((options?: { instant?: boolean; force?: boolean }) => {
         scrollToBottom?.(options);
     });
@@ -1171,8 +1098,6 @@ const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(({
         return output;
     }), [messages]);
 
-    const historyContentRef = React.useRef<HTMLDivElement | null>(null);
-    const pendingVirtualMeasureFrameRef = React.useRef<number | null>(null);
     const resolveScrollContainer = React.useCallback((): HTMLDivElement | null => {
         if (scrollRef?.current) {
             return scrollRef.current;
@@ -1270,122 +1195,7 @@ const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(({
     }
 
     const historyEntries = staticRenderEntries;
-    // Latch per session: once virtualization is on, keep it on so a jump that grows the window cannot flip it mid-scroll.
-    const virtualizeLatchRef = React.useRef<{ key: string | undefined; on: boolean }>({ key: sessionKey, on: false });
-    if (virtualizeLatchRef.current.key !== sessionKey) {
-        virtualizeLatchRef.current = { key: sessionKey, on: false };
-    }
-    if (historyEntries.length >= MESSAGE_LIST_VIRTUALIZE_THRESHOLD) {
-        virtualizeLatchRef.current.on = true;
-    }
-    const shouldVirtualizeHistory = virtualizeLatchRef.current.on;
-    const jumpInFlightRef = React.useRef(false);
-    const jumpTokenRef = React.useRef(0);
-    const [historyScrollMargin, setHistoryScrollMargin] = React.useState(0);
-    const [historyWidthPx, setHistoryWidthPx] = React.useState<number | null>(null);
-    const historyMeasurementScopeKey = historyWidthPx === null ? 'width:unknown' : `width:${Math.round(historyWidthPx)}`;
-
-    React.useLayoutEffect(() => {
-        const historyContent = historyContentRef.current;
-        if (!historyContent || !shouldVirtualizeHistory) {
-            setHistoryWidthPx((previous) => (previous === null ? previous : null));
-            return;
-        }
-
-        const updateWidth = (nextWidth: number) => {
-            setHistoryWidthPx((previous) => {
-                if (previous !== null && Math.abs(previous - nextWidth) < 0.5) {
-                    return previous;
-                }
-                return nextWidth;
-            });
-        };
-
-        updateWidth(historyContent.getBoundingClientRect().width);
-
-        if (typeof ResizeObserver === 'undefined') {
-            return;
-        }
-
-        const observer = new ResizeObserver(() => {
-            updateWidth(historyContent.getBoundingClientRect().width);
-        });
-        observer.observe(historyContent);
-        return () => {
-            observer.disconnect();
-        };
-    }, [historyEntries.length, shouldVirtualizeHistory]);
-
-    // Offset of the history list inside the scroll container (e.g. the "Load older messages" header).
-    React.useLayoutEffect(() => {
-        const container = resolveScrollContainer();
-        const content = historyContentRef.current;
-        if (!container || !content || !shouldVirtualizeHistory) {
-            return;
-        }
-        const margin = Math.max(
-            0,
-            content.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop,
-        );
-        setHistoryScrollMargin((previous) => (Math.abs(previous - margin) < 0.5 ? previous : margin));
-    }, [hasMoreAbove, isLoadingOlder, resolveScrollContainer, shouldVirtualizeHistory, turnStart, historyWidthPx]);
-
-    const historyVirtualizer = useVirtualizer({
-        count: historyEntries.length,
-        getScrollElement: resolveScrollContainer,
-        estimateSize: (index) => estimateHistoryEntryHeight(historyEntries[index]),
-        getItemKey: (index) => `${historyMeasurementScopeKey}:${historyEntries[index]?.key ?? index}`,
-        measureElement: measureVirtualElement,
-        useAnimationFrameWithResizeObserver: true,
-        overscan: MESSAGE_LIST_OVERSCAN,
-        enabled: shouldVirtualizeHistory,
-        scrollMargin: historyScrollMargin,
-        initialRect: {
-            width: resolveScrollContainer()?.clientWidth ?? 0,
-            height: resolveScrollContainer()?.clientHeight ?? 0,
-        },
-        initialOffset: () => resolveScrollContainer()?.scrollTop ?? 0,
-    });
-
-    const scheduleVirtualMeasure = React.useCallback(() => {
-        if (!shouldVirtualizeHistory || jumpInFlightRef.current || typeof window === 'undefined') {
-            return;
-        }
-        if (pendingVirtualMeasureFrameRef.current !== null) {
-            return;
-        }
-        pendingVirtualMeasureFrameRef.current = window.requestAnimationFrame(() => {
-            pendingVirtualMeasureFrameRef.current = null;
-            // Re-read mounted rows only; measure() would reset the size cache to estimates.
-            historyContentRef.current?.querySelectorAll<HTMLElement>('[data-index]').forEach((node) => {
-                historyVirtualizer.measureElement(node);
-            });
-        });
-    }, [historyVirtualizer, shouldVirtualizeHistory]);
-
-    React.useEffect(() => {
-        return () => {
-            if (pendingVirtualMeasureFrameRef.current !== null && typeof window !== 'undefined') {
-                window.cancelAnimationFrame(pendingVirtualMeasureFrameRef.current);
-            }
-        };
-    }, []);
-
-    const historyVirtualRows = React.useMemo(
-        () => (shouldVirtualizeHistory ? historyVirtualizer.getVirtualItems() : []),
-        [historyVirtualizer, shouldVirtualizeHistory],
-    );
-
-    const allEntries = React.useMemo(() => {
-        return trailingStreamingEntry ? [...historyEntries, trailingStreamingEntry] : historyEntries;
-    }, [historyEntries, trailingStreamingEntry]);
-
-    const stableHistoryContentChange = useStableEvent((reason?: ContentChangeReason) => {
-        scheduleVirtualMeasure();
-        onMessageContentChange(reason);
-    });
-
-    const stableTailContentChange = useStableEvent((reason?: ContentChangeReason) => {
+    const stableContentChange = useStableEvent((reason?: ContentChangeReason) => {
         onMessageContentChange(reason);
     });
 
@@ -1436,33 +1246,6 @@ const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(({
         userAnimationRef.current.animatedIds.delete(messageId);
     }, []);
 
-    const messageIndexMap = React.useMemo(() => {
-        const indexMap = new Map<string, number>();
-
-        allEntries.forEach((entry, index) => {
-            if (entry.kind === 'ungrouped') {
-                indexMap.set(entry.message.info.id, index);
-                return;
-            }
-            indexMap.set(entry.turn.userMessage.info.id, index);
-            entry.turn.assistantMessages.forEach((message) => {
-                indexMap.set(message.info.id, index);
-            });
-        });
-
-        return indexMap;
-    }, [allEntries]);
-
-    const turnIndexMap = React.useMemo(() => {
-        const indexMap = new Map<string, number>();
-        allEntries.forEach((entry, index) => {
-            if (entry.kind === 'turn') {
-                indexMap.set(entry.turn.turnId, index);
-            }
-        });
-        return indexMap;
-    }, [allEntries]);
-
     const findMessageElement = React.useCallback((messageId: string): HTMLElement | null => {
         const container = resolveScrollContainer();
         if (!container) {
@@ -1471,204 +1254,32 @@ const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(({
         return container.querySelector(`[data-message-id="${messageId}"]`);
     }, [resolveScrollContainer]);
 
-    const scrollHistoryIndexIntoView = React.useCallback((index: number, behavior: ScrollBehavior = 'auto') => {
-        if (!shouldVirtualizeHistory || index < 0 || index >= historyEntries.length) {
-            return false;
-        }
-
-        const virtualizerBehavior = behavior === 'smooth' ? 'smooth' : 'auto';
-        historyVirtualizer.scrollToIndex(index, { align: 'start', behavior: virtualizerBehavior });
-        return true;
-    }, [historyEntries.length, historyVirtualizer, shouldVirtualizeHistory]);
-
-    // Drives the container to the target with instant DOM-measured corrections until it holds still.
-    const settleScrollToTarget = React.useCallback((
-        index: number,
-        findTarget: () => HTMLElement | null,
-        offset: number,
-    ): Promise<boolean> => {
-        const container = resolveScrollContainer();
-        if (!container || typeof window === 'undefined') {
-            return Promise.resolve(false);
-        }
-
-        const token = ++jumpTokenRef.current;
-        jumpInFlightRef.current = true;
-
-        return new Promise<boolean>((resolve) => {
-            const startedAt = performance.now();
-            let stableFrames = 0;
-            let lastScrollHeight = -1;
-            let framesSinceCoarse = JUMP_COARSE_RETRY_FRAMES;
-
-            const finish = (ok: boolean) => {
-                if (jumpTokenRef.current === token) {
-                    jumpInFlightRef.current = false;
-                }
-                resolve(ok);
-            };
-
-            const tick = () => {
-                if (jumpTokenRef.current !== token) {
-                    resolve(false);
-                    return;
-                }
-                if (performance.now() - startedAt > JUMP_TIME_BUDGET_MS) {
-                    finish(false);
-                    return;
-                }
-
-                const target = findTarget();
-                if (!target) {
-                    stableFrames = 0;
-                    framesSinceCoarse += 1;
-                    if (shouldVirtualizeHistory && framesSinceCoarse >= JUMP_COARSE_RETRY_FRAMES) {
-                        framesSinceCoarse = 0;
-                        historyVirtualizer.scrollToIndex(index, { align: 'start', behavior: 'auto' });
-                    }
-                    window.requestAnimationFrame(tick);
-                    return;
-                }
-
-                const delta = target.getBoundingClientRect().top - container.getBoundingClientRect().top - offset;
-                const scrollHeight = container.scrollHeight;
-                let settled = Math.abs(delta) <= 1;
-                if (!settled) {
-                    const before = container.scrollTop;
-                    container.scrollTop += delta;
-                    // Clamped at an edge: no further correction is possible.
-                    settled = container.scrollTop === before;
-                }
-
-                stableFrames = settled && scrollHeight === lastScrollHeight ? stableFrames + 1 : 0;
-                lastScrollHeight = scrollHeight;
-
-                if (stableFrames >= JUMP_STABLE_FRAMES) {
-                    finish(true);
-                    return;
-                }
-                window.requestAnimationFrame(tick);
-            };
-
-            window.requestAnimationFrame(() => window.requestAnimationFrame(tick));
-        });
-    }, [historyVirtualizer, resolveScrollContainer, shouldVirtualizeHistory]);
-
     React.useLayoutEffect(() => {
         if (!ref) {
             return;
         }
 
+        const scrollElementToTop = (element: HTMLElement | null, offset: number): boolean => {
+            const container = resolveScrollContainer();
+            if (!container || !element) {
+                return false;
+            }
+            const top = element.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop - offset;
+            container.scrollTo({ top, behavior: 'auto' });
+            return true;
+        };
+
+        const findTurnElement = (turnId: string): HTMLElement | null => {
+            return resolveScrollContainer()?.querySelector<HTMLElement>(`[data-turn-id="${turnId}"]`) ?? null;
+        };
+
         const handle: MessageListHandle = {
-            scrollToTurnId: (turnId: string) => {
-                const index = turnIndexMap.get(turnId);
-                if (index === undefined) {
-                    return null;
-                }
-
-                return settleScrollToTarget(
-                    index,
-                    () => resolveScrollContainer()?.querySelector<HTMLElement>(`[data-turn-id="${turnId}"]`) ?? null,
-                    0,
-                );
-            },
-
-            scrollToMessageId: (messageId: string) => {
-                const index = messageIndexMap.get(messageId);
-                if (index === undefined) {
-                    return null;
-                }
-
-                // User messages sit in a possibly sticky wrapper, so measure their turn section instead.
-                const entry = allEntries[index];
-                const isTurnUserMessage = entry?.kind === 'turn' && entry.turn.userMessage.info.id === messageId;
-                return settleScrollToTarget(
-                    index,
-                    () => {
-                        const element = findMessageElement(messageId);
-                        if (!element) {
-                            return null;
-                        }
-                        return isTurnUserMessage
-                            ? element.closest<HTMLElement>('[data-turn-id]') ?? element
-                            : element;
-                    },
-                    JUMP_OFFSET_PX,
-                );
-            },
-
-            isJumpInFlight: () => jumpInFlightRef.current,
-
-            captureViewportAnchor: () => {
-                const container = resolveScrollContainer();
-                if (!container) {
-                    return null;
-                }
-
-                const containerRect = container.getBoundingClientRect();
-                const nodes: HTMLElement[] = Array.from(container.querySelectorAll<HTMLElement>('[data-message-id]'));
-                const firstVisible = nodes.find((node) => {
-                    const rect = node.getBoundingClientRect();
-                    if (rect.bottom <= containerRect.top + 1) {
-                        return false;
-                    }
-
-                    if (typeof window === 'undefined') {
-                        return true;
-                    }
-
-                    const computed = window.getComputedStyle(node);
-                    const isStuckSticky = computed.position === 'sticky' && rect.top <= containerRect.top + 1;
-                    return !isStuckSticky;
-                }) ?? nodes.find((node) => node.getBoundingClientRect().bottom > containerRect.top + 1);
-                if (!firstVisible) {
-                    return null;
-                }
-
-                const messageId = firstVisible.dataset.messageId;
-                if (!messageId) {
-                    return null;
-                }
-
-                return {
-                    messageId,
-                    offsetTop: firstVisible.getBoundingClientRect().top - containerRect.top,
-                };
-            },
-
-            restoreViewportAnchor: (anchor: { messageId: string; offsetTop: number }) => {
-                const container = resolveScrollContainer();
-                if (!container) {
-                    return false;
-                }
-
-                if (!messageIndexMap.has(anchor.messageId)) {
-                    return false;
-                }
-
-                const applyAnchor = (): boolean => {
-                    const element = findMessageElement(anchor.messageId);
-                    if (!element) {
-                        return false;
-                    }
-                    const containerRect = container.getBoundingClientRect();
-                    const targetTop = element.getBoundingClientRect().top - containerRect.top;
-                    const delta = targetTop - anchor.offsetTop;
-                    if (delta !== 0) {
-                        container.scrollTop += delta;
-                    }
-                    return true;
-                };
-
-                if (!applyAnchor()) {
-                    const index = messageIndexMap.get(anchor.messageId);
-                    if (typeof index === 'number' && index < historyEntries.length) {
-                        scrollHistoryIndexIntoView(index, 'auto');
-                    }
-                }
-
-                return applyAnchor();
-            },
+            scrollToTurnId: (turnId) => scrollElementToTop(findTurnElement(turnId), 0),
+            // A user message's id is its turn id; measure the turn section because the message wrapper may be sticky.
+            scrollToMessageId: (messageId) => scrollElementToTop(
+                findTurnElement(messageId) ?? findMessageElement(messageId),
+                JUMP_OFFSET_PX,
+            ),
         };
 
         if (typeof ref === 'function') {
@@ -1683,7 +1294,7 @@ const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(({
         return () => {
             objectRef.current = null;
         };
-    }, [allEntries, findMessageElement, historyEntries.length, messageIndexMap, resolveScrollContainer, scrollHistoryIndexIntoView, settleScrollToTarget, turnIndexMap, ref]);
+    }, [findMessageElement, resolveScrollContainer, ref]);
 
     const disableFadeIn = false;
 
@@ -1700,35 +1311,11 @@ const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(({
     return (
         <AgentSwitchContext.Provider value={agentSwitchDividers}>
         <div>
-                {(turnStart > 0 || hasMoreAbove) && (
-                    <div className="flex justify-center py-3">
-                        {isLoadingOlder ? (
-                            <span className="text-xs uppercase tracking-wide text-muted-foreground/80">
-                                Loading…
-                            </span>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={stableOnLoadOlder}
-                                className="text-xs uppercase tracking-wide text-muted-foreground/80 hover:text-foreground"
-                            >
-                                Load older messages
-                            </button>
-                        )}
-                    </div>
-                )}
-
                 <FadeInDisabledProvider disabled={disableFadeIn}>
                     <div className="relative w-full">
                         <StaticHistoryList
                             entries={historyEntries}
-                            shouldVirtualize={shouldVirtualizeHistory}
-                            virtualRows={historyVirtualRows}
-                            scrollMargin={historyScrollMargin}
-                            totalSize={historyVirtualizer.getTotalSize()}
-                            measureElement={historyVirtualizer.measureElement}
-                            contentRef={historyContentRef}
-                            onMessageContentChange={stableHistoryContentChange}
+                            onMessageContentChange={stableContentChange}
                             getAnimationHandlers={stableGetAnimationHandlers}
                             scrollToBottom={stableScrollToBottom}
                             stickyUserHeader={stickyUserHeader}
@@ -1743,7 +1330,7 @@ const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(({
                         {trailingStreamingEntry ? (
                             <StreamingTailContent
                                 entry={trailingStreamingEntry}
-                                onMessageContentChange={stableTailContentChange}
+                                onMessageContentChange={stableContentChange}
                                 getAnimationHandlers={stableGetAnimationHandlers}
                                 scrollToBottom={stableScrollToBottom}
                                 stickyUserHeader={stickyUserHeader}

@@ -2,40 +2,16 @@ import React from 'react';
 
 import type { ChatMessageEntry } from '../lib/turns/types';
 import type { MessageListHandle } from '../MessageList';
-import { TURN_WINDOW_DEFAULTS } from '../lib/turns/constants';
 import {
     buildTurnWindowModel,
-    clampTurnStart,
-    getInitialTurnStart,
     updateTurnWindowModelIncremental,
-    windowMessagesByTurn,
     type TurnWindowModel,
 } from '../lib/turns/windowTurns';
-import type { TurnHistorySignals } from '../lib/turns/historySignals';
-import { getMemoryLimits, type SessionHistoryMeta } from '@/stores/types/sessionTypes';
-
-type ViewportAnchor = { messageId: string; offsetTop: number };
-
-type PendingScrollRequest = {
-    sessionId: string;
-    kind: 'turn' | 'message';
-    id: string;
-    behavior: ScrollBehavior;
-    turnId: string | null;
-    attempts: number;
-    settling: boolean;
-    resolve: (value: boolean) => void;
-};
-
-const MAX_PENDING_SCROLL_ATTEMPTS = 8;
 
 interface UseChatTimelineControllerOptions {
     sessionId: string | null;
     messages: ChatMessageEntry[];
-    historyMeta: SessionHistoryMeta | null;
-    scrollRef: React.RefObject<HTMLDivElement | null>;
     messageListRef: React.RefObject<MessageListHandle | null>;
-    loadMoreMessages: (sessionId: string, direction: 'up' | 'down') => Promise<void>;
     prepareForBottomResume: (options?: { instant?: boolean; force?: boolean }) => void;
     scrollToBottom: (options?: { instant?: boolean; force?: boolean; followBottom?: boolean }) => void;
     releasePinnedScroll: () => void;
@@ -45,32 +21,20 @@ interface UseChatTimelineControllerOptions {
 
 export interface UseChatTimelineControllerResult {
     turnIds: string[];
-    turnStart: number;
     renderedMessages: ChatMessageEntry[];
-    historySignals: TurnHistorySignals;
-    isLoadingOlder: boolean;
-    pendingRevealWork: boolean;
     activeTurnId: string | null;
     showScrollToBottom: boolean;
-    turnWindowModel: TurnWindowModel;
-    loadEarlier: () => Promise<void>;
-    revealBufferedTurns: () => Promise<boolean>;
     resumeToBottom: () => void;
     resumeToBottomInstant: () => void;
-    scrollToTurn: (turnId: string, options?: { behavior?: ScrollBehavior }) => Promise<boolean>;
-    scrollToMessage: (messageId: string, options?: { behavior?: ScrollBehavior }) => Promise<boolean>;
-    captureViewportAnchor: () => ViewportAnchor | null;
-    restoreViewportAnchor: (anchor: ViewportAnchor) => boolean;
+    scrollToTurn: (turnId: string) => Promise<boolean>;
+    scrollToMessage: (messageId: string) => Promise<boolean>;
     handleActiveTurnChange: (turnId: string | null) => void;
 }
 
 export const useChatTimelineController = ({
     sessionId,
     messages,
-    historyMeta,
-    scrollRef,
     messageListRef,
-    loadMoreMessages,
     prepareForBottomResume,
     scrollToBottom,
     releasePinnedScroll,
@@ -91,438 +55,51 @@ export const useChatTimelineController = ({
         return nextModel;
     }, [messages]);
 
-    const [turnStart, setTurnStart] = React.useState(() => getInitialTurnStart(turnWindowModel.turnCount));
-    const [isLoadingOlder, setIsLoadingOlder] = React.useState(false);
-    const [pendingRevealWork, setPendingRevealWork] = React.useState(false);
     const [activeTurnId, setActiveTurnId] = React.useState<string | null>(null);
 
     const turnModelRef = React.useRef(turnWindowModel);
-    const turnStartRef = React.useRef(turnStart);
-    const isPinnedRef = React.useRef(isPinned);
-    const isLoadingOlderRef = React.useRef(isLoadingOlder);
-    const pendingRevealWorkRef = React.useRef(pendingRevealWork);
-    const sessionIdRef = React.useRef<string | null>(sessionId);
-    const messagesRef = React.useRef(messages);
-    const historyMetaRef = React.useRef<SessionHistoryMeta | null>(historyMeta);
-    const previousTurnCountRef = React.useRef(turnWindowModel.turnCount);
-    const initializedSessionRef = React.useRef<string | null>(null);
-    const pendingRenderResolversRef = React.useRef<Array<() => void>>([]);
-    const pendingScrollRequestRef = React.useRef<PendingScrollRequest | null>(null);
-
-    const historySignals = React.useMemo(() => {
-        const defaultLimit = getMemoryLimits().HISTORICAL_MESSAGES;
-        const hasBufferedTurns = turnStart > 0;
-        const hasMoreAboveTurns = historyMeta
-            ? !historyMeta.complete
-            : messages.length >= defaultLimit;
-        const historyLoading = Boolean(historyMeta?.loading);
-        return {
-            hasBufferedTurns,
-            hasMoreAboveTurns,
-            historyLoading,
-            canLoadEarlier: hasBufferedTurns || hasMoreAboveTurns,
-        };
-    }, [historyMeta, messages.length, turnStart]);
-
-    const historySignalsRef = React.useRef(historySignals);
-
     turnModelRef.current = turnWindowModel;
-    turnStartRef.current = turnStart;
-    isPinnedRef.current = isPinned;
-    isLoadingOlderRef.current = isLoadingOlder;
-    pendingRevealWorkRef.current = pendingRevealWork;
-    historySignalsRef.current = historySignals;
-    sessionIdRef.current = sessionId;
-    messagesRef.current = messages;
-    historyMetaRef.current = historyMeta;
-
-    React.useLayoutEffect(() => {
-        if (initializedSessionRef.current === sessionId) {
-            return;
-        }
-        initializedSessionRef.current = sessionId;
-        setTurnStart(getInitialTurnStart(turnWindowModel.turnCount));
-        setIsLoadingOlder(false);
-        setPendingRevealWork(false);
-        setActiveTurnId(null);
-        previousTurnCountRef.current = turnWindowModel.turnCount;
-    }, [sessionId, turnWindowModel.turnCount]);
-
-    React.useLayoutEffect(() => {
-        setTurnStart((current) => clampTurnStart(current, turnWindowModel.turnCount));
-    }, [turnWindowModel.turnCount]);
-
-    React.useLayoutEffect(() => {
-        const previousTurnCount = previousTurnCountRef.current;
-        const nextTurnCount = turnWindowModel.turnCount;
-        if (previousTurnCount === nextTurnCount) {
-            return;
-        }
-
-        setTurnStart((current) => {
-            const previousInitial = getInitialTurnStart(previousTurnCount);
-            const nextInitial = getInitialTurnStart(nextTurnCount);
-            if (isPinnedRef.current && current === previousInitial) {
-                return nextInitial;
-            }
-            return clampTurnStart(current, nextTurnCount);
-        });
-
-        previousTurnCountRef.current = nextTurnCount;
-    }, [turnWindowModel.turnCount]);
-
-    const resolvePendingRenderWaiters = React.useCallback(() => {
-        const resolvers = pendingRenderResolversRef.current;
-        if (resolvers.length === 0) {
-            return;
-        }
-        pendingRenderResolversRef.current = [];
-        resolvers.forEach((resolve) => resolve());
-    }, []);
-
-    const waitForNextRenderCommit = React.useCallback((): Promise<void> => {
-        return new Promise<void>((resolve) => {
-            pendingRenderResolversRef.current.push(resolve);
-        });
-    }, []);
-
-    const resolvePendingScrollRequest = React.useCallback((value: boolean) => {
-        const pending = pendingScrollRequestRef.current;
-        if (!pending) {
-            return;
-        }
-        pendingScrollRequestRef.current = null;
-        pending.resolve(value);
-    }, []);
-
-    const attemptPendingScrollRequest = React.useCallback(() => {
-        const pending = pendingScrollRequestRef.current;
-        if (!pending) {
-            return;
-        }
-
-        if (pending.sessionId !== sessionIdRef.current) {
-            resolvePendingScrollRequest(false);
-            return;
-        }
-
-        if (pending.settling) {
-            return;
-        }
-
-        const handle = messageListRef.current;
-        const settle = pending.kind === 'turn'
-            ? handle?.scrollToTurnId(pending.id, { behavior: pending.behavior })
-            : handle?.scrollToMessageId(pending.id, { behavior: pending.behavior });
-
-        if (settle) {
-            // Resolve only after the list reports a verified landing.
-            pending.settling = true;
-            void settle.then((landed) => {
-                if (pendingScrollRequestRef.current !== pending) {
-                    return;
-                }
-                if (landed && pending.turnId) {
-                    setActiveTurnId(pending.turnId);
-                }
-                resolvePendingScrollRequest(landed);
-            });
-            return;
-        }
-
-        const targetIndex = pending.kind === 'turn'
-            ? turnModelRef.current.turnIndexById.get(pending.id)
-            : turnModelRef.current.messageToTurnIndex.get(pending.id);
-
-        if (typeof targetIndex === 'number' && targetIndex >= turnStartRef.current) {
-            // Target is inside the window but not mounted yet; retry a few frames before giving up.
-            pending.attempts += 1;
-            if (pending.attempts > MAX_PENDING_SCROLL_ATTEMPTS || typeof window === 'undefined') {
-                resolvePendingScrollRequest(false);
-                return;
-            }
-            window.requestAnimationFrame(() => {
-                if (pendingScrollRequestRef.current === pending) {
-                    attemptPendingScrollRequest();
-                }
-            });
-        }
-    }, [messageListRef, resolvePendingScrollRequest]);
 
     React.useEffect(() => {
-        return () => {
-            resolvePendingRenderWaiters();
-            resolvePendingScrollRequest(false);
-        };
-    }, [resolvePendingRenderWaiters, resolvePendingScrollRequest]);
+        setActiveTurnId(null);
+    }, [sessionId]);
 
-    const renderedMessages = React.useMemo(() => {
-        return windowMessagesByTurn(messages, turnWindowModel, turnStart);
-    }, [messages, turnStart, turnWindowModel]);
-
-    React.useLayoutEffect(() => {
-        resolvePendingRenderWaiters();
-        attemptPendingScrollRequest();
-    }, [attemptPendingScrollRequest, renderedMessages, resolvePendingRenderWaiters, turnStart]);
-
-    // --- Synchronous scroll compensation for load-more / reveal ---
-    // fetchOlderHistory and revealBufferedTurns store a snapshot here
-    // before triggering the state change. useLayoutEffect consumes it
-    // after React commits new DOM — before the browser paints.
-    const prePrependScrollRef = React.useRef<{
-        height: number;
-        top: number;
-        anchor: ViewportAnchor | null;
-    } | null>(null);
-
-    React.useLayoutEffect(() => {
-        const snap = prePrependScrollRef.current;
-        const container = scrollRef.current;
-        if (!snap || !container) return;
-        prePrependScrollRef.current = null;
-
-        // Try anchor-based restoration first (pixel-perfect)
-        if (snap.anchor) {
-            const anchorEl = container.querySelector<HTMLElement>(
-                `[data-message-id="${snap.anchor.messageId}"]`,
-            );
-            if (anchorEl) {
-                const containerRect = container.getBoundingClientRect();
-                const anchorTop = anchorEl.getBoundingClientRect().top - containerRect.top;
-                container.scrollTop += anchorTop - snap.anchor.offsetTop;
-                return;
-            }
-        }
-
-        // Fallback: height-delta compensation
-        const delta = container.scrollHeight - snap.height;
-        if (delta > 0) {
-            container.scrollTop = snap.top + delta;
-        }
-    }, [renderedMessages, scrollRef]);
-
-    const captureViewportAnchor = React.useCallback((): ViewportAnchor | null => {
-        return messageListRef.current?.captureViewportAnchor() ?? null;
-    }, [messageListRef]);
-
-    const restoreViewportAnchor = React.useCallback((anchor: ViewportAnchor): boolean => {
-        return messageListRef.current?.restoreViewportAnchor(anchor) ?? false;
-    }, [messageListRef]);
-
-    const revealBufferedTurns = React.useCallback(async (): Promise<boolean> => {
-        if (turnStartRef.current <= 0 || pendingRevealWorkRef.current) {
+    const scrollToTurn = React.useCallback(async (turnId: string): Promise<boolean> => {
+        if (!turnId || !turnModelRef.current.turnIndexById.has(turnId)) {
             return false;
         }
 
-        const container = scrollRef.current;
-        if (container) {
-            prePrependScrollRef.current = {
-                height: container.scrollHeight,
-                top: container.scrollTop,
-                anchor: captureViewportAnchor(),
-            };
-        }
-
-        setPendingRevealWork(true);
-        setTurnStart((current) => {
-            const next = current - TURN_WINDOW_DEFAULTS.batchTurns;
-            return next > 0 ? next : 0;
-        });
-
-        await waitForNextRenderCommit();
-        setPendingRevealWork(false);
-        return true;
-    }, [captureViewportAnchor, scrollRef, waitForNextRenderCommit]);
-
-    const fetchOlderHistory = React.useCallback(async (input: {
-        preserveViewport: boolean;
-    }): Promise<boolean> => {
-        if (!sessionIdRef.current || isLoadingOlderRef.current) {
-            return false;
-        }
-        if (!historySignalsRef.current.hasMoreAboveTurns) {
-            return false;
-        }
-
-        const container = scrollRef.current;
-        const beforeMessages = messagesRef.current;
-        const beforeMessageCount = beforeMessages.length;
-        const beforeOldestMessageId = beforeMessages[0]?.info?.id ?? null;
-        const beforeLimit = historyMetaRef.current?.limit ?? getMemoryLimits().HISTORICAL_MESSAGES;
-
-        // Store scroll snapshot BEFORE the fetch so useLayoutEffect can
-        // compensate synchronously when React commits the new messages.
-        if (input.preserveViewport && container) {
-            prePrependScrollRef.current = {
-                height: container.scrollHeight,
-                top: container.scrollTop,
-                anchor: captureViewportAnchor(),
-            };
-        }
-
-        setIsLoadingOlder(true);
-
-        try {
-            const targetSessionId = sessionIdRef.current;
-            if (!targetSessionId) {
-                return false;
-            }
-
-            await loadMoreMessages(targetSessionId, 'up');
-
-            const afterMessages = messagesRef.current;
-            const afterMessageCount = afterMessages.length;
-            const afterOldestMessageId = afterMessages[0]?.info?.id ?? null;
-            const afterLimit = historyMetaRef.current?.limit ?? beforeLimit;
-            const historyGrew =
-                afterMessageCount > beforeMessageCount
-                || (typeof beforeOldestMessageId === 'string'
-                    && typeof afterOldestMessageId === 'string'
-                    && beforeOldestMessageId !== afterOldestMessageId);
-
-            return historyGrew || afterLimit > beforeLimit;
-        } finally {
-            setIsLoadingOlder(false);
-        }
-    }, [captureViewportAnchor, loadMoreMessages, scrollRef]);
-
-    const loadEarlier = React.useCallback(async () => {
-        if (await revealBufferedTurns()) {
-            return;
-        }
-
-        void (await fetchOlderHistory({ preserveViewport: true }));
-    }, [fetchOlderHistory, revealBufferedTurns]);
-
-    const scrollToTurn = React.useCallback(async (
-        turnId: string,
-        options?: { behavior?: ScrollBehavior },
-    ): Promise<boolean> => {
-        if (!turnId || !sessionIdRef.current) {
-            return false;
-        }
-
-        setPendingRevealWork(true);
         releasePinnedScroll();
-
-        try {
-            if (sessionIdRef.current !== sessionId) {
-                return false;
-            }
-
-            const turnIndex = turnModelRef.current.turnIndexById.get(turnId);
-            if (typeof turnIndex !== 'number') {
-                return false;
-            }
-
-            if (turnIndex < turnStartRef.current) {
-                setTurnStart(turnIndex);
-            }
-
-            const result = await new Promise<boolean>((resolve) => {
-                pendingScrollRequestRef.current = {
-                    sessionId: sessionIdRef.current ?? sessionId ?? '',
-                    kind: 'turn',
-                    id: turnId,
-                    behavior: options?.behavior ?? 'auto',
-                    turnId,
-                    attempts: 0,
-                    settling: false,
-                    resolve,
-                };
-                attemptPendingScrollRequest();
-            });
-
-            if (result) {
-                return true;
-            }
-
-            return false;
-        } finally {
-            setPendingRevealWork(false);
+        const didScroll = messageListRef.current?.scrollToTurnId(turnId) ?? false;
+        if (didScroll) {
+            setActiveTurnId(turnId);
         }
-    }, [attemptPendingScrollRequest, releasePinnedScroll, sessionId]);
+        return didScroll;
+    }, [messageListRef, releasePinnedScroll]);
 
-    const scrollToMessage = React.useCallback(async (
-        messageId: string,
-        options?: { behavior?: ScrollBehavior },
-    ): Promise<boolean> => {
-        if (!messageId || !sessionIdRef.current) {
+    const scrollToMessage = React.useCallback(async (messageId: string): Promise<boolean> => {
+        const turnId = messageId ? turnModelRef.current.messageToTurnId.get(messageId) : undefined;
+        if (!turnId) {
             return false;
         }
 
-        setPendingRevealWork(true);
         releasePinnedScroll();
-
-        try {
-            if (sessionIdRef.current !== sessionId) {
-                return false;
-            }
-
-            const turnId = turnModelRef.current.messageToTurnId.get(messageId);
-            const turnIndex = turnModelRef.current.messageToTurnIndex.get(messageId);
-
-            if (typeof turnIndex !== 'number') {
-                return false;
-            }
-
-            if (turnIndex < turnStartRef.current) {
-                setTurnStart(turnIndex);
-            }
-
-            const result = await new Promise<boolean>((resolve) => {
-                pendingScrollRequestRef.current = {
-                    sessionId: sessionIdRef.current ?? sessionId ?? '',
-                    kind: 'message',
-                    id: messageId,
-                    behavior: options?.behavior ?? 'auto',
-                    turnId: turnId ?? null,
-                    attempts: 0,
-                    settling: false,
-                    resolve,
-                };
-                attemptPendingScrollRequest();
-            });
-
-            if (result) {
-                return true;
-            }
-
-            return false;
-        } finally {
-            setPendingRevealWork(false);
+        const didScroll = messageListRef.current?.scrollToMessageId(messageId) ?? false;
+        if (didScroll) {
+            setActiveTurnId(turnId);
         }
-    }, [attemptPendingScrollRequest, releasePinnedScroll, sessionId]);
+        return didScroll;
+    }, [messageListRef, releasePinnedScroll]);
 
-    const resumeToBottom = React.useCallback(async () => {
-        const nextStart = getInitialTurnStart(turnModelRef.current.turnCount);
-        setPendingRevealWork(false);
-        setIsLoadingOlder(false);
+    const resumeToBottom = React.useCallback(() => {
         prepareForBottomResume({ force: true });
-
-        const shouldWaitForRender = nextStart !== turnStartRef.current;
-        if (shouldWaitForRender) {
-            setTurnStart(nextStart);
-            await waitForNextRenderCommit();
-        }
-
         scrollToBottom({ force: true });
-    }, [prepareForBottomResume, scrollToBottom, waitForNextRenderCommit]);
+    }, [prepareForBottomResume, scrollToBottom]);
 
-    const resumeToBottomInstant = React.useCallback(async () => {
-        const nextStart = getInitialTurnStart(turnModelRef.current.turnCount);
-        setPendingRevealWork(false);
-        setIsLoadingOlder(false);
+    const resumeToBottomInstant = React.useCallback(() => {
         prepareForBottomResume({ instant: true, force: true });
-
-        const shouldWaitForRender = nextStart !== turnStartRef.current;
-        if (shouldWaitForRender) {
-            setTurnStart(nextStart);
-            await waitForNextRenderCommit();
-        }
-
         scrollToBottom({ instant: true, force: true, followBottom: true });
-    }, [prepareForBottomResume, scrollToBottom, waitForNextRenderCommit]);
+    }, [prepareForBottomResume, scrollToBottom]);
 
     const handleActiveTurnChange = React.useCallback((turnId: string | null) => {
         setActiveTurnId(turnId);
@@ -530,22 +107,13 @@ export const useChatTimelineController = ({
 
     return {
         turnIds: turnWindowModel.turnIds,
-        turnStart,
-        renderedMessages,
-        historySignals,
-        isLoadingOlder,
-        pendingRevealWork,
+        renderedMessages: messages,
         activeTurnId,
-        showScrollToBottom: isOverflowing && !isPinned && !pendingRevealWork,
-        turnWindowModel,
-        loadEarlier,
-        revealBufferedTurns,
+        showScrollToBottom: isOverflowing && !isPinned,
         resumeToBottom,
         resumeToBottomInstant,
         scrollToTurn,
         scrollToMessage,
-        captureViewportAnchor,
-        restoreViewportAnchor,
         handleActiveTurnChange,
     };
 };

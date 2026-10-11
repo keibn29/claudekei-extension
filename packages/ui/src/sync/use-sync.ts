@@ -124,23 +124,13 @@ export function useSync() {
     [store, keyFor, touch],
   )
 
-  // The host returns the whole session in one snapshot: nothing to page.
-  const loadMore = useCallback(async (_sessionID: string) => {
-    void _sessionID
-  }, [])
-
-  const hasMore = useCallback((_sessionID: string) => {
-    void _sessionID
-    return false
-  }, [])
-
   const isLoading = useCallback(
     (sessionID: string) => inflight.current.has(keyFor(sessionID)),
     [keyFor],
   )
 
   return useMemo(
-    () => ({ syncSession, loadMore, hasMore, isLoading }),
-    [syncSession, loadMore, hasMore, isLoading],
+    () => ({ syncSession, isLoading }),
+    [syncSession, isLoading],
   )
 }

@@ -71,11 +71,7 @@ type ChatViewportProps = {
     stickyUserHeader: boolean;
     scrollRef: React.RefObject<HTMLDivElement | null>;
     messageListRef: React.RefObject<MessageListHandle | null>;
-    turnStart: number;
-    pendingRevealWork: boolean;
     renderedMessages: SessionMessageRecord[];
-    hasMoreAboveTurns: boolean;
-    isLoadingOlder: boolean;
     sessionIsWorking: boolean;
     streamingMessageId: string | null;
     activeStreamingPhase: import('./message/types').StreamPhase | null;
@@ -87,7 +83,6 @@ type ChatViewportProps = {
     } | null;
     handleMessageContentChange: (reason?: ContentChangeReason) => void;
     getAnimationHandlers: (messageId: string) => AnimationHandlers;
-    handleLoadOlder: () => void;
     scrollToBottom: (options?: { instant?: boolean; force?: boolean }) => void;
     sessionQuestions: QuestionRequest[];
     sessionPermissions: PermissionRequest[];
@@ -101,18 +96,13 @@ const ChatViewport = React.memo(({
     stickyUserHeader,
     scrollRef,
     messageListRef,
-    turnStart,
-    pendingRevealWork,
     renderedMessages,
-    hasMoreAboveTurns,
-    isLoadingOlder,
     sessionIsWorking,
     streamingMessageId,
     activeStreamingPhase,
     retryOverlay,
     handleMessageContentChange,
     getAnimationHandlers,
-    handleLoadOlder,
     scrollToBottom,
     sessionQuestions,
     sessionPermissions,
@@ -142,8 +132,6 @@ const ChatViewport = React.memo(({
                         <MessageList
                             ref={messageListRef}
                             sessionKey={currentSessionId}
-                            turnStart={turnStart}
-                            disableStaging={pendingRevealWork}
                             messages={renderedMessages}
                             sessionIsWorking={sessionIsWorking}
                             activeStreamingMessageId={streamingMessageId}
@@ -151,9 +139,6 @@ const ChatViewport = React.memo(({
                             retryOverlay={retryOverlay}
                             onMessageContentChange={handleMessageContentChange}
                             getAnimationHandlers={getAnimationHandlers}
-                            hasMoreAbove={hasMoreAboveTurns}
-                            isLoadingOlder={isLoadingOlder}
-                            onLoadOlder={handleLoadOlder}
                             scrollToBottom={scrollToBottom}
                             scrollRef={scrollRef}
                         />
@@ -186,18 +171,13 @@ const ChatViewport = React.memo(({
         && prev.stickyUserHeader === next.stickyUserHeader
         && prev.scrollRef === next.scrollRef
         && prev.messageListRef === next.messageListRef
-        && prev.turnStart === next.turnStart
-        && prev.pendingRevealWork === next.pendingRevealWork
         && prev.renderedMessages === next.renderedMessages
-        && prev.hasMoreAboveTurns === next.hasMoreAboveTurns
-        && prev.isLoadingOlder === next.isLoadingOlder
         && prev.sessionIsWorking === next.sessionIsWorking
         && prev.streamingMessageId === next.streamingMessageId
         && prev.activeStreamingPhase === next.activeStreamingPhase
         && prev.retryOverlay === next.retryOverlay
         && prev.handleMessageContentChange === next.handleMessageContentChange
         && prev.getAnimationHandlers === next.getAnimationHandlers
-        && prev.handleLoadOlder === next.handleLoadOlder
         && prev.scrollToBottom === next.scrollToBottom
         && prev.sessionQuestions === next.sessionQuestions
         && prev.sessionPermissions === next.sessionPermissions
@@ -253,11 +233,6 @@ export const ChatContainer: React.FC = () => {
     const sync = useSync();
     const loadMessages = React.useCallback(
         (sessionId: string) => sync.syncSession(sessionId),
-        [sync],
-    );
-    const loadMoreMessages = React.useCallback(
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        (sessionId: string, _direction: 'up' | 'down') => sync.loadMore(sessionId),
         [sync],
     );
 
@@ -408,16 +383,6 @@ export const ChatContainer: React.FC = () => {
         };
     }, [activeRetryStatus, retryFallbackTimestamp]);
 
-    // History metadata — use sync's hasMore/isLoading
-    const historyMeta = React.useMemo(() => {
-        if (!currentSessionId) return null;
-        return {
-            limit: sessionMessages.length,
-            complete: !sync.hasMore(currentSessionId),
-            loading: sync.isLoading(currentSessionId),
-        };
-    }, [currentSessionId, sessionMessages.length, sync]);
-
     const { isMobile } = useDeviceInfo();
     const draftOpen = Boolean(newSessionDraft?.open);
     const isDesktopExpandedInput = isExpandedInput && !isMobile;
@@ -482,8 +447,6 @@ export const ChatContainer: React.FC = () => {
         activeTurnChangeRef.current(turnId);
     }, []);
 
-    const isJumpInFlight = React.useCallback(() => messageListRef.current?.isJumpInFlight() ?? false, []);
-
     const {
         scrollRef,
         handleMessageContentChange,
@@ -505,7 +468,6 @@ export const ChatContainer: React.FC = () => {
         chatRenderMode,
         sessionPermissions: sessionBlockingCards,
         onActiveTurnChange: handleActiveTurnChange,
-        isJumpInFlight,
     });
 
     // Alt+T toggles the timeline. Registered here (not in the global shortcut hook) so it only works while
@@ -535,17 +497,14 @@ export const ChatContainer: React.FC = () => {
     const timelineController = useChatTimelineController({
         sessionId: currentSessionId,
         messages: viewportMessages,
-        historyMeta,
-        scrollRef,
         messageListRef,
-        loadMoreMessages,
         prepareForBottomResume,
         scrollToBottom,
         releasePinnedScroll,
         isPinned,
         isOverflowing,
     });
-    const { loadEarlier, resumeToBottomInstant } = timelineController;
+    const { resumeToBottomInstant } = timelineController;
 
     const runLatestInstantResume = React.useCallback(async () => {
         if (!currentSessionId) {
@@ -570,10 +529,6 @@ export const ChatContainer: React.FC = () => {
         handleMessageContentChange('permission');
     }, [handleMessageContentChange, sessionPermissions, sessionQuestions]);
 
-    const handleLoadOlder = React.useCallback(() => {
-        void loadEarlier();
-    }, [loadEarlier]);
-
     const navigation = useChatTurnNavigation({
         sessionId: currentSessionId,
         turnIds: timelineController.turnIds,
@@ -585,7 +540,7 @@ export const ChatContainer: React.FC = () => {
 
     const scrollToTimelineMessage = timelineController.scrollToMessage;
     const handleJumpToMessage = React.useCallback(
-        (messageId: string) => scrollToTimelineMessage(messageId, { behavior: 'auto' }),
+        (messageId: string) => scrollToTimelineMessage(messageId),
         [scrollToTimelineMessage],
     );
 
@@ -623,7 +578,7 @@ export const ChatContainer: React.FC = () => {
 
         const start = async () => {
             if (messageId) {
-                await Promise.resolve(scrollToTimelineMessage(messageId, { behavior: 'auto' })).catch(() => false);
+                await Promise.resolve(scrollToTimelineMessage(messageId)).catch(() => false);
             }
             focusCard();
         };
@@ -898,18 +853,13 @@ export const ChatContainer: React.FC = () => {
                 stickyUserHeader={stickyUserHeader}
                 scrollRef={scrollRef}
                 messageListRef={messageListRef}
-                turnStart={timelineController.turnStart}
-                pendingRevealWork={timelineController.pendingRevealWork}
                 renderedMessages={timelineController.renderedMessages}
-                hasMoreAboveTurns={timelineController.historySignals.hasMoreAboveTurns}
-                isLoadingOlder={timelineController.isLoadingOlder}
                 sessionIsWorking={sessionIsWorking}
                 streamingMessageId={streamingMessageId}
                 activeStreamingPhase={activeStreamingPhase}
                 retryOverlay={retryOverlay}
                 handleMessageContentChange={handleMessageContentChange}
                 getAnimationHandlers={getAnimationHandlers}
-                handleLoadOlder={handleLoadOlder}
                 scrollToBottom={scrollToBottom}
                 sessionQuestions={sessionQuestions}
                 sessionPermissions={sessionPermissions}
