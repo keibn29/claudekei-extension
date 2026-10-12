@@ -4,6 +4,7 @@ import { renderMermaidASCII, renderMermaidSVG } from 'beautiful-mermaid';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { UserMarkdown, type UserMarkdownOptions } from './composer/userMarkdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { marked, type Tokens } from 'marked';
@@ -517,7 +518,7 @@ const stripLeadingFrontmatter = (markdown: string): string => {
   return markdown.slice(frontmatterMatch[0].length);
 };
 
-export type MarkdownVariant = 'assistant' | 'tool' | 'reasoning';
+export type MarkdownVariant = 'assistant' | 'tool' | 'reasoning' | 'user';
 
 type MarkdownStreamBlock = {
   key: string;
@@ -1524,6 +1525,8 @@ const SimpleMarkdownRendererImpl: React.FC<{
   onShowPopup?: (content: ToolPopupContent) => void;
   mermaidControls?: MermaidControlOptions;
   allowMermaidWheelZoom?: boolean;
+  /** Only used with variant="user" (mention colours and the agent mention link). */
+  userOptions?: UserMarkdownOptions;
 }> = ({
   content,
   className,
@@ -1532,6 +1535,7 @@ const SimpleMarkdownRendererImpl: React.FC<{
   stripFrontmatter = false,
   onShowPopup,
   allowMermaidWheelZoom = false,
+  userOptions,
 }) => {
   const { editor, runtime } = useRuntimeAPIs();
   const renderedContent = React.useMemo(
@@ -1559,6 +1563,19 @@ const SimpleMarkdownRendererImpl: React.FC<{
   const markdownComponents = React.useMemo(() => buildMarkdownComponents({ syntaxTheme, allowRun: variant === 'assistant' }), [syntaxTheme, variant]);
   const markdownBlocks = useStableMarkdownBlocks(renderedContent, false, `simple:${variant}`);
 
+  if (variant === 'user') {
+    // User text mirrors the composer: shared `composer-content` styles, verbatim code, no block streaming.
+    return (
+      <div className={cn('break-words w-full min-w-0 composer-content composer-bubble', className)} ref={containerRef}>
+        <UserMarkdown
+          content={renderedContent}
+          getMentionRanges={userOptions?.getMentionRanges}
+          agentMention={userOptions?.agentMention}
+        />
+      </div>
+    );
+  }
+
   const markdownClassName = variant === 'tool'
     ? 'markdown-content markdown-tool'
     : variant === 'reasoning'
@@ -1583,5 +1600,6 @@ export const SimpleMarkdownRenderer = React.memo(SimpleMarkdownRendererImpl, (pr
     && prev.disableLinkSafety === next.disableLinkSafety
     && prev.stripFrontmatter === next.stripFrontmatter
     && prev.onShowPopup === next.onShowPopup
-    && prev.allowMermaidWheelZoom === next.allowMermaidWheelZoom;
+    && prev.allowMermaidWheelZoom === next.allowMermaidWheelZoom
+    && prev.userOptions === next.userOptions;
 });

@@ -73,6 +73,7 @@
     "react-dom": "^19.1.1",
     "react-syntax-highlighter": "^15.6.6",
     "rehype-katex": "^7.0.1",
+    "remark-breaks": "^4.0.0",
     "remark-math": "^6.0.0",
     "remend": "^1.2.1",
     "simple-git": "^3.28.0",

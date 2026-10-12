@@ -1,0 +1,106 @@
+/*
+ * Shared look of the composer's 4 rendered constructs (code block, inline code,
+ * bullet list, ordered list) plus @mention colours. Applied through the
+ * `composer-content` class by both the editor (ProseMirror root) and the user
+ * message bubble in the transcript, so the two always match.
+ */
+.composer-content {
+  word-break: break-word;
+  color: var(--surface-foreground);
+}
+
+.composer-content p {
+  margin: 0;
+}
+
+/* User bubble only: one blank source line = one empty line, like an empty editor paragraph. */
+.composer-blank-line {
+  height: 1lh;
+}
+
+.composer-content code {
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  padding: 0.05rem 0.3rem;
+  border: 1px solid var(--interactive-border);
+  border-radius: 0.25rem;
+  background: var(--markdown-inline-code-bg, var(--surface-muted));
+  color: var(--markdown-inline-code, var(--destructive));
+}
+
+.composer-content pre {
+  margin: 0.25rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--surface-muted);
+  color: var(--surface-foreground);
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.composer-content pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: inherit;
+}
+
+.composer-content ul,
+.composer-content ol {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.composer-content ul {
+  list-style: disc;
+}
+
+.composer-content ol {
+  list-style: decimal;
+}
+
+.composer-content li,
+.composer-content li p {
+  margin: 0;
+}
+
+.composer-content .composer-mention-file {
+  color: var(--status-info);
+}
+
+.composer-content .composer-mention-agent {
+  color: var(--status-success);
+}
+
+/* User bubble: a code block at the very top/bottom must not add its margin on top of the bubble padding. */
+.composer-bubble > :first-child,
+.composer-bubble > :first-child > pre {
+  margin-top: 0;
+}
+
+.composer-bubble > :last-child,
+.composer-bubble > :last-child > pre {
+  margin-bottom: 0;
+}
+
+/* Copy button of code blocks in the user bubble (hover only). */
+.composer-code-wrap {
+  position: relative;
+}
+
+.composer-code-wrap > button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  opacity: 0;
+  transition: opacity 120ms;
+  color: var(--muted-foreground);
+}
+
+.composer-code-wrap:hover > button,
+.composer-code-wrap > button:focus-visible {
+  opacity: 1;
+}

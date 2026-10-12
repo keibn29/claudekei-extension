@@ -16,6 +16,11 @@ describe('composer markdown', () => {
     '```\n\n```',
     'intro\n- a\n- b\noutro',
     '- a\n1. b\n```js\nx\n```\ntail',
+    '- ',
+    '- a\n- ',
+    '1. ',
+    '1. a\n2. ',
+    '- a\n- \n- b',
     '**not bold** # not heading > not quote [x](y)',
   ];
   for (const s of samples) {
@@ -29,6 +34,17 @@ describe('composer markdown', () => {
     expect(doc.content?.map((b) => b.type)).toEqual(['codeBlock', 'bulletList', 'orderedList']);
     expect(doc.content?.[0].attrs?.language).toBe('ts');
     expect(doc.content?.[2].attrs?.start).toBe(5);
+  });
+
+  test('empty list items parse as list items', () => {
+    const bullet = fromMarkdown('- a\n- ');
+    expect(bullet.content?.[0].type).toBe('bulletList');
+    expect(bullet.content?.[0].content).toHaveLength(2);
+    expect(bullet.content?.[0].content?.[1].content?.[0]).toEqual({ type: 'paragraph' });
+    const ordered = fromMarkdown('1. a\n2. ');
+    expect(ordered.content?.[0].type).toBe('orderedList');
+    expect(ordered.content?.[0].content).toHaveLength(2);
+    expect(fromMarkdown('- ').content?.[0].type).toBe('bulletList');
   });
 
   test('unclosed fence consumes rest', () => {

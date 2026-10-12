@@ -1023,7 +1023,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                                                 borderRadius: userMessageRadius,
                                                 borderBottomRightRadius: 'var(--radius-sm)',
                                             }}
-                                            className="px-3 py-[3px] shadow-none border border-primary/5"
+                                            className="px-3 py-2 shadow-none border border-primary/5"
                                         >
                                             <MessageBody
                                                 messageId={message.info.id}

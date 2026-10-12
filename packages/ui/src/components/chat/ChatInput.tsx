@@ -1,5 +1,6 @@
 import React from 'react';
-import { Textarea } from '@/components/ui/textarea';
+import { MinimalComposer, type ComposerHandle } from './composer/MinimalComposer';
+import { findMentionRanges, type MentionRange as ComposerMentionRange } from './composer/mentions';
 import {
     RiAddCircleLine,
     RiAiAgentLine,
@@ -67,6 +68,11 @@ import { useCurrentSessionIsSubtask } from '@/hooks/useCurrentSessionIsSubtask';
 import { PendingAgentSwitchNotice } from './PendingAgentSwitchNotice';
 
 const MAX_VISIBLE_TEXTAREA_LINES = 8;
+
+// Subset of React.KeyboardEvent used by the composer key pipeline (the editor emits native events).
+type ComposerKeyEvent = Pick<React.KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'metaKey' | 'altKey' | 'preventDefault'> & {
+    nativeEvent: KeyboardEvent;
+};
 const EMPTY_QUEUE: QueuedMessage[] = [];
 const FILE_MENTION_TOKEN = /^@[^\s]+$/;
 const CHAT_DRAFT_PERSIST_DEBOUNCE_MS = 500;
@@ -705,7 +711,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     const [autocompleteTab, setAutocompleteTab] = React.useState<'commands' | 'agents' | 'files'>('commands');
     const [showSkillAutocomplete, setShowSkillAutocomplete] = React.useState(false);
     const [skillQuery, setSkillQuery] = React.useState('');
-    const [textareaSize, setTextareaSize] = React.useState<{ height: number; maxHeight: number } | null>(null);
+    const [composerMaxHeight, setComposerMaxHeight] = React.useState<number | null>(null);
     const [mobileControlsOpen, setMobileControlsOpen] = React.useState(false);
     const [mobileControlsPanel, setMobileControlsPanel] = React.useState<MobileControlsPanel>(null);
     // Message history navigation state (up/down arrow to recall previous messages)
@@ -720,9 +726,9 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         setHistoryIndex(index);
         setDraftMessage(draft);
     }, []);
-    const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+    // Textarea-like handle backed by the TipTap composer; offsets are markdown string offsets.
+    const textareaRef = React.useRef<ComposerHandle | null>(null);
     const cursorPosRef = React.useRef(0);
-    const previousMessageLengthRef = React.useRef(message.length);
     const dropZoneRef = React.useRef<HTMLDivElement>(null);
     const dragEnterCountRef = React.useRef(0);
     const suppressNextFileDropTextInsertRef = React.useRef(false);
@@ -796,8 +802,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         currentDirectory ? state.directories.get(currentDirectory)?.status ?? null : null,
     );
     const [showAbortStatus, setShowAbortStatus] = React.useState(false);
-    const composerHighlightRef = React.useRef<HTMLDivElement | null>(null);
-
+    
     const resolveCurrentDraftKey = React.useCallback(
         () => getDraftKey(newSessionDraftOpen ? null : currentSessionId),
         [currentSessionId, newSessionDraftOpen],
@@ -826,71 +831,11 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     const knownAgentNamesRef = React.useRef(knownAgentNames);
     knownAgentNamesRef.current = knownAgentNames;
 
-    const hasInlineMentionForHighlight = React.useMemo(() => {
-        if (!message || !message.includes('@')) {
-            return false;
-        }
-        const mentionRegex = /@([^\s]+)/g;
-        let match: RegExpExecArray | null;
-        while ((match = mentionRegex.exec(message)) !== null) {
-            const offset = match.index;
-            const charBefore = offset > 0 ? message[offset - 1] : null;
-            if (charBefore && !/(\s|\(|\)|\[|\]|\{|\}|"|'|`|,|\.|;|:)/.test(charBefore)) {
-                continue;
-            }
-            const mentionPath = String(match[1] || '').trim().replace(/[),.;:!?`"'>]+$/g, '');
-            if (!mentionPath) {
-                continue;
-            }
-            if (knownAgentNames.has(mentionPath.toLowerCase())) {
-                return true;
-            }
-            if (isConfirmedFilePath(mentionPath)) {
-                return true;
-            }
-        }
-        return false;
-    }, [isConfirmedFilePath, message, knownAgentNames]);
-
-    const highlightedComposerContent = React.useMemo(() => {
-        if (!hasInlineMentionForHighlight) {
-            return null;
-        }
-
-        const parts: Array<{ text: string; mentionKind: 'none' | 'file' | 'agent' }> = [];
-        const mentionRegex = /@([^\s]+)/g;
-        let lastIndex = 0;
-        let match: RegExpExecArray | null;
-
-        while ((match = mentionRegex.exec(message)) !== null) {
-            const full = match[0];
-            const mention = String(match[1] || '').trim().replace(/[),.;:!?`"'>]+$/g, '');
-            const start = match.index;
-            const end = start + full.length;
-            const charBefore = start > 0 ? message[start - 1] : null;
-            const isBoundary = !charBefore || /(\s|\(|\)|\[|\]|\{|\}|"|'|`|,|\.|;|:)/.test(charBefore);
-            const isAgentMention = isBoundary && mention.length > 0 && knownAgentNames.has(mention.toLowerCase());
-            const isFileMention = isBoundary
-                && mention.length > 0
-                && !knownAgentNames.has(mention.toLowerCase())
-                && isConfirmedFilePath(mention);
-
-            if (start > lastIndex) {
-                parts.push({ text: message.slice(lastIndex, start), mentionKind: 'none' });
-            }
-            parts.push({
-                text: full,
-                mentionKind: isFileMention ? 'file' : isAgentMention ? 'agent' : 'none',
-            });
-            lastIndex = end;
-        }
-
-        if (lastIndex < message.length) {
-            parts.push({ text: message.slice(lastIndex), mentionKind: 'none' });
-        }
-
-        return parts;
-    }, [hasInlineMentionForHighlight, isConfirmedFilePath, message, knownAgentNames]);
+    // Finds @mentions inside a plain text run; the composer renders them highlighted.
+    const getMentionRanges = React.useCallback(
+        (text: string): ComposerMentionRange[] => findMentionRanges(text, (name) => knownAgentNames.has(name), isConfirmedFilePath),
+        [isConfirmedFilePath, knownAgentNames],
+    );
 
     const sanitizeAttachmentsForSend = React.useCallback(
         (files: AttachedFile[] | undefined): AttachedFile[] => (files ?? [])
@@ -1651,7 +1596,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
 
     const handlePrimaryAction = React.useCallback(() => sendOrQueue(false), [sendOrQueue]);
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const handleKeyDown = (e: ComposerKeyEvent) => {
         // Early return during IME composition to prevent interference with autocomplete.
         // Uses keyCode === 229 fallback for WebKit where compositionend fires before keydown.
         if (isIMECompositionEvent(e)) return;
@@ -1766,8 +1711,11 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         // ArrowUp: only when cursor at start (position 0) or input is empty
         // ArrowDown: also works when cursor at end (to cycle forward through history)
         const isAnyAutocompleteOpen = showCommandAutocomplete || showSkillAutocomplete || showFileMention;
-        const cursorAtStart = textareaRef.current?.selectionStart === 0 && textareaRef.current?.selectionEnd === 0;
-        const cursorAtEnd = textareaRef.current?.selectionStart === message.length && textareaRef.current?.selectionEnd === message.length;
+        // History keys only apply at the very start/end of the document, never inside a code block.
+        const composer = textareaRef.current;
+        const insideCodeBlock = composer?.isInCodeBlock() ?? false;
+        const cursorAtStart = !insideCodeBlock && (composer?.isAtStart() ?? false);
+        const cursorAtEnd = !insideCodeBlock && (composer?.isAtEnd() ?? false);
         const canNavigateHistoryUp = !isAnyAutocompleteOpen && (message.length === 0 || cursorAtStart);
         const canNavigateHistoryDown = !isAnyAutocompleteOpen && (message.length === 0 || cursorAtEnd);
 
@@ -1815,52 +1763,20 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         }
     };
 
-    const measureCaretInTextarea = React.useCallback((textarea: HTMLTextAreaElement, cursorPosition: number) => {
-        const doc = textarea.ownerDocument;
-        const win = doc.defaultView;
-        if (!win) return null;
-
-        const style = win.getComputedStyle(textarea);
-        const mirror = doc.createElement('div');
-        const mirrorStyle = mirror.style;
-
-        mirrorStyle.position = 'absolute';
-        mirrorStyle.visibility = 'hidden';
-        mirrorStyle.pointerEvents = 'none';
-        mirrorStyle.whiteSpace = 'pre-wrap';
-        mirrorStyle.wordWrap = 'break-word';
-        mirrorStyle.overflow = 'hidden';
-        mirrorStyle.left = '-9999px';
-        mirrorStyle.top = '0';
-
-        mirrorStyle.width = `${textarea.clientWidth}px`;
-        mirrorStyle.font = style.font;
-        mirrorStyle.fontSize = style.fontSize;
-        mirrorStyle.fontFamily = style.fontFamily;
-        mirrorStyle.fontWeight = style.fontWeight;
-        mirrorStyle.fontStyle = style.fontStyle;
-        mirrorStyle.fontVariant = style.fontVariant;
-        mirrorStyle.letterSpacing = style.letterSpacing;
-        mirrorStyle.textTransform = style.textTransform;
-        mirrorStyle.textIndent = style.textIndent;
-        mirrorStyle.padding = style.padding;
-        mirrorStyle.border = style.border;
-        mirrorStyle.boxSizing = style.boxSizing;
-        mirrorStyle.lineHeight = style.lineHeight;
-        mirrorStyle.tabSize = style.tabSize;
-
-        mirror.textContent = textarea.value.slice(0, cursorPosition);
-        const marker = doc.createElement('span');
-        marker.textContent = textarea.value.slice(cursorPosition, cursorPosition + 1) || ' ';
-        mirror.appendChild(marker);
-
-        doc.body.appendChild(mirror);
-        const top = marker.offsetTop;
-        const left = marker.offsetLeft;
-        doc.body.removeChild(mirror);
-
-        return { top, left };
-    }, []);
+    // The editor emits native keydown events; adapt them to the key pipeline above.
+    // Returns true when the pipeline handled the key (it called preventDefault).
+    const handleComposerKeyDown = (event: KeyboardEvent): boolean => {
+        handleKeyDown({
+            key: event.key,
+            shiftKey: event.shiftKey,
+            ctrlKey: event.ctrlKey,
+            metaKey: event.metaKey,
+            altKey: event.altKey,
+            preventDefault: () => event.preventDefault(),
+            nativeEvent: event,
+        });
+        return event.defaultPrevented;
+    };
 
     const updateAutocompleteOverlayPosition = React.useCallback(() => {
         if (!isDesktopExpanded) {
@@ -1877,15 +1793,15 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         const container = dropZoneRef.current;
         if (!textarea || !container) return;
 
-        const cursor = textarea.selectionStart ?? message.length;
-        const caret = measureCaretInTextarea(textarea, cursor);
+        const cursor = textarea.selectionStart;
+        const caret = textarea.getCaretCoords(cursor);
         if (!caret) return;
 
-        const textareaRect = textarea.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
 
-        const caretY = textareaRect.top - containerRect.top + (caret.top - textarea.scrollTop);
-        const caretX = textareaRect.left - containerRect.left + (caret.left - textarea.scrollLeft);
+        // Caret coordinates are viewport-relative, so scroll offsets are already accounted for.
+        const caretY = caret.top - containerRect.top;
+        const caretX = caret.left - containerRect.left;
 
         const popupMargin = 8;
         const estimatedPopupHeight = 260;
@@ -1909,12 +1825,15 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         });
     }, [
         isDesktopExpanded,
-        measureCaretInTextarea,
-        message.length,
         showCommandAutocomplete,
         showFileMention,
         showSkillAutocomplete,
     ]);
+
+    const handleComposerSelectionChange = () => {
+        cursorPosRef.current = textareaRef.current?.selectionStart ?? 0;
+        updateAutocompleteOverlayPosition();
+    };
 
     React.useLayoutEffect(() => {
         updateAutocompleteOverlayPosition();
@@ -1985,30 +1904,20 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         };
     }, [composerInteractionDisabled, handleCycleAgent]);
 
-    const adjustTextareaHeight = React.useCallback((options?: { allowShrink?: boolean }) => {
-        const textarea = textareaRef.current;
-        if (!textarea) {
+    // The composer grows with its content; only the max height (N lines + padding) is computed here.
+    const adjustTextareaHeight = React.useCallback(() => {
+        const root = textareaRef.current?.getRootElement();
+        if (!root) {
             return;
         }
-
-        const previousScrollTop = textarea.scrollTop;
 
         if (isDesktopExpanded) {
-            textarea.style.height = '100%';
-            textarea.style.maxHeight = 'none';
-            setTextareaSize(null);
-            if (textarea.scrollTop !== previousScrollTop) {
-                textarea.scrollTop = previousScrollTop;
-            }
+            setComposerMaxHeight(null);
             return;
         }
 
-        if (options?.allowShrink ?? true) {
-            textarea.style.height = 'auto';
-        }
-
-        const view = textarea.ownerDocument?.defaultView;
-        const computedStyle = view ? view.getComputedStyle(textarea) : null;
+        const view = root.ownerDocument?.defaultView;
+        const computedStyle = view ? view.getComputedStyle(root) : null;
         const lineHeight = computedStyle ? parseFloat(computedStyle.lineHeight) : NaN;
         const paddingTop = computedStyle ? parseFloat(computedStyle.paddingTop) : NaN;
         const paddingBottom = computedStyle ? parseFloat(computedStyle.paddingBottom) : NaN;
@@ -2019,27 +1928,12 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
             : paddingTop + paddingBottom;
         const targetLineHeight = Number.isNaN(lineHeight) ? fallbackLineHeight : lineHeight;
         const maxHeight = targetLineHeight * MAX_VISIBLE_TEXTAREA_LINES + paddingTotal;
-        const scrollHeight = textarea.scrollHeight || textarea.offsetHeight;
-        const nextHeight = Math.min(scrollHeight, maxHeight);
 
-        textarea.style.height = `${nextHeight}px`;
-        textarea.style.maxHeight = `${maxHeight}px`;
-        if (textarea.scrollTop !== previousScrollTop) {
-            textarea.scrollTop = previousScrollTop;
-        }
-
-        setTextareaSize((prev) => {
-            if (prev && prev.height === nextHeight && prev.maxHeight === maxHeight) {
-                return prev;
-            }
-            return { height: nextHeight, maxHeight };
-        });
+        setComposerMaxHeight((prev) => (prev === maxHeight ? prev : maxHeight));
     }, [isDesktopExpanded]);
 
     React.useLayoutEffect(() => {
-        const allowShrink = message.length < previousMessageLengthRef.current;
-        previousMessageLengthRef.current = message.length;
-        adjustTextareaHeight({ allowShrink });
+        adjustTextareaHeight();
     }, [adjustTextareaHeight, message, isMobile]);
 
     const updateAutocompleteState = React.useCallback((value: string, cursorPosition: number) => {
@@ -2204,7 +2098,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         }, 700);
     }, [clearDropTextSuppression]);
 
-    const handleBeforeInput = React.useCallback((e: React.FormEvent<HTMLTextAreaElement>) => {
+    const handleBeforeInput = React.useCallback((e: React.FormEvent<HTMLElement>) => {
         if (!isVSCodeRuntime() || !suppressNextFileDropTextInsertRef.current) {
             return;
         }
@@ -2216,21 +2110,20 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         }
     }, [clearDropTextSuppression]);
 
-    const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const nativeInputEvent = e.nativeEvent as InputEvent | undefined;
+    const handleTextChange = (value: string) => {
         if (isVSCodeRuntime() && suppressNextFileDropTextInsertRef.current) {
             const candidateAbsolutePaths = pendingDroppedAbsolutePathsRef.current;
-            const isLikelyDropTextInsertion = nativeInputEvent?.inputType === 'insertFromDrop'
-                || candidateAbsolutePaths.some((path) => path.length > 0 && e.target.value.includes(path));
+            const isLikelyDropTextInsertion = candidateAbsolutePaths.some((path) => path.length > 0 && value.includes(path));
 
             if (isLikelyDropTextInsertion) {
                 clearDropTextSuppression();
+                // Revert the editor to the last known message (a textarea would do this via controlled value).
+                textareaRef.current?.setValue(messageRef.current);
                 return;
             }
         }
 
-        const value = e.target.value;
-        const cursorPosition = e.target.selectionStart ?? value.length;
+        const cursorPosition = textareaRef.current?.selectionStart ?? value.length;
 
         setMessage(value);
         adjustTextareaHeight();
@@ -2243,7 +2136,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         };
     }, [clearDropTextSuppression]);
 
-    const handlePaste = React.useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const handlePaste = React.useCallback(async (e: React.ClipboardEvent<HTMLElement>) => {
         const fileMap = new Map<string, File>();
 
         Array.from(e.clipboardData.files || []).forEach(file => {
@@ -2412,9 +2305,8 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
 
         setMessage(`/${command.name} `);
 
-        const textareaElement = textareaRef.current as HTMLTextAreaElement & { _commandMetadata?: typeof command };
-        if (textareaElement) {
-            textareaElement._commandMetadata = command;
+        if (textareaRef.current) {
+            textareaRef.current.commandMetadata = command;
         }
 
         setShowCommandAutocomplete(false);
@@ -3331,94 +3223,57 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                         />
                     )}
                     <div className={cn("relative overflow-hidden", isDesktopExpanded && 'flex flex-1 min-h-0 flex-col')}>
-                        {highlightedComposerContent && (
-                            <div
-                                aria-hidden
-                                className={cn(
-                                    'pointer-events-none absolute inset-0 z-0 whitespace-pre-wrap break-words px-3 rounded-b-none',
-                                    isDesktopExpanded
-                                        ? 'h-full min-h-0 py-4'
-                                        : isMobile
-                                            ? 'py-2.5'
-                                            : 'pt-4 pb-2',
-                                    'typography-markdown md:typography-ui-label',
-                                )}
-                                ref={composerHighlightRef}
-                            >
-                                {highlightedComposerContent.map((part, index) => (
-                                    <span
-                                        key={`${index}-${part.text.length}`}
-                                        className={
-                                            part.mentionKind === 'file'
-                                                ? 'text-[var(--status-info)]'
-                                                : part.mentionKind === 'agent'
-                                                    ? 'text-[var(--status-success)]'
-                                                    : 'text-foreground'
-                                        }
-                                    >
-                                        {part.text}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-                        <Textarea
-                            simple
+                        <MinimalComposer
                             ref={textareaRef}
-                            data-chat-input="true"
-                            aria-haspopup={hasOpenPopup ? 'listbox' : undefined}
-                            aria-expanded={hasOpenPopup ? true : undefined}
-                            aria-controls={hasOpenPopup ? COMPOSER_POPUP_ID : undefined}
-                            aria-activedescendant={hasOpenPopup ? popupActiveOptionId ?? undefined : undefined}
                             value={message}
                             onChange={handleTextChange}
-                            onBeforeInput={handleBeforeInput}
-                            onKeyDown={handleKeyDown}
-                            onPaste={handlePaste}
-                            onDragEnter={handleDragEnter}
-                            onDragOver={handleDragOver}
-                            onDropCapture={handleDropCapture}
-                            onDrop={handleDrop}
-                            onDragEnd={handleDragEnd}
-                            onKeyUp={updateAutocompleteOverlayPosition}
-                            onClick={updateAutocompleteOverlayPosition}
-                            onScroll={(event) => {
-                                updateAutocompleteOverlayPosition();
-                                const scrollTop = event.currentTarget.scrollTop;
-                                if (composerHighlightRef.current) {
-                                    composerHighlightRef.current.style.transform = `translateY(-${scrollTop}px)`;
-                                }
-                            }}
-                            onSelect={(e) => {
-                                const ta = e.currentTarget;
-                                cursorPosRef.current = ta.selectionStart ?? 0;
-                                updateAutocompleteOverlayPosition();
-                            }}
+                            onSend={handlePrimaryAction}
+                            clearOnSend={false}
+                            enterSends={!isMobile}
+                            onKeyDown={handleComposerKeyDown}
+                            onSelectionChange={handleComposerSelectionChange}
+                            getMentionRanges={getMentionRanges}
                             placeholder={currentSessionId || newSessionDraftOpen
                                 ? t('chat.chatInput.placeholder.chat')
                                 : t('chat.chatInput.placeholder.selectSession')}
                             disabled={composerInteractionDisabled || (!currentSessionId && !newSessionDraftOpen)}
-                            autoCorrect={isMobile ? "on" : "off"}
-                            autoCapitalize={isMobile ? "sentences" : "off"}
-                            spellCheck={isMobile || inputSpellcheckEnabled}
-                            fillContainer={isDesktopExpanded}
-                            outerClassName={cn('ring-0 bg-transparent shadow-none hover:bg-transparent focus-within:ring-0', isDesktopExpanded && 'flex-1 min-h-0')}
+                            contentAttributes={{
+                                'data-chat-input': 'true',
+                                'aria-haspopup': hasOpenPopup ? 'listbox' : undefined,
+                                'aria-expanded': hasOpenPopup ? true : undefined,
+                                'aria-controls': hasOpenPopup ? COMPOSER_POPUP_ID : undefined,
+                                'aria-activedescendant': hasOpenPopup ? popupActiveOptionId ?? undefined : undefined,
+                                autocorrect: isMobile ? 'on' : 'off',
+                                autocapitalize: isMobile ? 'sentences' : 'off',
+                                spellcheck: isMobile || inputSpellcheckEnabled,
+                            }}
+                            rootProps={{
+                                onBeforeInput: handleBeforeInput,
+                                onPaste: handlePaste,
+                                onDragEnter: handleDragEnter,
+                                onDragOver: handleDragOver,
+                                onDropCapture: handleDropCapture,
+                                onDrop: handleDrop,
+                                onDragEnd: handleDragEnd,
+                                onKeyUp: updateAutocompleteOverlayPosition,
+                                onClick: updateAutocompleteOverlayPosition,
+                                onScroll: updateAutocompleteOverlayPosition,
+                            }}
                             className={cn(
-                                'min-h-[52px] resize-none border-0 px-3 rounded-b-none appearance-none hover:border-transparent bg-transparent relative z-10',
+                                'block w-full min-h-[52px] bg-transparent px-3 text-foreground typography-markdown md:typography-ui-label relative z-10',
                                 isDesktopExpanded
                                     ? 'h-full min-h-0 py-4'
                                     : isMobile
                                         ? 'py-2.5'
                                         : 'pt-4 pb-2',
-                                highlightedComposerContent && 'text-transparent caret-[var(--surface-foreground)]',
+                                isDesktopExpanded && 'flex-1 min-h-0',
                             )}
                             style={{
                                 flex: isDesktopExpanded ? '1 1 auto' : 'none',
-                                height: !isDesktopExpanded && textareaSize ? `${textareaSize.height}px` : undefined,
-                                maxHeight: !isDesktopExpanded && textareaSize ? `${textareaSize.maxHeight}px` : undefined,
+                                maxHeight: !isDesktopExpanded && composerMaxHeight ? `${composerMaxHeight}px` : isDesktopExpanded ? 'none' : undefined,
                                 borderTopLeftRadius: chatInputRadius,
                                 borderTopRightRadius: chatInputRadius,
                             }}
-                            rows={1}
                         />
                     </div>
                     <div

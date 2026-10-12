@@ -4,6 +4,8 @@ import type { Part } from '@/lib/claude/types';
 import type { AgentMentionInfo } from '../types';
 import { SimpleMarkdownRenderer } from '../../MarkdownRenderer';
 import { useUIStore } from '@/stores/useUIStore';
+import { useConfigStore } from '@/stores/useConfigStore';
+import { findMentionRanges, looksLikeFilePath } from '../../composer/mentions';
 import { useCurrentSessionIsSubtask } from '@/hooks/useCurrentSessionIsSubtask';
 
 type PartWithText = Part & { text?: string; content?: string; value?: string };
@@ -18,15 +20,6 @@ type UserTextPartProps = {
 const buildMentionUrl = (name: string): string => {
     const encoded = encodeURIComponent(name);
     return `https://opencode.ai/docs/agents/#${encoded}`;
-};
-
-const escapeHtml = (text: string): string => {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#x27;');
 };
 
 const normalizeUserMessageRenderingMode = (mode: unknown): 'markdown' | 'plain' => {
@@ -44,20 +37,24 @@ const UserTextPart: React.FC<UserTextPartProps> = ({ part, messageId, agentMenti
     const shouldForcePlainRendering = isCurrentSessionSubtask;
     const shouldRenderMarkdown = normalizedRenderingMode === 'markdown' && !shouldForcePlainRendering;
 
-    const processedMarkdownContent = React.useMemo(() => {
-        let content = textContent;
-
-        // Step 1: First escape HTML to protect against XSS and ensure HTML tags display as text
-        content = escapeHtml(content);
-
-        // Step 2: Then insert agent mention links (after escaping, so <a> tags won't be escaped)
-        if (agentMention?.token && content.includes(agentMention.token)) {
-            const mentionHtml = `<a href="${buildMentionUrl(agentMention.name)}" class="text-primary hover:underline" target="_blank" rel="noopener noreferrer">${agentMention.token}</a>`;
-            content = content.replace(agentMention.token, mentionHtml);
-        }
-
-        return content;
-    }, [agentMention, textContent]);
+    const agents = useConfigStore((state) => state.agents);
+    const knownAgentNames = React.useMemo(
+        () => new Set(agents.map((agent) => agent.name.toLowerCase())),
+        [agents],
+    );
+    const getMentionRanges = React.useCallback(
+        (text: string) => findMentionRanges(text, (name) => knownAgentNames.has(name), looksLikeFilePath),
+        [knownAgentNames],
+    );
+    const userMarkdownOptions = React.useMemo(
+        () => ({
+            getMentionRanges,
+            agentMention: agentMention?.token
+                ? { token: agentMention.token, href: buildMentionUrl(agentMention.name) }
+                : undefined,
+        }),
+        [agentMention, getMentionRanges],
+    );
 
     const plainTextContent = React.useMemo(() => {
         if (!agentMention?.token || !textContent.includes(agentMention.token)) {
@@ -97,9 +94,11 @@ const UserTextPart: React.FC<UserTextPartProps> = ({ part, messageId, agentMenti
                 )}
             >
                 {shouldRenderMarkdown ? (
-                    <SimpleMarkdownRenderer 
-                        content={processedMarkdownContent} 
-                        disableLinkSafety 
+                    <SimpleMarkdownRenderer
+                        content={textContent}
+                        variant="user"
+                        userOptions={userMarkdownOptions}
+                        disableLinkSafety
                     />
                 ) : (
                     plainTextContent
