@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { buildClaudeEnv, mergePath, platformPackageNames, resetLoginPathCache, resolveClaudeExecutable, resolveLoginShellPath } from './env';
+import { buildClaudeEnv, mergePath, resetLoginPathCache, resolveClaudeExecutable, resolveLoginShellPath } from './env';
 
 describe('buildClaudeEnv', () => {
   const base = { PATH: '/usr/bin:/bin', HOME: '/h', ANTHROPIC_API_KEY: 'k', ANTHROPIC_AUTH_TOKEN: 't', CLAUDECODE: '1', CLAUDE_CODE_ENTRYPOINT: 'x', CLAUDE_CODE_OAUTH_TOKEN: 'keep', CLAUDE_CODE_MAX_OUTPUT_TOKENS: '64000', CLAUDE_CODE_USE_BEDROCK: '1', CLAUDE_CODE_SSE_PORT: '5', CLAUDE_CODE_HOST_SESSION_ID: 'h', CLAUDE_CODE_MESSAGING_TOKEN: 't', CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH: '1', CLAUDE_AGENT_SDK_VERSION: '1', KEEP_ME: 'yes' };
@@ -78,22 +78,58 @@ describe('resolveLoginShellPath', () => {
 
 describe('resolveClaudeExecutable', () => {
   const exists = (set: string[]) => (p: string) => set.includes(p);
+  const posixBase = { platform: 'darwin' as const, homedir: '/Users/u', loginPath: '/Users/u/.local/bin:/usr/bin', pathEnv: '/usr/bin' };
 
   test('setting wins when it exists', () => {
-    expect(resolveClaudeExecutable({ override: '/opt/claude', distDir: '/d', exists: exists(['/opt/claude']) })).toEqual({ path: '/opt/claude', source: 'setting' });
+    expect(resolveClaudeExecutable({ ...posixBase, override: '/opt/claude', exists: exists(['/opt/claude', '/Users/u/.local/bin/claude']) })).toEqual({ path: '/opt/claude', source: 'setting' });
   });
 
-  test('missing setting falls back to bundled with a warning', () => {
-    const r = resolveClaudeExecutable({ override: '/nope', distDir: '/d', platform: 'darwin', arch: 'arm64', exists: exists(['/d/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude']) });
-    expect(r.source).toBe('bundled');
-    expect(r.path).toBe('/d/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude');
+  test('missing setting falls back to auto-detection with a warning', () => {
+    const r = resolveClaudeExecutable({ ...posixBase, override: '/nope', exists: exists(['/Users/u/.local/bin/claude']) });
+    expect(r).toMatchObject({ path: '/Users/u/.local/bin/claude', source: 'path' });
     expect(r.warning).toContain('does not exist');
   });
 
-  test('nothing found -> SDK default; linux tries musl second; windows uses .exe', () => {
-    expect(resolveClaudeExecutable({ distDir: '/d', exists: () => false })).toMatchObject({ path: undefined, source: 'sdk-default' });
-    expect(platformPackageNames('linux', 'x64')).toEqual(['@anthropic-ai/claude-agent-sdk-linux-x64', '@anthropic-ai/claude-agent-sdk-linux-x64-musl']);
-    const win = resolveClaudeExecutable({ distDir: 'D', platform: 'win32', arch: 'x64', exists: (p) => p.endsWith('claude.exe') });
-    expect(win.path?.endsWith('claude.exe')).toBe(true);
+  test('login-shell PATH is searched before the process PATH', () => {
+    const r = resolveClaudeExecutable({ ...posixBase, exists: exists(['/usr/bin/claude', '/Users/u/.local/bin/claude']) });
+    expect(r).toEqual({ path: '/Users/u/.local/bin/claude', source: 'path', warning: undefined });
+    expect(resolveClaudeExecutable({ ...posixBase, exists: exists(['/usr/bin/claude']) }).path).toBe('/usr/bin/claude');
+  });
+
+  test('well-known locations are used when PATH has no claude', () => {
+    const base = { platform: 'darwin' as const, homedir: '/Users/u', loginPath: undefined, pathEnv: '/usr/bin' };
+    for (const known of ['/Users/u/.local/bin/claude', '/Users/u/.claude/local/claude', '/opt/homebrew/bin/claude', '/usr/local/bin/claude']) {
+      expect(resolveClaudeExecutable({ ...base, exists: exists([known]) })).toMatchObject({ path: known, source: 'known-location' });
+    }
+  });
+
+  test('nothing found -> not-found, no path (never the SDK default)', () => {
+    expect(resolveClaudeExecutable({ ...posixBase, exists: () => false })).toMatchObject({ path: undefined, source: 'not-found' });
+  });
+
+  describe('win32', () => {
+    const win = { platform: 'win32' as const, homedir: 'C:\\Users\\u', env: { USERPROFILE: 'C:\\Users\\u', APPDATA: 'C:\\Users\\u\\AppData\\Roaming' } };
+    const npm = 'C:\\Users\\u\\AppData\\Roaming\\npm';
+
+    test('claude.exe on PATH is preferred over a claude.cmd shim in the same directory', () => {
+      const r = resolveClaudeExecutable({ ...win, pathEnv: `${npm};C:\\bin`, exists: exists([`${npm}\\claude.cmd`, `${npm}\\claude.exe`]) });
+      expect(r).toMatchObject({ path: `${npm}\\claude.exe`, source: 'path' });
+    });
+
+    test('a claude.cmd shim resolves to the real claude.exe next to it, else cli.js', () => {
+      const pkg = `${npm}\\node_modules\\@anthropic-ai\\claude-code`;
+      expect(resolveClaudeExecutable({ ...win, pathEnv: npm, exists: exists([`${npm}\\claude.cmd`, `${pkg}\\bin\\claude.exe`, `${pkg}\\cli.js`]) }).path).toBe(`${pkg}\\bin\\claude.exe`);
+      expect(resolveClaudeExecutable({ ...win, pathEnv: npm, exists: exists([`${npm}\\claude.cmd`, `${pkg}\\cli.js`]) }).path).toBe(`${pkg}\\cli.js`);
+    });
+
+    test('a claude.cmd shim without a usable target is treated as not found', () => {
+      expect(resolveClaudeExecutable({ ...win, pathEnv: npm, exists: exists([`${npm}\\claude.cmd`]) })).toMatchObject({ path: undefined, source: 'not-found' });
+    });
+
+    test('well-known: %USERPROFILE%\\.local\\bin\\claude.exe, then the npm shim target', () => {
+      expect(resolveClaudeExecutable({ ...win, pathEnv: '', exists: exists(['C:\\Users\\u\\.local\\bin\\claude.exe']) })).toMatchObject({ path: 'C:\\Users\\u\\.local\\bin\\claude.exe', source: 'known-location' });
+      const pkg = `${npm}\\node_modules\\@anthropic-ai\\claude-code`;
+      expect(resolveClaudeExecutable({ ...win, pathEnv: '', exists: exists([`${npm}\\claude.cmd`, `${pkg}\\bin\\claude.exe`]) })).toMatchObject({ path: `${pkg}\\bin\\claude.exe`, source: 'known-location' });
+    });
   });
 });

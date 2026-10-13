@@ -204,7 +204,7 @@
         "claudekei.claudeExecutablePath": {
           "type": "string",
           "default": "",
-          "description": "Optional absolute path to a `claude` executable. Leave empty to use the binary bundled with the extension."
+          "description": "Optional absolute path to a `claude` executable. Leave empty to auto-detect the installed `claude` CLI (login-shell PATH, then well-known install locations)."
         },
         "claudekei.maxLiveSessions": {
           "type": "number",

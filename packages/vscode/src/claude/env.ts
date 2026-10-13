@@ -4,7 +4,8 @@
  */
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { delimiter, join } from 'node:path';
+import { homedir } from 'node:os';
+import { delimiter, posix, win32 } from 'node:path';
 
 export type ClaudeEnvOptions = {
   /** `claudekei.useApiKey`: keep ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN (default: strip, use the subscription login). */
@@ -135,44 +136,103 @@ export function resetLoginPathCache(): void {
 }
 
 export type ExecutableResolution = {
-  /** Value for `pathToClaudeCodeExecutable`; undefined lets the SDK resolve its own platform package. */
+  /** Value for `pathToClaudeCodeExecutable`; undefined when no installed `claude` CLI was found. */
   path: string | undefined;
-  source: 'setting' | 'bundled' | 'sdk-default';
-  /** Set when the setting pointed at a missing file (and we fell back). */
+  source: 'setting' | 'path' | 'known-location' | 'not-found';
+  /** Set when the setting pointed at a missing file (and we fell back to auto-detection). */
   warning?: string;
 };
 
-/** Candidate package names for the native binary, preferred first (musl variants on Alpine-like systems). */
-export function platformPackageNames(platform: string = process.platform, arch: string = process.arch, musl = false): string[] {
-  const base = '@anthropic-ai/claude-agent-sdk';
-  if (platform === 'linux') return musl ? [`${base}-linux-${arch}-musl`, `${base}-linux-${arch}`] : [`${base}-linux-${arch}`, `${base}-linux-${arch}-musl`];
-  return [`${base}-${platform}-${arch}`];
+export type ResolveExecutableOptions = {
+  /** `claudekei.claudeExecutablePath`. */
+  override?: string;
+  /** PATH of the user's login shell (preferred: a GUI-launched VS Code often lacks `~/.local/bin`). */
+  loginPath?: string;
+  /** Fallback PATH (the extension host's own). */
+  pathEnv?: string;
+  platform?: NodeJS.Platform;
+  homedir?: string;
+  /** Environment for `%USERPROFILE%` / `%APPDATA%` lookups on Windows. */
+  env?: NodeJS.ProcessEnv;
+  exists?: (p: string) => boolean;
+};
+
+/**
+ * Resolves a runnable file for a `claude.cmd` npm shim. Node cannot spawn `.cmd` without a shell, and the SDK only
+ * special-cases `.js`/`.mjs` (run through node), so look next to the shim for the real package entry: the native
+ * `bin\claude.exe` of current `@anthropic-ai/claude-code` releases, else the `cli.js` of older ones.
+ */
+function resolveCmdShim(shimPath: string, exists: (p: string) => boolean): string | undefined {
+  const pkg = win32.join(win32.dirname(shimPath), 'node_modules', '@anthropic-ai', 'claude-code');
+  return [win32.join(pkg, 'bin', 'claude.exe'), win32.join(pkg, 'cli.js')].find(exists);
+}
+
+/** First directory of `pathValue` holding a usable `claude`. On Windows: `claude.exe`, else a `claude.cmd` shim's real target. */
+export function findClaudeOnPath(pathValue: string | undefined, platform: NodeJS.Platform = process.platform, exists: (p: string) => boolean = existsSync): string | undefined {
+  const win = platform === 'win32';
+  const { join: joinPath, delimiter: sep } = win ? win32 : posix;
+  for (const dir of (pathValue ?? '').split(sep)) {
+    if (!dir) continue;
+    if (!win) {
+      const candidate = joinPath(dir, 'claude');
+      if (exists(candidate)) return candidate;
+      continue;
+    }
+    const exe = joinPath(dir, 'claude.exe');
+    if (exists(exe)) return exe;
+    const shim = joinPath(dir, 'claude.cmd');
+    if (exists(shim)) {
+      const target = resolveCmdShim(shim, exists);
+      if (target) return target;
+    }
+  }
+  return undefined;
+}
+
+/** Well-known install locations of the CLI (native installer, `claude migrate-installer`, Homebrew, npm prefixes). */
+function knownLocations(platform: NodeJS.Platform, home: string, env: NodeJS.ProcessEnv, exists: (p: string) => boolean): string[] {
+  if (platform !== 'win32') {
+    return [posix.join(home, '.local', 'bin', 'claude'), posix.join(home, '.claude', 'local', 'claude'), '/opt/homebrew/bin/claude', '/usr/local/bin/claude'];
+  }
+  const profile = env.USERPROFILE || home;
+  const found = [win32.join(profile, '.local', 'bin', 'claude.exe')];
+  if (env.APPDATA) {
+    const npmDir = win32.join(env.APPDATA, 'npm');
+    const shimTarget = exists(win32.join(npmDir, 'claude.cmd')) ? resolveCmdShim(win32.join(npmDir, 'claude.cmd'), exists) : undefined;
+    if (shimTarget) found.push(shimTarget);
+  }
+  return found;
 }
 
 /**
- * `claudekei.claudeExecutablePath` override, else the binary bundled next to the extension
- * (`<dist>/node_modules/@anthropic-ai/claude-agent-sdk-<platform>-<arch>/claude`), else the SDK default.
+ * Locates the user's installed `claude` CLI (the extension no longer bundles a binary):
+ * the `claudekei.claudeExecutablePath` setting, then `claude` on the login-shell PATH / process PATH,
+ * then well-known install locations. Never falls back to the SDK's own resolution.
  */
-export function resolveClaudeExecutable(options: {
-  override?: string;
-  distDir?: string;
-  platform?: NodeJS.Platform;
-  arch?: string;
-  exists?: (p: string) => boolean;
-}): ExecutableResolution {
+export function resolveClaudeExecutable(options: ResolveExecutableOptions): ExecutableResolution {
   const exists = options.exists ?? existsSync;
+  const platform = options.platform ?? process.platform;
   const override = options.override?.trim();
   let warning: string | undefined;
   if (override) {
     if (exists(override)) return { path: override, source: 'setting' };
-    warning = `claudekei.claudeExecutablePath "${override}" does not exist; falling back to the bundled binary`;
+    warning = `claudekei.claudeExecutablePath "${override}" does not exist; looking for an installed claude CLI instead`;
   }
-  if (options.distDir) {
-    const exe = (options.platform ?? process.platform) === 'win32' ? 'claude.exe' : 'claude';
-    for (const pkg of platformPackageNames(options.platform, options.arch)) {
-      const candidate = join(options.distDir, 'node_modules', ...pkg.split('/'), exe);
-      if (exists(candidate)) return { path: candidate, source: 'bundled', warning };
-    }
+  for (const pathValue of [options.loginPath, options.pathEnv]) {
+    const found = findClaudeOnPath(pathValue, platform, exists);
+    if (found) return { path: found, source: 'path', warning };
   }
-  return { path: undefined, source: 'sdk-default', warning };
+  const home = options.homedir ?? homedir();
+  const known = knownLocations(platform, home, options.env ?? process.env, exists).find(exists);
+  if (known) return { path: known, source: 'known-location', warning };
+  return { path: undefined, source: 'not-found', warning };
+}
+
+/** Shown (status error, error toast) when no CLI could be found. */
+export const CLI_NOT_FOUND_MESSAGE = 'Claude Code CLI not found. ClaudeKei needs the `claude` CLI installed on this machine.';
+
+/** Platform-specific install command for the CLI. */
+export function installHint(platform: NodeJS.Platform = process.platform): string {
+  const native = platform === 'win32' ? 'irm https://claude.ai/install.ps1 | iex' : 'curl -fsSL https://claude.ai/install.sh | bash';
+  return `Install it with \`${native}\` or \`npm install -g @anthropic-ai/claude-code\`, or set claudekei.claudeExecutablePath.`;
 }

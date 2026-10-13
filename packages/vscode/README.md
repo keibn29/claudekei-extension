@@ -2,6 +2,8 @@
 
 ClaudeKei brings Claude into VS Code with a focused, editor-native workflow. It is a personal-use extension built on the Claude Agent SDK and authenticates through your local `claude login` session.
 
+> Requires the Claude Code CLI (`claude`) installed on your machine: `curl -fsSL https://claude.ai/install.sh | bash` (macOS/Linux), `irm https://claude.ai/install.ps1 | iex` (Windows) or `npm install -g @anthropic-ai/claude-code`. The extension does not bundle it; it is found on your login-shell PATH or in the usual install locations (override with `claudekei.claudeExecutablePath`).
+
 > Status: early scaffold (`0.1.0`). Sessions run on the Claude Agent SDK; the extension host owns every Claude process and the webviews are subscribers.
 
 ## Features
@@ -45,7 +47,7 @@ Select code in the editor, right-click, and use the **ClaudeKei** submenu:
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `claudekei.useApiKey` | `false` | Use `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` instead of the subscription login. |
-| `claudekei.claudeExecutablePath` | _(empty)_ | Absolute path to a `claude` executable. Empty = the binary bundled with the extension. |
+| `claudekei.claudeExecutablePath` | _(empty)_ | Absolute path to a `claude` executable. Empty = auto-detect the installed `claude` CLI. |
 | `claudekei.maxLiveSessions` | `3` | Max live Claude processes; least recently used idle ones are closed first. |
 | `claudekei.idleTimeoutMinutes` | `10` | Close an idle session's process after this many minutes (0 = never). |
 | `claudekei.primaryAgents` | `[]` | Order/labels/colors of the primary agents (empty = auto-detect the claudekei plugin agents). |
@@ -53,7 +55,7 @@ Select code in the editor, right-click, and use the **ClaudeKei** submenu:
 ## Requirements
 
 - VS Code 1.85+
-- Claude Code login on this machine (`claude login`); the extension bundles the Claude Code binary
+- Claude Code CLI installed and logged in on this machine (`claude login`); the extension does not bundle it
 - The `claudekei` Claude Code plugin enabled in `~/.claude/settings.json` for primary-agent cycling
 
 ## License

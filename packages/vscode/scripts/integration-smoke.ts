@@ -12,8 +12,7 @@
 import { execFile } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import type { ClaudeEvent } from '@openchamber/ui/src/lib/claude/protocol';
 import type { Part, PermissionMode } from '@openchamber/ui/src/lib/claude/types';
 import { Broadcaster } from '../src/claude/broadcaster';
@@ -54,7 +53,6 @@ const projectDir = join(homedir(), '.claude', 'projects', SANDBOX.replace(/[^a-z
 const transcripts = (): string[] => (existsSync(projectDir) ? readdirSync(projectDir).filter((f) => f.endsWith('.jsonl')) : []);
 
 // --- wiring ------------------------------------------------------------------
-const distDir = dirname(fileURLToPath(import.meta.url)); // bundled to <extension>/dist/: sibling node_modules has the SDK + binary
 const events: ClaudeEvent[] = [];
 const broadcaster = new Broadcaster({ batchMs: 5 });
 broadcaster.register({ post: (push) => void events.push(...push.events) });
@@ -94,7 +92,6 @@ const smokeConfig = { ...DEFAULT_MANAGER_CONFIG, idleTimeoutMinutes: 0, defaultP
 const manager = new ClaudeSessionManager({
   cwd: SANDBOX,
   home: SMOKE_HOME,
-  distDir,
   store: { get: ((k: string, d?: unknown) => (store.has(k) ? store.get(k) : d)) as never, update: async (k, v) => void store.set(k, v) },
   broadcaster,
   getConfig: () => smokeConfig,
@@ -157,7 +154,7 @@ try {
   // 2. catalog probe -------------------------------------------------------------------------
   const before = transcripts().length;
   const boot = await manager.bootstrap();
-  check('executable resolves to the bundled binary', manager.executable().source === 'bundled', manager.executable().path);
+  check('executable resolves to an installed claude CLI', manager.executable().source !== 'not-found', manager.executable().path);
   check('probe wrote no transcript', transcripts().length === before, `${before} -> ${transcripts().length}`);
   check('status connected + account present', manager.getStatus().status === 'connected' && !!boot.account?.email, JSON.stringify(manager.getStatus()));
   const primary = boot.catalog.primaryAgents.map((p) => p.name);

@@ -296,7 +296,7 @@ export function createHarness(
   overrides: Partial<ManagerConfig> = {},
   init: InitializationResult = STUB_INIT,
   /** `shared` simulates a window reload: a new manager over the same workspaceState and transcripts. */
-  extra: { home?: string; cwd?: string; storageDir?: string; shared?: { store: Map<string, unknown>; api: FakeSessionApi }; contextRaw?: unknown; usageRaw?: unknown; windows?: Record<string, number>; distDir?: string; measureWindows?: boolean; cli?: CliRunner; /** Make `cwd` a real git repository with one commit (needs git). */ git?: boolean } = {},
+  extra: { home?: string; cwd?: string; storageDir?: string; shared?: { store: Map<string, unknown>; api: FakeSessionApi }; contextRaw?: unknown; usageRaw?: unknown; windows?: Record<string, number>; exists?: (path: string) => boolean; measureWindows?: boolean; cli?: CliRunner; /** Make `cwd` a real git repository with one commit (needs git). */ git?: boolean } = {},
 ): Harness {
   const timers = new ManualTimers();
   const broadcaster = new Broadcaster({ setTimer: timers.setTimeout, clearTimer: timers.clearTimeout });
@@ -357,7 +357,8 @@ export function createHarness(
     mcpPollMs: 1,
     // The extra measuring probe would shift every test's query indices: only tests that give windows enable it.
     measureModelWindows: extra.measureWindows ?? extra.windows !== undefined,
-    distDir: extra.distDir,
+    // A fake CLI on the fake login PATH; tests of the not-found path override `exists`.
+    exists: extra.exists ?? ((p) => p === '/opt/login/bin/claude'),
     baseEnv: { PATH: '/usr/bin', ANTHROPIC_API_KEY: 'sk-test', HOME: '/home/x' },
     loginPath: async () => '/opt/login/bin',
     log: (level, message) => logs.push({ level, message }),

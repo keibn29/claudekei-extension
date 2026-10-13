@@ -1,21 +1,22 @@
 #!/usr/bin/env node
 /**
- * Copies the Claude Agent SDK and its native platform binary package(s) next to the bundled extension:
+ * Copies the Claude Agent SDK JS package next to the bundled extension:
  *
- *   dist/node_modules/@anthropic-ai/claude-agent-sdk/                 (ESM entry, loaded via dynamic import())
- *   dist/node_modules/@anthropic-ai/claude-agent-sdk-<platform-arch>/ (native `claude` binary)
+ *   dist/node_modules/@anthropic-ai/claude-agent-sdk/   (ESM entry, loaded via dynamic import())
  *
- * Why: the SDK is ESM-only and locates its native binary through `createRequire(import.meta.url)`, so it
- * cannot be inlined into the esbuild CJS bundle. Keeping both packages as siblings under
- * dist/node_modules lets Node resolve them from dist/extension.js after installation, while
- * `vsce package --no-dependencies` (which skips node_modules) still ships them because .vscodeignore
- * re-includes dist/**.
+ * The native Claude Code binary (`claude-agent-sdk-<platform>-<arch>` packages) is deliberately NOT shipped: the
+ * extension uses the `claude` CLI the user has installed (see resolveClaudeExecutable in src/claude/env.ts), which
+ * keeps the VSIX small and universal (one package for macOS, Windows and Linux).
  *
- * bun's isolated linker symlinks packages into node_modules/.bun, so everything is copied with symlinks
- * dereferenced. Only platform packages that were actually installed (bun installs the one matching the
- * current os/cpu) are copied.
+ * Why the SDK is copied at all: it is ESM-only, so it cannot be inlined into the esbuild CJS bundle; esbuild
+ * externalizes it and Node resolves it from dist/extension.js after installation. `vsce package --no-dependencies`
+ * (which skips node_modules) still ships it because .vscodeignore re-includes dist/**.
+ *
+ * bun's isolated linker symlinks packages into node_modules/.bun, so the package is copied with symlinks
+ * dereferenced. The whole @anthropic-ai scope under dist/node_modules is wiped first so stale platform packages
+ * from earlier builds never end up in the VSIX.
  */
-import { chmodSync, cpSync, existsSync, mkdirSync, readdirSync, realpathSync, rmSync, statSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, realpathSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,35 +30,8 @@ if (!existsSync(sdkLink)) {
   process.exit(1);
 }
 
-// The real SDK directory; its platform packages live beside it (bun: node_modules/.bun/<pkg>/node_modules/@anthropic-ai).
-const sdkReal = realpathSync(sdkLink);
-const scopeDir = dirname(sdkReal);
-const platformPackages = readdirSync(scopeDir).filter((name) => name.startsWith(`${sdkName}-`));
-if (platformPackages.length === 0) {
-  console.error(`copy-sdk: no ${sdkName}-<platform> binary package found next to ${sdkReal}. Was it installed with --omit=optional?`);
-  process.exit(1);
-}
-
 const destScope = join(root, 'dist', 'node_modules', scope);
-
-function copyPackage(name) {
-  const from = realpathSync(join(scopeDir, name));
-  const to = join(destScope, name);
-  const marker = join(to, 'package.json');
-  // Cheap idempotency: skip when the destination already has the same package.json size and a binary of the same size.
-  const binary = name === sdkName ? undefined : join(from, 'claude');
-  if (existsSync(marker) && statSync(marker).size === statSync(join(from, 'package.json')).size) {
-    if (!binary || (existsSync(join(to, 'claude')) && statSync(join(to, 'claude')).size === statSync(binary).size)) {
-      return 'up-to-date';
-    }
-  }
-  rmSync(to, { recursive: true, force: true });
-  mkdirSync(dirname(to), { recursive: true });
-  cpSync(from, to, { recursive: true, dereference: true });
-  if (binary) chmodSync(join(to, 'claude'), 0o755);
-  return 'copied';
-}
-
-for (const name of [sdkName, ...platformPackages]) {
-  console.log(`copy-sdk: ${scope}/${name} -> dist/node_modules/${scope}/${name} (${copyPackage(name)})`);
-}
+rmSync(destScope, { recursive: true, force: true });
+mkdirSync(destScope, { recursive: true });
+cpSync(realpathSync(sdkLink), join(destScope, sdkName), { recursive: true, dereference: true });
+console.log(`copy-sdk: ${scope}/${sdkName} -> dist/node_modules/${scope}/${sdkName}`);

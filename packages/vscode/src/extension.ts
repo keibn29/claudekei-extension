@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ChatViewProvider } from './ChatViewProvider';
+import { CLI_NOT_FOUND_MESSAGE, installHint } from './claude/env';
 import { createClaudeHost, resolveTerminalClaude, type ClaudeHost } from './claude/vscodeHost';
 import { readdirSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
@@ -362,7 +363,7 @@ export async function activate(context: vscode.ExtensionContext) {
         `Working directory: ${diag.cwd}`,
         `Status: ${diag.status}${diag.error ? ` (${diag.error})` : ''}`,
         `Account: ${diag.account ? [diag.account.email, diag.account.subscriptionType, diag.account.organization].filter(Boolean).join(' / ') : '(not logged in)'}`,
-        `Claude executable: ${diag.executable.path ?? '(SDK default)'} [${diag.executable.source}]${diag.executable.warning ? ` WARNING: ${diag.executable.warning}` : ''}`,
+        `Claude executable: ${diag.executable.path ?? '(NOT FOUND - install the claude CLI)'} [${diag.executable.source}]${diag.executable.warning ? ` WARNING: ${diag.executable.warning}` : ''}`,
         `Executable setting: ${(config.get<string>('claudeExecutablePath') || '').trim() || '(none)'}`,
         `Use API key: ${config.get<boolean>('useApiKey', false) ? 'yes' : 'no (subscription login)'}`,
         `Login-shell PATH: ${diag.loginPath ?? '(unavailable)'}`,
@@ -391,7 +392,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('claudekei.claudeLogin', async () => {
       const resolved = await resolveTerminalClaude(manager);
       if (!resolved) {
-        vscode.window.showErrorMessage('ClaudeKei: could not find the claude executable. Set claudekei.claudeExecutablePath.');
+        void notifyIfCliMissing(manager);
         return;
       }
       const terminal = vscode.window.createTerminal({
@@ -457,7 +458,18 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Probe the catalog (models, commands, agents, account) without blocking activation:
   // blocking here delays webview resolution and causes a blank panel until startup completes.
-  void manager.start();
+  void manager.start().then(() => notifyIfCliMissing(manager));
+}
+
+/** Tells the user (once per activation) that the `claude` CLI is required and could not be found. Never throws. */
+async function notifyIfCliMissing(manager: ClaudeHost['manager']): Promise<void> {
+  try {
+    if ((await manager.diagnostics()).executable.path) return;
+    const choice = await vscode.window.showErrorMessage(`ClaudeKei: ${CLI_NOT_FOUND_MESSAGE} ${installHint()}`, 'Open Setting');
+    if (choice === 'Open Setting') await vscode.commands.executeCommand('workbench.action.openSettings', 'claudekei.claudeExecutablePath');
+  } catch {
+    /* best-effort notification */
+  }
 }
 
 export async function deactivate() {

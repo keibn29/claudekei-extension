@@ -14,6 +14,7 @@ import type { AgentLog } from './agentLog';
 import { AsyncQueue } from './asyncQueue';
 import { estimateContextUsage, seedContextUsage, toContextBaseline, toContextUsage, type ContextBaseline } from './contextUsage';
 import { loadHistory } from './history';
+import { CLI_NOT_FOUND_MESSAGE, installHint } from './env';
 import { createMapper, type AliasResolver, type InitInfo, type Mapper, type SubagentDefaults } from './mapper';
 import { pluginAliasResolver } from './pluginAliases';
 import { cleanPluginState } from './pluginStateCleanup';
@@ -473,6 +474,8 @@ export class ClaudeSession {
   private async spawn(): Promise<void> {
     this.setLifecycle('starting');
     try {
+      const executablePath = this.deps.executablePath();
+      if (!executablePath) throw new Error(`${CLI_NOT_FOUND_MESSAGE} ${installHint()}`);
       const runtime = await this.deps.runtime();
       const env = await this.deps.env();
       const queue = new AsyncQueue<SDKUserMessage>();
@@ -507,7 +510,7 @@ export class ClaudeSession {
         abortController: abort,
         canUseTool: this.broker.canUseTool as unknown as SdkOptions['canUseTool'],
         stderr: (data) => this.deps.stderr?.(data),
-        ...(this.deps.executablePath() ? { pathToClaudeCodeExecutable: this.deps.executablePath() } : {}),
+        pathToClaudeCodeExecutable: executablePath,
       };
       const mapper = createMapper({
         sessionId: this.id,

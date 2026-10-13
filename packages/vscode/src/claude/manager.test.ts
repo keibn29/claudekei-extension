@@ -766,3 +766,17 @@ describe('stopping a turn stops the subagents (docs/STOP_SUBAGENTS_FIX.md)', () 
     expect(query.closed).toBe(false);
   });
 });
+
+describe('missing Claude Code CLI', () => {
+  test('no installed CLI: status error with an install hint, no probe is spawned, sending fails clearly', async () => {
+    const h = createHarness('text', {}, undefined, { exists: () => false });
+    await h.manager.refreshCatalog();
+    expect(h.manager.getStatus().status).toBe('error');
+    expect(h.manager.getStatus().error).toContain('Claude Code CLI not found');
+    expect(h.manager.getStatus().error).toContain('claude.ai/install');
+    expect(h.queries.length).toBe(0);
+    expect((await h.manager.diagnostics()).executable).toMatchObject({ path: undefined, source: 'not-found' });
+    const { id } = h.manager.create();
+    await expect(h.manager.send(id, { text: 'hi' } as never)).rejects.toThrow('Claude Code CLI not found');
+  });
+});

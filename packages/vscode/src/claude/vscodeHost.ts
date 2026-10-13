@@ -9,7 +9,7 @@ import type { PermissionMode } from '@openchamber/ui/src/lib/claude/types';
 import { Broadcaster } from './broadcaster';
 import type { PrimaryAgentSetting } from './catalog';
 import { claudekeiConfigPaths } from './claudekeiConfig';
-import { ClaudeSessionManager, findOnPath, type ManagerConfig } from './ClaudeSessionManager';
+import { ClaudeSessionManager, type ManagerConfig } from './ClaudeSessionManager';
 
 export function readManagerConfig(): ManagerConfig {
   const config = vscode.workspace.getConfiguration('claudekei');
@@ -44,7 +44,6 @@ export function createClaudeHost(context: vscode.ExtensionContext, output: vscod
   });
   const manager = new ClaudeSessionManager({
     cwd,
-    distDir: path.join(context.extensionPath, 'dist'),
     store: context.workspaceState,
     globalStore: context.globalState,
     // Without a workspace folder there is no per-workspace storage: use a per-window dir under the global one.
@@ -85,9 +84,9 @@ const safeJson = (value: unknown): string => {
   }
 };
 
-/** Resolved `claude` binary for terminal use (login): the configured/bundled executable, else `claude` on PATH. */
+/** Resolved `claude` binary for terminal use (login): the resolved (configured or installed) CLI. */
 export async function resolveTerminalClaude(manager: ClaudeSessionManager): Promise<{ path: string; envPath: string | undefined } | undefined> {
   const diag = await manager.diagnostics();
-  const exe = diag.executable.path ?? findOnPath('claude', diag.loginPath ?? process.env.PATH);
+  const exe = diag.executable.path;
   return exe ? { path: exe, envPath: diag.loginPath } : undefined;
 }

@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Catalog } from '@openchamber/ui/src/lib/claude/types';
@@ -7,7 +7,6 @@ import { handleClaudeBridgeMessage } from '../bridge-claude-runtime';
 import { allEvents, createHarness, tick, until, type Harness } from './fakes';
 import { MAX_TERMINAL_COMMAND_LENGTH, validateTerminalCommand } from './terminalCommand';
 import { ClaudeSessionManager } from './ClaudeSessionManager';
-import { platformPackageNames } from './env';
 
 const dirs: string[] = [];
 afterAll(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })));
@@ -84,71 +83,62 @@ describe('per-model context window', () => {
   });
 });
 
-/** Fake extension dist: `<dist>/node_modules/@anthropic-ai/<platform pkg>/{package.json,claude}` plus the SDK package. */
-const fakeDist = (version = '0.3.295') => {
-  const root = mkdtempSync(join(tmpdir(), 'ck-dist-'));
+/** Fake installed CLI: a real file the setting points at (the harness `exists` is the real one for these tests). */
+const fakeCli = () => {
+  const root = mkdtempSync(join(tmpdir(), 'ck-cli-'));
   dirs.push(root);
-  const pkgName = platformPackageNames()[0]!;
-  const pkgDir = join(root, 'node_modules', ...pkgName.split('/'));
-  mkdirSync(pkgDir, { recursive: true });
-  writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: pkgName, version }));
-  const binary = join(pkgDir, process.platform === 'win32' ? 'claude.exe' : 'claude');
+  const binary = join(root, 'claude');
   writeFileSync(binary, '#!/bin/sh\n');
-  mkdirSync(join(root, 'node_modules', '@anthropic-ai', 'claude-agent-sdk'), { recursive: true });
-  writeFileSync(join(root, 'node_modules', '@anthropic-ai', 'claude-agent-sdk', 'package.json'), JSON.stringify({ claudeCodeVersion: '2.1.295' }));
-  return { root, binary, pkgDir, pkgName };
+  return { root, binary };
+};
+const keyOf = (path: string) => {
+  const st = statSync(path);
+  return `${path}:${st.size}:${Math.round(st.mtimeMs)}`;
 };
 
-describe('cache key of the bundled binary', () => {
-  test('stable across a reinstall (the binary is re-extracted: new mtime and size); changes with the package version', async () => {
-    const dist = fakeDist();
-    const h = createHarness('text', {}, undefined, { windows: WINDOWS, distDir: dist.root });
+describe('cache key of the installed CLI', () => {
+  test('path + size + mtime: unchanged across a restart, a different build (CLI update) re-measures', async () => {
+    const cli = fakeCli();
+    const opts = { windows: WINDOWS, exists: existsSync };
+    const h = createHarness('text', { claudeExecutablePath: cli.binary }, undefined, opts);
     await h.manager.bootstrap();
     await h.manager['windowsMeasuring'];
     const stored = h.store.get('claudekei.modelWindows') as { key: string };
-    expect(stored.key).toBe(`bundled:${dist.pkgName.replace('@anthropic-ai/', '')}@0.3.295+cli2.1.295`);
+    expect(stored.key).toBe(keyOf(cli.binary));
 
-    // --install-extension --force: same path, rewritten file
-    writeFileSync(dist.binary, '#!/bin/sh\n# rebuilt\n');
-    utimesSync(dist.binary, new Date(Date.now() + 60_000), new Date(Date.now() + 60_000));
-    const h2 = createHarness('text', {}, undefined, { windows: WINDOWS, distDir: dist.root, shared: { store: h.store, api: h.api } });
+    // same binary on the next start: nothing measured again
+    const h2 = createHarness('text', { claudeExecutablePath: cli.binary }, undefined, { ...opts, shared: { store: h.store, api: h.api } });
     expect(windowsOf(h2.manager.catalog())).toEqual(WINDOWS);
     await h2.manager.bootstrap();
     await tick(50);
     await h2.manager['windowsMeasuring'];
-    expect(h2.queries.length).toBe(1); // only the catalog refresh probe: nothing measured again
+    expect(h2.queries.length).toBe(1); // only the catalog refresh probe
     expect(h2.manager['windowsStale']).toBe(false);
 
-    // a different Claude Code build: provisional values shown, everything measured again
-    writeFileSync(join(dist.pkgDir, 'package.json'), JSON.stringify({ name: dist.pkgName, version: '0.3.300' }));
-    const h3 = createHarness('text', {}, undefined, { windows: { default: 2_000_000, haiku: 300_000 }, distDir: dist.root, shared: { store: h.store, api: h.api } });
+    // `claude update`: the file behind the same path changes -> provisional values shown, everything measured again
+    writeFileSync(cli.binary, '#!/bin/sh\n# updated build\n');
+    utimesSync(cli.binary, new Date(Date.now() + 60_000), new Date(Date.now() + 60_000));
+    const h3 = createHarness('text', { claudeExecutablePath: cli.binary }, undefined, { windows: { default: 2_000_000, haiku: 300_000 }, exists: existsSync, shared: { store: h.store, api: h.api } });
     expect(windowsOf(h3.manager.catalog())).toEqual(WINDOWS); // provisional
     await h3.manager.bootstrap();
     await until(() => windowsOf(h3.manager.catalog()).default === 2_000_000, 3000);
     expect(windowsOf(h3.manager.catalog())).toEqual({ default: 2_000_000, haiku: 300_000 });
-    expect((h.store.get('claudekei.modelWindows') as { key: string }).key).toContain('@0.3.300');
-  });
-
-  test('a user-configured executable is keyed by path + size + mtime', async () => {
-    const dist = fakeDist();
-    const custom = join(dist.root, 'my-claude');
-    writeFileSync(custom, 'abc');
-    const h = createHarness('text', { claudeExecutablePath: custom }, undefined, { windows: WINDOWS, distDir: dist.root });
-    expect(h.manager['modelWindowsKey']).toMatch(new RegExp(`^${custom.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:3:\\d+$`));
+    expect((h.store.get('claudekei.modelWindows') as { key: string }).key).toBe(keyOf(cli.binary));
   });
 
   test('a lazy window recorded before the first measurement persists under the current key (not an empty one)', async () => {
-    const dist = fakeDist();
-    const h = createHarness('text', {}, undefined, { contextRaw: { totalTokens: 10, maxTokens: 1_000_000, rawMaxTokens: 1_000_000, model: 'claude-opus-5-5', categories: [] }, distDir: dist.root });
+    const cli = fakeCli();
+    const raw = { totalTokens: 10, maxTokens: 1_000_000, rawMaxTokens: 1_000_000, model: 'claude-opus-5-5', categories: [] };
+    const h = createHarness('text', { claudeExecutablePath: cli.binary }, undefined, { contextRaw: raw, exists: existsSync });
     await h.manager.bootstrap();
     const { id } = h.manager.create();
     await sendAndSettle(h, id);
     await until(() => h.manager['modelWindows'].default !== undefined, 2000);
     const stored = h.store.get('claudekei.modelWindows') as { key: string; windows: Record<string, number> };
-    expect(stored.key).toBe(`bundled:${dist.pkgName.replace('@anthropic-ai/', '')}@0.3.295+cli2.1.295`);
+    expect(stored.key).toBe(keyOf(cli.binary));
     expect(stored.windows.default).toBe(1_000_000);
     // ... and is accepted as valid on the next start (same build)
-    const h2 = createHarness('text', {}, undefined, { distDir: dist.root, shared: { store: h.store, api: h.api } });
+    const h2 = createHarness('text', { claudeExecutablePath: cli.binary }, undefined, { exists: existsSync, shared: { store: h.store, api: h.api } });
     expect(windowsOf(h2.manager.catalog()).default).toBe(1_000_000);
     expect(h2.manager['windowsStale']).toBe(false);
   });

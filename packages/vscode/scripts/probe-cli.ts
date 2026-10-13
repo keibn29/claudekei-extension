@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Spike S3 (docs/SETTINGS_USAGE_SPEC.md section 8): stdout / stderr / exit code of the bundled CLI's config subcommands.
+ * Spike S3 (docs/SETTINGS_USAGE_SPEC.md section 8): stdout / stderr / exit code of the installed CLI's config subcommands.
  * Touches ~/.claude: disables and re-enables the claudekei plugin, adds and removes a throwaway MCP server `zz-spike`.
  * Output: src/claude/__fixtures__/config/cli-spike.json
  */

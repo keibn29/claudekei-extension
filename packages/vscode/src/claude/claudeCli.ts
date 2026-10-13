@@ -1,5 +1,5 @@
 /**
- * Runs subcommands of the bundled `claude` CLI (`mcp add-json`, `plugin enable`, ...). Claude Code locks `~/.claude.json`
+ * Runs subcommands of the installed `claude` CLI (`mcp add-json`, `plugin enable`, ...). Claude Code locks `~/.claude.json`
  * and `settings.json`, so those files are only ever changed through the CLI (docs/SETTINGS_USAGE_SPEC.md section 0).
  */
 import { execFile } from 'node:child_process';

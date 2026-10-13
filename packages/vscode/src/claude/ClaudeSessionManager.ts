@@ -20,7 +20,7 @@ import { listConfig, type ConfigFsOptions } from './claudeConfig';
 import { mapMcpServers, mcpConfigJson, mergeMcpConfig, validateMcpConfig } from './mcpStatus';
 import type { SkillsCatalogOptions } from './skillsCatalog';
 import { ClaudeSession, type ClaudeSessionDeps, type SendInput, type SessionPrefs } from './ClaudeSession';
-import { buildClaudeEnv, resolveClaudeExecutable, resolveLoginShellPath, type ExecutableResolution } from './env';
+import { buildClaudeEnv, CLI_NOT_FOUND_MESSAGE, installHint, resolveClaudeExecutable, resolveLoginShellPath, type ExecutableResolution } from './env';
 import type { InitInfo, SubagentDefaults } from './mapper';
 import { FileHistory } from './fileHistory';
 import { RevertStore } from './revertStore';
@@ -53,8 +53,6 @@ export type ManagerConfig = {
 
 export type ClaudeSessionManagerOptions = {
   cwd: string;
-  /** `<extension>/dist`, where the bundled SDK binary lives. */
-  distDir?: string;
   store: KeyValueStore;
   broadcaster: Broadcaster;
   getConfig: () => ManagerConfig;
@@ -163,6 +161,7 @@ export class ClaudeSessionManager {
   private agentFrontmatter = new Map<string, AgentPreset>();
   private status: ConnectionStatus = 'connecting';
   private statusError: string | undefined;
+  private loginPathValue: string | undefined;
   private readonly log: NonNullable<ClaudeSessionManagerOptions['log']>;
   private readonly now: () => number;
   private readonly timers: NonNullable<ClaudeSessionManagerOptions['timers']>;
@@ -192,7 +191,15 @@ export class ClaudeSessionManager {
       this.status = 'connected';
     }
     this.agentLog = new AgentLog(options.store);
-    this.cli = options.cli ?? createCliRunner(() => this.executable().path ?? findOnPath('claude', (options.baseEnv ?? process.env).PATH));
+    this.cli = options.cli ?? createCliRunner(() => this.executable().path);
+    // Warm the login-shell PATH so the sync executable() lookup can use it; a CLI found only there changes the cache key.
+    void this.loginPath().then(() => {
+      const key = this.cliKey();
+      if (key === this.modelWindowsKey) return;
+      this.modelWindowsKey = key;
+      const stored = (options.globalStore ?? options.store).get<{ key: string; stale?: boolean } | undefined>(WINDOWS_KEY, undefined);
+      this.windowsStale = stored ? stored.stale === true || stored.key !== key : this.windowsStale;
+    });
     this.usage = (options.globalStore ?? options.store).get<UsageLimits | undefined>(USAGE_KEY, undefined);
     this.contextBaselines = (options.globalStore ?? options.store).get<Record<string, ContextBaseline>>(BASELINES_KEY, {});
     this.deps = {
@@ -246,11 +253,23 @@ export class ClaudeSessionManager {
   }
 
   executable(): ExecutableResolution {
-    return resolveClaudeExecutable({ override: this.config.claudeExecutablePath, distDir: this.options.distDir, exists: this.options.exists });
+    return resolveClaudeExecutable({
+      override: this.config.claudeExecutablePath,
+      loginPath: this.loginPathValue,
+      pathEnv: (this.options.baseEnv ?? process.env).PATH,
+      env: this.options.baseEnv,
+      exists: this.options.exists,
+    });
+  }
+
+  /** Login-shell PATH; remembered so the synchronous `executable()` can search it. */
+  private async loginPath(): Promise<string | undefined> {
+    this.loginPathValue = await (this.options.loginPath ?? (() => resolveLoginShellPath()))();
+    return this.loginPathValue;
   }
 
   private async buildEnv(): Promise<Record<string, string | undefined>> {
-    const loginPath = await (this.options.loginPath ?? (() => resolveLoginShellPath()))();
+    const loginPath = await this.loginPath();
     return buildClaudeEnv(this.options.baseEnv ?? process.env, { useApiKey: this.config.useApiKey, loginPath, clientApp: this.options.clientApp ?? 'claudekei' });
   }
 
@@ -324,6 +343,11 @@ export class ClaudeSessionManager {
     this.catalogPromise ??= (async () => {
       if (!this.probe) this.setStatus('connecting');
       try {
+        await this.loginPath();
+        if (!this.executable().path) {
+          this.setStatus('error', `${CLI_NOT_FOUND_MESSAGE} ${installHint()}`);
+          return;
+        }
         const runtime = await this.runtimeLoader();
         const result = await probeCatalog({
           queryFactory: runtime.queryFactory,
@@ -403,32 +427,12 @@ export class ClaudeSessionManager {
   // --- model context windows ---------------------------------------------------
 
   /**
-   * Cache key of the Claude Code build: a new CLI can change model windows. The bundled binary is identified by its
-   * platform package name and version (stable across a reinstall of the extension, which re-extracts the file and
-   * changes its path/mtime), plus the CLI version the SDK declares. Only a user-configured executable falls back to
-   * path + size + mtime.
+   * Cache key of the Claude Code build: a new CLI can change model windows. Identified by path + size + mtime
+   * (the native installer swaps the versioned binary behind the symlink on every update).
    */
   private cliKey(): string {
-    const resolution = this.executable();
-    const path = resolution.path;
-    if (!path) return 'sdk-default';
-    if (resolution.source === 'bundled') {
-      try {
-        const pkg = JSON.parse(readFileSync(join(dirname(path), 'package.json'), 'utf8')) as { name?: string; version?: string };
-        if (pkg.name && pkg.version) {
-          let cli = '';
-          try {
-            const sdk = JSON.parse(readFileSync(join(dirname(dirname(path)), 'claude-agent-sdk', 'package.json'), 'utf8')) as { claudeCodeVersion?: string };
-            if (sdk.claudeCodeVersion) cli = `+cli${sdk.claudeCodeVersion}`;
-          } catch {
-            /* optional */
-          }
-          return `bundled:${pkg.name.replace(/^@anthropic-ai\//, '')}@${pkg.version}${cli}`;
-        }
-      } catch {
-        /* no package.json next to the binary: fall through to the file identity */
-      }
-    }
+    const path = this.executable().path;
+    if (!path) return 'no-cli';
     try {
       const st = statSync(path);
       return `${path}:${st.size}:${Math.round(st.mtimeMs)}`;
@@ -1156,7 +1160,7 @@ export class ClaudeSessionManager {
   }
 
   async diagnostics(): Promise<Diagnostics> {
-    const loginPath = await (this.options.loginPath ?? (() => resolveLoginShellPath()))();
+    const loginPath = await this.loginPath();
     const env = await this.buildEnv();
     const catalog = this.catalog();
     return {
