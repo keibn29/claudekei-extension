@@ -1,8 +1,8 @@
 {
-  "name": "claudekei",
+  "name": "claudekei-extension",
   "displayName": "ClaudeKei",
   "description": "ClaudeKei VS Code extension for Claude (Claude Agent SDK)",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "kei29",
   "license": "MIT",
   "repository": {

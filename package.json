@@ -1,6 +1,6 @@
 {
   "name": "claudekei-extension",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "ClaudeKei monorepo workspace for the VS Code extension and shared UI",
   "private": true,
   "type": "module",
