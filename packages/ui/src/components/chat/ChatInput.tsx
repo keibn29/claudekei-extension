@@ -6,7 +6,6 @@ import {
     RiAiAgentLine,
     RiAttachment2,
     RiCommandLine,
-    RiDragDropLine,
     RiFolderLine,
     RiFullscreenLine,
     RiSendPlane2Line,
@@ -704,8 +703,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         [],
     );
     const [isDragging, setIsDragging] = React.useState(false);
-    // True while files are dragged over the composer without Shift (VS Code webviews only accept drops with Shift held).
-    const [needsShiftHint, setNeedsShiftHint] = React.useState(false);
     const [isInternalDrag, setIsInternalDrag] = React.useState(false);
     const [showFileMention, setShowFileMention] = React.useState(false);
     const [mentionQuery, setMentionQuery] = React.useState('');
@@ -2512,7 +2509,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         if ((currentSessionId || newSessionDraftOpen) && !isDragging) {
             setIsDragging(true);
         }
-        setNeedsShiftHint(!e.shiftKey);
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -2525,9 +2521,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         if ((currentSessionId || newSessionDraftOpen) && !isDragging) {
             setIsDragging(true);
         }
-        if (needsShiftHint !== !e.shiftKey) {
-            setNeedsShiftHint(!e.shiftKey);
-        }
     };
 
     const handleDragLeave = (e: React.DragEvent) => {
@@ -2537,7 +2530,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         if (dragEnterCountRef.current <= 0) {
             dragEnterCountRef.current = 0;
             setIsDragging(false);
-            setNeedsShiftHint(false);
             setIsInternalDrag(false);
             clearDropTextSuppression();
         }
@@ -2546,28 +2538,9 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     const handleDragEnd = () => {
         dragEnterCountRef.current = 0;
         setIsDragging(false);
-        setNeedsShiftHint(false);
         setIsInternalDrag(false);
         clearDropTextSuppression();
     };
-
-    // Safety net: never leave the drag overlays stuck if the drag ends outside the composer.
-    React.useEffect(() => {
-        if (!isDragging) return;
-        const reset = () => {
-            dragEnterCountRef.current = 0;
-            setIsDragging(false);
-            setNeedsShiftHint(false);
-        };
-        window.addEventListener('blur', reset);
-        document.addEventListener('dragend', reset);
-        document.addEventListener('drop', reset);
-        return () => {
-            window.removeEventListener('blur', reset);
-            document.removeEventListener('dragend', reset);
-            document.removeEventListener('drop', reset);
-        };
-    }, [isDragging]);
 
     const handleDrop = async (e: React.DragEvent) => {
         dragEnterCountRef.current = 0;
@@ -2579,7 +2552,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(false);
-        setNeedsShiftHint(false);
 
         if (!currentSessionId && !newSessionDraftOpen) return;
 
@@ -3192,20 +3164,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                     onDrop={handleDrop}
                     onDragEnd={handleDragEnd}
                 >
-                    <div
-                        aria-hidden={!(isDragging && needsShiftHint)}
-                        className={cn(
-                            "pointer-events-none absolute inset-0 z-50 flex items-center justify-center gap-2",
-                            "bg-background/80 text-muted-foreground backdrop-blur-sm",
-                            "transition-opacity duration-150",
-                            isDragging && needsShiftHint ? "opacity-100" : "opacity-0"
-                        )}
-                        style={{ borderRadius: chatInputRadius }}
-                    >
-                        <RiDragDropLine className={cn(iconSizeClass, 'text-current')} />
-                        <span className="typography-ui-label">{t('chat.chatInput.drop.holdShift')}</span>
-                    </div>
-                    {isDragging && !needsShiftHint && (
+                    {isDragging && (
                         <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/90 rounded-xl">
                             <div className="text-center">
                                 <div className="inline-flex justify-center">

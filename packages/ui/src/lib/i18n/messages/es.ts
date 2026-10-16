@@ -872,7 +872,6 @@ export const dict: Record<I18nKey, string> = {
   "chat.chatInput.branch": "Rama",
   "chat.chatInput.drop.insertMention": "Suelta para insertar como mención",
   "chat.chatInput.drop.attachFiles": "Suelta archivos aquí para adjuntar",
-  "chat.chatInput.drop.holdShift": "Mantén Shift para soltar archivos",
   "chat.chatInput.fileFallback": "archivo",
   "chat.mobileStatus.editProjects.title": "Editar proyectos",
   "chat.mobileStatus.editProjects.footer": "Arrastra los elementos para reordenar, o use flechas para mover. Toca editar para cambiar los detalles.",

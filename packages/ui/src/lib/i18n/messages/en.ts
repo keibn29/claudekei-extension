@@ -871,7 +871,6 @@ export const dict = {
   'chat.chatInput.branch': 'Branch',
   'chat.chatInput.drop.insertMention': 'Drop to insert as mention',
   'chat.chatInput.drop.attachFiles': 'Drop files here to attach',
-  'chat.chatInput.drop.holdShift': 'Hold Shift to drop files',
   'chat.chatInput.fileFallback': 'file',
   'chat.mobileStatus.editProjects.title': 'Edit Projects',
   'chat.mobileStatus.editProjects.footer': 'Drag items to reorder, or use arrows to move. Tap edit to change details.',
