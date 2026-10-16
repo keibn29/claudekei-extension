@@ -33,8 +33,8 @@
   padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
   background: var(--surface-muted);
-  /* The theme's syntax "type" colour (Dracula yellow/orange). */
-  color: var(--syntax-type);
+  /* Match assistant code blocks: plain code text uses VS Code's textPreformat colour inside the webview (falls back to the theme foreground elsewhere). */
+  color: var(--vscode-textPreformat-foreground, var(--syntax-foreground));
   font-family: var(--font-mono);
   font-size: var(--text-code);
   /* The editor and the user bubble must wrap code blocks identically (TipTap only wraps the editor by itself). */
