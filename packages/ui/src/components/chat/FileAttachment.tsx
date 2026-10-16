@@ -174,7 +174,7 @@ const ImagePreview = memo(({ file, onRemove }: ImagePreviewProps) => {
   }
 
   return (
-    <div className="relative h-10 w-10 rounded-lg border border-border/40 bg-muted/10 overflow-hidden flex-shrink-0 group">
+    <div className="relative h-10 w-10 rounded-lg border border-[var(--interactive-border)] bg-muted/10 overflow-hidden flex-shrink-0 group">
       <img
         src={imageUrl}
         alt={displayName}
@@ -331,7 +331,13 @@ export const MessageFilesDisplay = memo(({ files, onShowPopup, compact = false }
   };
 
   const resolveDisplayName = React.useCallback((file: FilePart): string => {
-    return extractFilename(file.filename || file.url);
+    if (file.filename) return extractFilename(file.filename);
+    // Avoid exposing the tail of a base64 data URL as a name.
+    if (!file.url || file.url.startsWith('data:')) {
+      const ext = file.mime?.startsWith('image/') ? file.mime.slice(6).split(/[+;]/)[0] : '';
+      return ext ? `image.${ext}` : 'Pasted file';
+    }
+    return extractFilename(file.url);
   }, []);
 
   const formatFileSize = (bytes?: number) => {
@@ -435,7 +441,7 @@ export const MessageFilesDisplay = memo(({ files, onShowPopup, compact = false }
                       <button
                         type="button"
                         onClick={() => handleImageClick(index)}
-                        className="relative flex-none border border-border/40 bg-muted/10 overflow-hidden snap-start h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-primary"
+                        className="relative flex-none border border-[var(--interactive-border)] bg-muted/10 overflow-hidden snap-start h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-primary"
                         aria-label={filename}
                       >
                         {file.url ? (
@@ -484,7 +490,7 @@ export const MessageFilesDisplay = memo(({ files, onShowPopup, compact = false }
           return (
             <div
               key={file.url || `${fileName}-${index}`}
-              className="relative aspect-video rounded-lg border border-border/40 bg-muted/10 overflow-hidden group"
+              className="relative aspect-video rounded-lg border border-[var(--interactive-border)] bg-muted/10 overflow-hidden group"
             >
               <img
                 src={file.url}
