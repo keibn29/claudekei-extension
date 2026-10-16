@@ -4,6 +4,15 @@
  * `composer-content` class by both the editor (ProseMirror root) and the user
  * message bubble in the transcript, so the two always match.
  */
+/* Code block text colour: Dracula yellow on dark themes, a darker yellow on light ones for contrast. No theme token maps to yellow, so override this property per theme if needed. */
+.composer-content {
+  --composer-code-foreground: #8a6d00;
+}
+
+.dark .composer-content {
+  --composer-code-foreground: #f1fa8c;
+}
+
 .composer-content {
   word-break: break-word;
   color: var(--surface-foreground);
@@ -33,11 +42,13 @@
   padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
   background: var(--surface-muted);
-  color: var(--surface-foreground);
+  color: var(--composer-code-foreground);
   font-family: var(--font-mono);
   font-size: var(--text-code);
+  /* The editor and the user bubble must wrap code blocks identically (TipTap only wraps the editor by itself). */
   overflow-x: auto;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .composer-content pre code {
@@ -46,6 +57,8 @@
   background: none;
   color: inherit;
   font-size: inherit;
+  white-space: inherit;
+  overflow-wrap: inherit;
 }
 
 .composer-content ul,

@@ -135,7 +135,11 @@ export const FileMentionAutocomplete = React.forwardRef<FileMentionHandle, FileM
       : EMPTY_AGENTS,
     [activeTab, agents, normalizedSearchQuery.length, scopeResultsToActiveTab],
   );
-  const visibleDirectories = !scopeResultsToActiveTab || activeTab === 'files' ? directories : EMPTY_FILES;
+  const visibleDirectories = React.useMemo(() => {
+    if (scopeResultsToActiveTab && activeTab !== 'files') return EMPTY_FILES;
+    const filePaths = new Set(files.map((file) => file.path));
+    return directories.filter((dir) => !filePaths.has(dir.path));
+  }, [activeTab, directories, files, scopeResultsToActiveTab]);
   const visibleRecentFiles = !scopeResultsToActiveTab || activeTab === 'files' ? recentFiles : EMPTY_FILES;
   const visibleFiles = !scopeResultsToActiveTab || activeTab === 'files' ? files : EMPTY_FILES;
 

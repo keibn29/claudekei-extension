@@ -1,6 +1,6 @@
 import React from 'react';
 import { Extension, type Editor } from '@tiptap/core';
-import { Plugin, TextSelection } from '@tiptap/pm/state';
+import { Plugin } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -48,26 +48,18 @@ const insertNewline = (editor: Editor): boolean => {
   if (convertFenceToCodeBlock(editor)) return true;
 
   if (editor.isActive('listItem')) {
-    // Shift+Enter in a list always starts a new item and never lifts out (Backspace on an
-    // empty item does that). TipTap's splitListItem refuses on an empty top-level item, so
-    // insert the sibling item ourselves in that case.
-    if (editor.commands.splitListItem('listItem')) return true;
-    return editor.commands.command(({ state, tr, dispatch }) => {
-      const itemType = state.schema.nodes.listItem;
-      for (let depth = $from.depth; depth > 0; depth -= 1) {
-        if ($from.node(depth).type !== itemType) continue;
-        const insertPos = $from.after(depth);
-        const created = itemType.createAndFill();
-        if (!created) return false;
-        if (dispatch) {
-          tr.insert(insertPos, created);
-          tr.setSelection(TextSelection.near(tr.doc.resolve(insertPos + 1)));
-          dispatch(tr.scrollIntoView());
-        }
-        return true;
+    // Shift+Enter on an empty item exits the list (one level per press), like Backspace.
+    const itemType = editor.state.schema.nodes.listItem;
+    for (let depth = $from.depth; depth > 0; depth -= 1) {
+      if ($from.node(depth).type !== itemType) continue;
+      const item = $from.node(depth);
+      if (editor.state.selection.empty && item.childCount === 1 && item.textContent === '') {
+        return editor.commands.liftListItem('listItem');
       }
-      return false;
-    });
+      break;
+    }
+    // Otherwise start a new item.
+    return editor.commands.splitListItem('listItem');
   }
 
   return editor.commands.splitBlock();

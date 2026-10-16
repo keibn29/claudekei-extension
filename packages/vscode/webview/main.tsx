@@ -364,6 +364,7 @@ const handleLocalApiRequest = async (url: URL, init?: RequestInit) => {
       limit: url.searchParams.has('limit') ? Number(url.searchParams.get('limit')) : undefined,
       includeHidden: url.searchParams.get('includeHidden') === 'true',
       respectGitignore: url.searchParams.get('respectGitignore') !== 'false',
+      type: url.searchParams.get('type') === 'directory' ? 'directory' : 'file',
     });
     return new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } });
   }

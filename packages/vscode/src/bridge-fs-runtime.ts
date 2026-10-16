@@ -47,6 +47,7 @@ type FsDeps = {
     limit: number | undefined,
     includeHidden: boolean,
     respectGitignore: boolean,
+    type?: 'file' | 'directory',
   ) => Promise<Array<{ name: string; path: string; relativePath: string; extension: string | undefined }>>;
   resolveFileReadPath: (inputPath: string) => Promise<
     | { ok: true; resolvedPath: string }
@@ -134,14 +135,22 @@ export async function handleFsBridgeMessage(
     }
 
     case 'api:fs:search': {
-      const { directory = '', query = '', limit, includeHidden, respectGitignore } = (payload || {}) as {
+      const { directory = '', query = '', limit, includeHidden, respectGitignore, type: searchType } = (payload || {}) as {
         directory?: string;
         query?: string;
         limit?: number;
         includeHidden?: boolean;
         respectGitignore?: boolean;
+        type?: 'file' | 'directory';
       };
-      const files = await deps.searchDirectory(directory, query, limit, Boolean(includeHidden), respectGitignore !== false);
+      const files = await deps.searchDirectory(
+        directory,
+        query,
+        limit,
+        Boolean(includeHidden),
+        respectGitignore !== false,
+        searchType === 'directory' ? 'directory' : 'file',
+      );
       return { id, type, success: true, data: { files } };
     }
 

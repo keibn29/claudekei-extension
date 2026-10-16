@@ -301,6 +301,7 @@ class ClaudeHost {
     if (typeof options?.limit === 'number' && Number.isFinite(options.limit)) params.set('limit', String(options.limit));
     if (options?.includeHidden) params.set('includeHidden', 'true');
     if (options?.respectGitignore === false) params.set('respectGitignore', 'false');
+    if (options?.type === 'directory' || options?.dirs === true) params.set('type', 'directory');
 
     const response = await fetch(`${API_BASE}/fs/search?${params.toString()}`);
     if (!response.ok) {

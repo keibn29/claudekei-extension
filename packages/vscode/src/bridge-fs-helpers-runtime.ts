@@ -280,6 +280,7 @@ const searchFilesystemFiles = async (
   includeHidden: boolean,
   respectGitignore: boolean,
   timeBudgetMs?: number,
+  type: 'file' | 'directory' = 'file',
 ) => {
   const normalizedQuery = (query || '').trim().toLowerCase();
   const matchAll = normalizedQuery.length === 0;
@@ -332,10 +333,21 @@ const searchFilesystemFiles = async (
             visited.add(absolute);
             queue.push(entryUri);
           }
+          if (type === 'directory') {
+            const dirRelativePath = normalizeFsPath(path.relative(rootPath, absolute) || entryName);
+            const dirScore = matchAll ? 0 : fuzzyMatchScore(normalizedQuery, dirRelativePath);
+            if (dirScore !== null) {
+              candidates.push({ name: entryName, path: absolute, relativePath: dirRelativePath, score: dirScore });
+              if (candidates.length >= collectLimit) {
+                queue.length = 0;
+                break;
+              }
+            }
+          }
           continue;
         }
 
-        if (entryType !== vscode.FileType.File) {
+        if (type === 'directory' || entryType !== vscode.FileType.File) {
           continue;
         }
 
@@ -399,6 +411,7 @@ export const searchDirectory = async (
   limit = 60,
   includeHidden = false,
   respectGitignore = true,
+  type: 'file' | 'directory' = 'file',
 ) => {
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || os.homedir();
   const rootPath = directory
@@ -407,6 +420,10 @@ export const searchDirectory = async (
   if (!rootPath) return [];
 
   const sanitizedQuery = query?.trim() || '';
+  if (type === 'directory') {
+    // findFiles cannot return folders, so directories always come from the filesystem traversal.
+    return searchFilesystemFiles(rootPath, sanitizedQuery, limit, includeHidden, respectGitignore, 1500, 'directory');
+  }
   if (!sanitizedQuery) {
     return searchFilesystemFiles(rootPath, '', limit, includeHidden, respectGitignore);
   }
