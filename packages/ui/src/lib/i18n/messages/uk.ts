@@ -872,6 +872,7 @@ export const dict: Record<I18nKey, string> = {
   "chat.chatInput.branch": "гілка",
   "chat.chatInput.drop.insertMention": "Відпустіть, щоб вставити як згадку",
   "chat.chatInput.drop.attachFiles": "Перетягніть файли сюди, щоб прикріпити",
+  "chat.chatInput.drop.holdShift": "Утримуйте Shift, щоб перетягнути файли",
   "chat.chatInput.fileFallback": "файл",
   "chat.mobileStatus.editProjects.title": "Редагувати проєкти",
   "chat.mobileStatus.editProjects.footer": "Перетягніть елементи, щоб змінити порядок, або використовуйте стрілки, щоб перемістити. Натисніть «Редагувати», щоб змінити деталі.",

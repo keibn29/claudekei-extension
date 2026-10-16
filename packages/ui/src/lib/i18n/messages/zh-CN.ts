@@ -872,6 +872,7 @@ export const dict: Record<I18nKey, string> = {
   'chat.chatInput.branch': '分支',
   'chat.chatInput.drop.insertMention': '释放以插入为提及',
   'chat.chatInput.drop.attachFiles': '将文件拖放到此处以附加',
+  'chat.chatInput.drop.holdShift': '按住 Shift 以拖放文件',
   'chat.chatInput.fileFallback': '文件',
   'chat.mobileStatus.editProjects.title': '编辑项目',
   'chat.mobileStatus.editProjects.footer': '拖动可重新排序，或使用箭头移动。点击编辑可修改详情。',
